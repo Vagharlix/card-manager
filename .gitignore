@@ -1,24 +1,108 @@
-# Logs
-logs
+# ============================================================
+# RUST / CARGO
+# ============================================================
+target/
+**/*.rs.bk
+Cargo.lock          # remove this line if you want to keep it (recommended for apps, optional for libs)
+ 
+# ============================================================
+# NODE / PNPM
+# ============================================================
+node_modules/
+.pnpm-store/
+.pnpm-debug.log
+ 
+# ============================================================
+# NUXT
+# ============================================================
+app/.nuxt/
+app/.output/
+app/dist/
+app/.cache/
+ 
+# ============================================================
+# VITE
+# ============================================================
+dist/
+dist-ssr/
+*.local
+ 
+# ============================================================
+# TAURI
+# ============================================================
+src-tauri/target/
+src-tauri/gen/        # generated mobile project files (Android/iOS)
+WixTools/             # Windows installer toolchain, downloaded at build time
+ 
+# ============================================================
+# DATABASES — never commit db files
+# Both dev (.dev.db) and prod (.db) stay local
+# ============================================================
+*.db
+*.db-shm              # WAL shared memory file
+*.db-wal              # WAL write-ahead log
+ 
+# ============================================================
+# ENVIRONMENT & SECRETS
+# ============================================================
+.env
+.env.*
+!.env.example         # keep the example template committed
+ 
+# ============================================================
+# OS
+# ============================================================
+ 
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ 
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+ 
+# Linux
+*~
+ 
+# ============================================================
+# EDITORS & IDEs
+# ============================================================
+ 
+# VS Code — keep shared settings, ignore personal/local ones
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json    # remove this if your settings.json has personal paths
+ 
+# JetBrains (Rider, WebStorm, etc.)
+.idea/
+*.iml
+ 
+# Vim / Neovim
+*.swp
+*.swo
+Session.vim
+ 
+# ============================================================
+# LOGS & TEMP
+# ============================================================
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+ 
+# ============================================================
+# BUILD ARTIFACTS
+# ============================================================
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
