@@ -1,49 +1,76 @@
 <template>
-  <div style="padding: 2rem; font-family: monospace;">
-    <h2>DB init test</h2>
-    <pre>{{ output }}</pre>
-  </div>
+  <UApp>
+ 
+    <!-- ── sync overlay ── -->
+    <Transition name="fade">
+      <div
+        v-if="isSyncing || syncError"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+      >
+        <UCard class="w-80 flex flex-col items-center gap-4 p-8">
+ 
+          <!-- error state -->
+          <template v-if="syncError">
+            <UAlert
+              color="error"
+              variant="soft"
+              icon="i-lucide-circle-x"
+              title="Sync failed"
+              :description="syncError"
+            />
+            <UButton
+              color="primary"
+              variant="solid"
+              label="Retry"
+              icon="i-lucide-refresh-cw"
+              @click="retry"
+            />
+          </template>
+ 
+          <!-- progress state -->
+          <template v-else>
+            <p class="text-sm text-muted text-center">{{ syncStatus }}</p>
+            <UProgress
+              :value="syncProgress"
+              color="primary"
+              size="sm"
+              class="w-full"
+            />
+            <p class="text-xs text-muted">{{ syncProgress }}%</p>
+          </template>
+ 
+        </UCard>
+      </div>
+    </Transition>
+ 
+    <!-- ── app content ── -->
+    <template v-if="!isSyncing && !syncError">
+      <NuxtPage />
+    </template>
+ 
+  </UApp>
 </template>
-
+ 
 <script setup lang="ts">
-import Database from '@tauri-apps/plugin-sql'
-import { appDataDir } from '@tauri-apps/api/path'
-import { DB_NAMES } from '~/utils/db-names'
-
-const output = ref('')
-const log = (msg: string) => {
-  console.log(msg)
-  output.value += msg + '\n'
+import { syncYgo, syncProgress, syncStatus, syncError, isSyncing } from '~/services/sync'
+ 
+async function retry() {
+  syncError.value = null
+  await runSync()
 }
-
-onMounted(async () => {
+ 
+async function runSync() {
   try {
-    const dir = await appDataDir()
-    log(`App data dir: ${dir}`)
-
-    log(`\nOpening ${DB_NAMES.user}...`)
-    const userDb = await Database.load(DB_NAMES.user)
-    log('user.db OK')
-
-    log(`\nOpening ${DB_NAMES.ygo}...`)
-    const ygoDb = await Database.load(DB_NAMES.ygo)
-    log('cards-ygo.db OK')
-
-    log('\n--- user.db tables ---')
-    const userTables = await userDb.select<{ name: string }[]>(
-      `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
-    )
-    userTables.forEach(t => log(`  ${t.name}`))
-
-    log('\n--- cards-ygo.db tables ---')
-    const ygoTables = await ygoDb.select<{ name: string }[]>(
-      `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
-    )
-    ygoTables.forEach(t => log(`  ${t.name}`))
-
-    log('\nAll good.')
-  } catch (err) {
-    log(`\nERROR: ${err}`)
-  }
-})
+    await syncYgo()
+  } catch {}
+}
+ 
+onMounted(runSync)
 </script>
+ 
+<style scoped>
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from,
+.fade-leave-to     { opacity: 0; }
+</style>

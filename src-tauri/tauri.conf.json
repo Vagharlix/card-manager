@@ -5,11 +5,12 @@
   "identifier": "com.card-manager.app",
   "build": {
     "beforeDevCommand": "pnpm --dir app dev",
-    "beforeBuildCommand": "pnpm generate",
+    "beforeBuildCommand": "pnpm --dir app generate",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../dist"
+    "frontendDist": "../app/.output/public"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "card-manager",
