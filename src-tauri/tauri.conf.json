@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.card-manager.app",
   "build": {
-    "beforeDevCommand": "pnpm --dir app dev",
+    "beforeDevCommand": "",
     "beforeBuildCommand": "pnpm --dir app generate",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../app/.output/public"
+    "frontendDist": "http://localhost:3000"
   },
   "app": {
     "withGlobalTauri": true,

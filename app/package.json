@@ -14,15 +14,12 @@
     "@nuxt/icon": "^2.2.2",
     "@nuxt/ui": "^4.8.1",
     "@nuxtjs/color-mode": "^4.0.0",
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-opener": "^2.5.4",
+    "@tauri-apps/plugin-sql": "^2.4.0",
     "nuxt": "4.4.2",
+    "tailwindcss": "^4.3.0",
     "vue": "^3.5.33",
     "vue-router": "^5.0.6"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "vue-demi"
-    ]
   }
 }

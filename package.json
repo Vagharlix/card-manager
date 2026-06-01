@@ -4,27 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview",
+    "dev": "concurrently --kill-others \"pnpm --dir app dev\" \"wait-on http://localhost:3000 && pnpm tauri dev --no-dev-server-wait\"",
     "tauri": "tauri"
-  },
-  "dependencies": {
-    "@nuxt/fonts": "^0.14.0",
-    "@nuxt/icon": "^2.2.2",
-    "@nuxt/ui": "^4.7.1",
-    "@nuxtjs/color-mode": "^4.0.0",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-sql": "^2.4.0",
-    "tailwindcss": "^4.3.0",
-    "vue": "^3.5.13"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
-    "@vitejs/plugin-vue": "^5.2.1",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.3",
-    "vue-tsc": "^2.1.10"
+    "concurrently": "^9",
+    "wait-on": "^8"
   }
 }
