@@ -9,9 +9,9 @@ export default defineNuxtConfig({
       strictPort: true,
     },
     optimizeDeps: {
-      include: ['@tauri-apps/plugin-sql', '@tauri-apps/api/app']
-    }
+      include: ['@tauri-apps/plugin-sql', '@tauri-apps/api/app'],
+    },
   },
-  modules: ['@nuxt/ui'],
+  modules: ['@nuxt/ui', '@vueuse/nuxt'],
   css: ['~/assets/css/main.css'],
 })
