@@ -1,4 +1,4 @@
-import { useDatabase } from '~/composables/useDb'
+import { useDatabase } from '~/composables/useDatabase'
 
 // ============================================================
 // YGO SYNC SERVICE
