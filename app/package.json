@@ -19,7 +19,7 @@
     "@tauri-apps/plugin-sql": "^2.4.0",
     "@vueuse/core": "^14.3.0",
     "@vueuse/nuxt": "^14.3.0",
-    "nuxt": "4.4.2",
+    "nuxt": "latest",
     "tailwindcss": "^4.3.0",
     "vue": "^3.5.33",
     "vue-router": "^5.0.6"

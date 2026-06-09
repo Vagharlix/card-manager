@@ -1,5 +1,7 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod image_cache;
+
 fn db_name(name: &str) -> String {
     if cfg!(debug_assertions) {
         format!("sqlite:{}.dev.db", name)
@@ -26,12 +28,14 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations(&db_name("user"), user_migrations)
                 .add_migrations(&db_name("cards-ygo"), ygo_migrations)
                 .build(),
         )
+        .invoke_handler(tauri::generate_handler![image_cache::cache_card_image])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
