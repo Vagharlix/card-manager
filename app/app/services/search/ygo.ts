@@ -118,7 +118,10 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
   // ── assemble ──────────────────────────────────────────────
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
+  const offset = (p as any).offset ?? 0
+
   params.push(limit)
+  params.push(offset)
 
   const sql = `
     SELECT c.id, c.name, c.image_url_small AS imageUrl
@@ -127,8 +130,8 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
     ${ftsJoin}
     ${where}
     ORDER BY ${orderBy}
-    LIMIT ?
-  `
+    LIMIT ? OFFSET ?
+    `
 
   const rows = await ygo.select<{ id: string; name: string; imageUrl: string }[]>(sql, params)
 
