@@ -12,12 +12,26 @@ fn db_name(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let user_migrations = vec![Migration {
-        version: 1,
-        description: "initial schema",
-        sql: include_str!("../migrations/user/001_initial.sql"),
-        kind: MigrationKind::Up,
-    }];
+    let user_migrations = vec![
+        Migration {
+            version: 1,
+            description: "initial schema",
+            sql: include_str!("../migrations/user/001_initial.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "settings table",
+            sql: include_str!("../migrations/user/002_settings.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 3,
+            description: "collection printing_id",
+            sql: include_str!("../migrations/user/003_collection_printing.sql"),
+            kind: MigrationKind::Up,
+        },
+    ];
 
     let ygo_migrations = vec![Migration {
         version: 1,

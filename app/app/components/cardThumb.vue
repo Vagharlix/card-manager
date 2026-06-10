@@ -15,11 +15,20 @@
         <img v-else :src="src" :alt="card.name" class="w-full h-full object-cover" loading="lazy" />
       </div>
 
+      <!-- pastille "possédée" -->
       <div
         v-if="owned"
         class="absolute top-1.5 right-1.5 size-5 rounded-full bg-success text-inverted flex items-center justify-center shadow z-10"
       >
         <UIcon name="i-lucide-check" class="text-xs" />
+      </div>
+
+      <!-- badge quantité (vue collection) -->
+      <div
+        v-if="quantity"
+        class="absolute top-1.5 left-1.5 min-w-5 h-5 px-1 rounded-full bg-primary text-inverted text-xs font-medium flex items-center justify-center shadow z-10"
+      >
+        ×{{ quantity }}
       </div>
 
       <p v-if="showName" class="mt-1 text-xs truncate text-muted">{{ card.name }}</p>
@@ -35,6 +44,7 @@ const props = withDefaults(
     card: CardSearchResult
     owned?: boolean
     showName?: boolean
+    quantity?: number
   }>(),
   {
     owned: false,
