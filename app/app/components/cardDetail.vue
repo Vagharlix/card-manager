@@ -69,7 +69,6 @@
             />
           </div>
 
-          <!-- formulaire détaillé inline -->
           <div v-if="showDetailedForm" class="rounded-lg border border-default p-3 space-y-3">
             <div class="grid grid-cols-2 gap-2">
               <div>
@@ -109,8 +108,90 @@
           </div>
         </div>
 
+        <!-- ── mes exemplaires ── -->
+        <div v-if="entries.length" class="border-t border-default pt-4">
+          <p class="text-muted text-xs mb-2">MES EXEMPLAIRES ({{ entries.length }})</p>
+          <div class="space-y-1.5">
+            <div v-for="entry in entries" :key="entry.id" class="rounded-lg border border-default">
+              <!-- ligne résumé -->
+              <div class="flex items-center gap-2 p-2">
+                <UBadge color="neutral" variant="soft">×{{ entry.quantity }}</UBadge>
+                <span class="text-sm">{{ entry.condition }}</span>
+                <span class="text-sm text-muted uppercase">{{ entry.language }}</span>
+                <UBadge v-if="entry.foil" color="warning" variant="soft" size="xs">Foil</UBadge>
+                <span v-if="entry.printingId" class="text-xs text-muted truncate">{{
+                  entry.printingId
+                }}</span>
+                <div class="flex-1" />
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  @click="toggleEdit(entry.id)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  size="xs"
+                  @click="askRemove(entry.id)"
+                />
+              </div>
+
+              <!-- formulaire d'édition dépliant -->
+              <div v-if="editingId === entry.id" class="border-t border-default p-2 space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <p class="text-xs text-muted mb-1">Quantité</p>
+                    <UInput v-model.number="editForm.quantity" type="number" min="1" size="sm" />
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted mb-1">État</p>
+                    <USelect v-model="editForm.condition" :items="CONDITIONS" size="sm" />
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted mb-1">Langue</p>
+                    <USelect v-model="editForm.language" :items="LANGUAGES" size="sm" />
+                  </div>
+                  <div>
+                    <p class="text-xs text-muted mb-1">Printing</p>
+                    <USelect
+                      v-model="editForm.printingId"
+                      :items="printingItems"
+                      placeholder="Aucun"
+                      size="sm"
+                    />
+                  </div>
+                </div>
+                <div class="flex gap-4">
+                  <UCheckbox v-model="editForm.foil" label="Foil" size="sm" />
+                  <UCheckbox v-model="editForm.altered" label="Altered" size="sm" />
+                  <UCheckbox v-model="editForm.signed" label="Signed" size="sm" />
+                </div>
+                <div class="flex gap-2">
+                  <UButton
+                    size="sm"
+                    label="Enregistrer"
+                    icon="i-lucide-check"
+                    :loading="savingEdit"
+                    @click="saveEdit(entry.id)"
+                  />
+                  <UButton
+                    size="sm"
+                    label="Annuler"
+                    color="neutral"
+                    variant="ghost"
+                    @click="editingId = null"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- stats -->
-        <div class="space-y-1 text-sm">
+        <div class="space-y-1 text-sm border-t border-default pt-4">
           <div v-if="detail.type" class="flex justify-between">
             <span class="text-muted">Type</span><span>{{ detail.type }}</span>
           </div>
@@ -169,11 +250,40 @@
       </div>
     </template>
   </USlideover>
+
+  <!-- modal de confirmation de suppression (hors du slideover pour le z-index) -->
+  <UModal v-model:open="confirmOpen" title="Supprimer cet exemplaire ?">
+    <template #body>
+      <p class="text-sm text-muted">
+        Cette action retirera cet exemplaire de ta collection. Tu pourras le rajouter plus tard.
+      </p>
+    </template>
+    <template #footer>
+      <div class="flex gap-2 justify-end w-full">
+        <UButton label="Annuler" color="neutral" variant="ghost" @click="confirmOpen = false" />
+        <UButton
+          label="Supprimer"
+          color="error"
+          icon="i-lucide-trash-2"
+          :loading="deletingId !== null"
+          @click="confirmRemove"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>
 
 <script setup lang="ts">
 import { getCardDetail, type YgoCardDetail } from '~/services/card/detail'
-import { addCard, ownedQuantity, type CardCondition } from '~/services/collection'
+import {
+  addCard,
+  updateCard,
+  removeCard,
+  ownedQuantity,
+  entriesForCard,
+  type CardCondition,
+  type CollectionEntry,
+} from '~/services/collection'
 
 const props = defineProps<{
   open: boolean
@@ -190,9 +300,17 @@ const detail = ref<YgoCardDetail | null>(null)
 const loading = ref(false)
 const activeArtId = ref<string>('')
 const owned = ref(0)
+const entries = ref<CollectionEntry[]>([])
 
 const adding = ref(false)
 const showDetailedForm = ref(false)
+const editingId = ref<string | null>(null)
+const savingEdit = ref(false)
+const deletingId = ref<string | null>(null)
+
+// confirmation de suppression
+const confirmOpen = ref(false)
+const pendingDeleteId = ref<string | null>(null)
 
 const CONDITIONS: CardCondition[] = ['NM', 'LP', 'MP', 'HP', 'DMG']
 const LANGUAGES = ['en', 'fr', 'de', 'it', 'pt', 'es', 'ja', 'ko']
@@ -207,7 +325,16 @@ const form = reactive({
   signed: false,
 })
 
-// printings → items du select
+const editForm = reactive({
+  quantity: 1,
+  condition: 'NM' as CardCondition,
+  language: 'en',
+  printingId: undefined as string | undefined,
+  foil: false,
+  altered: false,
+  signed: false,
+})
+
 const printingItems = computed(() =>
   (detail.value?.printings ?? []).map((p) => ({
     label: `${p.setCode} · ${p.rarity ?? '?'}`,
@@ -215,7 +342,11 @@ const printingItems = computed(() =>
   }))
 )
 
-// charge le détail + le nombre possédé quand la carte change
+async function refreshOwned() {
+  owned.value = await ownedQuantity(props.game, activeArtId.value)
+  entries.value = await entriesForCard(props.game, activeArtId.value)
+}
+
 watch(
   () => props.cardId,
   async (id) => {
@@ -223,10 +354,11 @@ watch(
     loading.value = true
     detail.value = null
     showDetailedForm.value = false
+    editingId.value = null
     try {
       detail.value = await getCardDetail(props.game, id)
       activeArtId.value = id
-      owned.value = await ownedQuantity(props.game, id)
+      await refreshOwned()
     } finally {
       loading.value = false
     }
@@ -234,29 +366,26 @@ watch(
   { immediate: true }
 )
 
-// le nombre possédé suit l'artwork sélectionné
 watch(activeArtId, async (id) => {
-  if (id) owned.value = await ownedQuantity(props.game, id)
+  if (id) await refreshOwned()
 })
 
 const bigImage = useCardImage(() => activeArtId.value, 'full')
 
-// ── ajout rapide (valeurs par défaut depuis settings) ──
 async function quickAdd() {
   adding.value = true
   try {
     await addCard({ game: props.game, cardId: activeArtId.value })
-    owned.value = await ownedQuantity(props.game, activeArtId.value)
+    await refreshOwned()
     toast.add({ title: 'Carte ajoutée', icon: 'i-lucide-check', color: 'success' })
     emit('added')
-  } catch (e) {
+  } catch {
     toast.add({ title: "Échec de l'ajout", color: 'error' })
   } finally {
     adding.value = false
   }
 }
 
-// ── ajout détaillé ──
 async function detailedAdd() {
   adding.value = true
   try {
@@ -271,14 +400,77 @@ async function detailedAdd() {
       altered: form.altered,
       signed: form.signed,
     })
-    owned.value = await ownedQuantity(props.game, activeArtId.value)
+    await refreshOwned()
     showDetailedForm.value = false
     toast.add({ title: 'Carte ajoutée', icon: 'i-lucide-check', color: 'success' })
     emit('added')
-  } catch (e) {
+  } catch {
     toast.add({ title: "Échec de l'ajout", color: 'error' })
   } finally {
     adding.value = false
+  }
+}
+
+function toggleEdit(id: string) {
+  if (editingId.value === id) {
+    editingId.value = null
+    return
+  }
+  const e = entries.value.find((x) => x.id === id)
+  if (!e) return
+  editForm.quantity = e.quantity
+  editForm.condition = e.condition
+  editForm.language = e.language
+  editForm.printingId = e.printingId ?? undefined
+  editForm.foil = e.foil
+  editForm.altered = e.altered
+  editForm.signed = e.signed
+  editingId.value = id
+}
+
+async function saveEdit(id: string) {
+  savingEdit.value = true
+  try {
+    await updateCard(id, {
+      quantity: editForm.quantity,
+      condition: editForm.condition,
+      language: editForm.language,
+      printingId: editForm.printingId ?? null,
+      foil: editForm.foil,
+      altered: editForm.altered,
+      signed: editForm.signed,
+    })
+    await refreshOwned()
+    editingId.value = null
+    toast.add({ title: 'Exemplaire modifié', icon: 'i-lucide-check', color: 'success' })
+    emit('added')
+  } catch {
+    toast.add({ title: 'Échec de la modification', color: 'error' })
+  } finally {
+    savingEdit.value = false
+  }
+}
+
+function askRemove(id: string) {
+  pendingDeleteId.value = id
+  confirmOpen.value = true
+}
+
+async function confirmRemove() {
+  const id = pendingDeleteId.value
+  if (!id) return
+  deletingId.value = id
+  try {
+    await removeCard(id)
+    await refreshOwned()
+    toast.add({ title: 'Exemplaire supprimé', icon: 'i-lucide-check', color: 'success' })
+    emit('added')
+  } catch {
+    toast.add({ title: 'Échec de la suppression', color: 'error' })
+  } finally {
+    deletingId.value = null
+    confirmOpen.value = false
+    pendingDeleteId.value = null
   }
 }
 </script>
