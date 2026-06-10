@@ -1,4 +1,4 @@
-import { useDatabase } from '../../composables/useDatabase'
+import { useDatabase } from '~/composables/useDatabase'
 import type { CardSearchEngine, CardSearchResult, SearchParams } from './types'
 import { ygoSearchEngine } from './ygo'
 
@@ -18,6 +18,12 @@ export function searchCards(game: string, params: SearchParams): Promise<CardSea
   const engine = engines[game]
   if (!engine) throw new Error(`No search engine for game: ${game}`)
   return engine.search(params)
+}
+
+export function countCards(game: string, params: SearchParams): Promise<number> {
+  const engine = engines[game]
+  if (!engine) throw new Error(`No search engine for game: ${game}`)
+  return engine.count(params)
 }
 
 // ============================================================
@@ -66,6 +72,7 @@ export interface YgoFilterOptions {
 export async function getYgoFilterOptions(): Promise<YgoFilterOptions> {
   const { ygo } = await useDatabase()
 
+  // simple lookups
   const attributes = await ygo.select<{ value: string }[]>(
     `SELECT value FROM card_attributes ORDER BY value`
   )
@@ -91,4 +98,4 @@ export async function getYgoFilterOptions(): Promise<YgoFilterOptions> {
   }
 }
 
-export type { CardSearchResult, SearchParams } from './types'
+export type { CardSearchResult, SearchParams, YgoFilters, NumericFilter } from './types'

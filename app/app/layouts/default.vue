@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen flex flex-col">
-    <header class="border-b border-default bg-elevated sticky top-0 z-10">
-      <div class="flex items-center justify-between px-4 h-14 mx-auto w-full">
-        <div class="font-medium flex-1 justify-begin">logo</div>
+  <div class="h-screen flex flex-col overflow-hidden">
+    <header class="border-b border-default bg-elevated shrink-0">
+      <div class="flex items-center justify-between px-4 h-14 w-full">
+        <div class="font-medium flex-1">card-manager</div>
 
         <nav v-if="!isMobile" class="flex gap-6 text-sm">
           <NuxtLink
@@ -45,7 +45,7 @@
       </template>
     </USlideover>
 
-    <main class="flex-1 max-w-7xl mx-auto w-full">
+    <main class="flex-1 min-h-0">
       <slot />
     </main>
   </div>

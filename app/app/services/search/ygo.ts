@@ -1,4 +1,4 @@
-import { useDatabase } from '../../composables/useDatabase'
+import { useDatabase } from '~/composables/useDatabase'
 import type {
   CardSearchEngine,
   CardSearchResult,
@@ -9,52 +9,45 @@ import type {
 
 // ============================================================
 // YGO SEARCH ENGINE
-// Builds a dynamic SQL query against cards-ygo.db:
-//   - text query  → FTS5 MATCH on name or legal_text
-//   - filters      → conditions on ygo_details
-// All conditions are optional and combined with AND.
+// search() and count() share the same WHERE/JOIN builder so the
+// two queries can never diverge. Adding a filter = one place.
 // ============================================================
 
-// Allowed numeric operators — whitelist to avoid any SQL injection
-// via the operator string (values always go through bound params).
 const NUMERIC_OPS = new Set(['=', '<', '>', '<=', '>='])
 
-function numericCondition(column: string, filter: NumericFilter, params: unknown[]): string | null {
-  if (!NUMERIC_OPS.has(filter.op)) return null
-  params.push(filter.value)
-  return `d.${column} ${filter.op} ?`
+interface QueryParts {
+  ftsJoin: string
+  where: string
+  params: unknown[]
+  hasFts: boolean
 }
 
-async function search(p: SearchParams): Promise<CardSearchResult[]> {
-  const { ygo } = await useDatabase()
+// Builds the JOIN + WHERE + bound params from the search request.
+// Shared by both search() and count().
+function buildQuery(p: SearchParams): QueryParts {
   const f = (p.filters ?? {}) as YgoFilters
   const field = p.field ?? 'name'
-  const limit = p.limit ?? 50
 
   const conditions: string[] = []
   const params: unknown[] = []
+  let ftsJoin = ''
+  let hasFts = false
 
   // ── text query via FTS5 ───────────────────────────────────
-  // We use a subquery on cards_fts to get matching rowids,
-  // then join. Column targeted depends on the field selector.
-  let ftsJoin = ''
-  let orderBy = 'c.name COLLATE NOCASE ASC'
-
   if (p.query && p.query.trim()) {
     const col = field === 'effect' ? 'legal_text' : 'name'
-    // FTS5 column filter syntax: {col} : query
     params.push(`${col} : ${p.query.trim()}*`)
     ftsJoin = `JOIN cards_fts ON cards_fts.rowid = c.rowid AND cards_fts MATCH ?`
-    orderBy = 'cards_fts.rank'
+    hasFts = true
   }
 
-  // ── category (Monster / Spell / Trap) ─────────────────────
+  // ── category ──────────────────────────────────────────────
   if (f.category) {
     params.push(`%${f.category}%`)
     conditions.push(`d.type LIKE ?`)
   }
 
-  // ── monster subtypes (Synchro, Tuner...) combined as OR ───
+  // ── monster subtypes (OR) ─────────────────────────────────
   if (f.monsterTypes?.length) {
     const ors = f.monsterTypes.map((t) => {
       params.push(`%${t}%`)
@@ -63,7 +56,7 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
     conditions.push(`(${ors.join(' OR ')})`)
   }
 
-  // ── spell/trap subtypes (Quick-Play, Continuous...) ───────
+  // ── spell/trap subtypes (OR) ──────────────────────────────
   if (f.spellTrapTypes?.length) {
     const ors = f.spellTrapTypes.map((t) => {
       params.push(`%${t}%`)
@@ -72,7 +65,7 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
     conditions.push(`(${ors.join(' OR ')})`)
   }
 
-  // ── exact-match string filters ────────────────────────────
+  // ── exact-match strings ───────────────────────────────────
   if (f.attribute) {
     params.push(f.attribute)
     conditions.push(`d.attribute = ?`)
@@ -90,7 +83,7 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
     conditions.push(`d.banlist_tcg = ?`)
   }
 
-  // ── numeric filters with operators ────────────────────────
+  // ── numeric filters ───────────────────────────────────────
   const numerics: [keyof YgoFilters, string][] = [
     ['level', 'level'],
     ['atk', 'atk'],
@@ -100,28 +93,33 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
   ]
   for (const [key, column] of numerics) {
     const nf = f[key] as NumericFilter | undefined
-    if (nf) {
-      const cond = numericCondition(column, nf, params)
-      if (cond) conditions.push(cond)
+    if (nf && NUMERIC_OPS.has(nf.op)) {
+      params.push(nf.value)
+      conditions.push(`d.${column} ${nf.op} ?`)
     }
   }
 
-  // ── link markers (stored as JSON array string) ────────────
+  // ── link markers (must have all selected) ─────────────────
   if (f.linkMarkers?.length) {
-    const ors = f.linkMarkers.map((m) => {
+    const ands = f.linkMarkers.map((m) => {
       params.push(`%"${m}"%`)
       return `d.link_markers LIKE ?`
     })
-    conditions.push(`(${ors.join(' AND ')})`) // AND = must have all selected markers
+    conditions.push(`(${ands.join(' AND ')})`)
   }
 
-  // ── assemble ──────────────────────────────────────────────
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  return { ftsJoin, where, params, hasFts }
+}
 
-  const offset = (p as any).offset ?? 0
+// ── search: returns a page of results ───────────────────────
+async function search(p: SearchParams): Promise<CardSearchResult[]> {
+  const { ygo } = await useDatabase()
+  const { ftsJoin, where, params, hasFts } = buildQuery(p)
 
-  params.push(limit)
-  params.push(offset)
+  const limit = p.limit ?? 48
+  const offset = p.offset ?? 0
+  const orderBy = hasFts ? 'cards_fts.rank' : 'c.name COLLATE NOCASE ASC'
 
   const sql = `
     SELECT c.id, c.name, c.image_url_small AS imageUrl
@@ -131,16 +129,30 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
     ${where}
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
-    `
+  `
+  const rows = await ygo.select<{ id: string; name: string; imageUrl: string }[]>(sql, [
+    ...params,
+    limit,
+    offset,
+  ])
 
-  const rows = await ygo.select<{ id: string; name: string; imageUrl: string }[]>(sql, params)
-
-  return rows.map((r) => ({
-    game: 'ygo',
-    id: r.id,
-    name: r.name,
-    imageUrl: r.imageUrl,
-  }))
+  return rows.map((r) => ({ game: 'ygo', id: r.id, name: r.name, imageUrl: r.imageUrl }))
 }
 
-export const ygoSearchEngine: CardSearchEngine = { search }
+// ── count: total matching cards (for pagination) ────────────
+async function count(p: SearchParams): Promise<number> {
+  const { ygo } = await useDatabase()
+  const { ftsJoin, where, params } = buildQuery(p)
+
+  const sql = `
+    SELECT COUNT(*) AS n
+    FROM cards c
+    JOIN ygo_details d ON d.card_id = c.id
+    ${ftsJoin}
+    ${where}
+  `
+  const rows = await ygo.select<{ n: number }[]>(sql, params)
+  return rows[0]?.n ?? 0
+}
+
+export const ygoSearchEngine: CardSearchEngine = { search, count }

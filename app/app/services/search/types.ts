@@ -30,7 +30,6 @@ export interface SearchParams {
   field?: SearchField // default 'name'
   filters?: Record<string, unknown>
   limit?: number // default 50
-  offset?: number
 }
 
 // ── YGO-specific filters ──────────────────────────────────────
@@ -53,4 +52,5 @@ export interface YgoFilters {
 // The contract every game engine implements.
 export interface CardSearchEngine {
   search(params: SearchParams): Promise<CardSearchResult[]>
+  count(params: SearchParams): Promise<number>
 }

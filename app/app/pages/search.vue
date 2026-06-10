@@ -1,23 +1,31 @@
 <template>
   <AppPage sidebar-label="Filtres">
     <template #sidebar>
-      <p class="text-muted text-sm">filtres à venir</p>
+      <SearchFilters v-model="filters" :options="filterOptions" />
     </template>
 
-    <div>
-      <UInput
-        v-model="query"
-        placeholder="Nom de carte..."
-        icon="i-lucide-search"
-        class="mb-4 w-full"
-      />
+    <div class="flex flex-col h-full">
+      <div class="flex gap-2 mb-4 shrink-0">
+        <UInput
+          v-model="query"
+          placeholder="Nom de carte..."
+          icon="i-lucide-search"
+          class="flex-1"
+        />
+        <USelect v-model="field" :items="fieldItems" class="w-32" />
+      </div>
 
-      <CardGrid :cards="results" :loading="loading && !results.length" @select="onSelect" />
+      <div class="flex-1 min-h-0 overflow-y-auto">
+        <CardGrid :cards="results" :loading="loading" @select="onSelect" />
+      </div>
 
-      <!-- sentinelle de scroll + indicateur de chargement du lot suivant -->
-      <div ref="scrollAnchor" class="h-10" />
-      <div v-if="loadingMore" class="flex justify-center py-4">
-        <UIcon name="i-lucide-loader-circle" class="animate-spin text-muted text-xl" />
+      <div
+        v-if="total > 0"
+        class="flex items-center justify-between gap-4 pt-4 shrink-0 border-t border-default"
+      >
+        <p class="text-sm text-muted">{{ total }} cartes</p>
+        <UPagination v-model:page="page" :total="total" :items-per-page="perPage" />
+        <USelect v-model="perPage" :items="perPageItems" class="w-28" size="sm" />
       </div>
     </div>
 
@@ -26,64 +34,75 @@
 </template>
 
 <script setup lang="ts">
-import { searchCards, type CardSearchResult } from '~/services/search'
-
-const PAGE_SIZE = 48
+import {
+  searchCards,
+  countCards,
+  getYgoFilterOptions,
+  type CardSearchResult,
+  type YgoFilters,
+} from '~/services/search'
 
 const query = ref('')
+const field = ref<'name' | 'effect'>('name')
+const filters = ref<YgoFilters>({})
+const fieldItems = [
+  { label: 'Nom', value: 'name' },
+  { label: 'Effet', value: 'effect' },
+]
+
+const page = ref(1)
+const perPage = ref(48)
+const perPageItems = [24, 48, 96, 120]
+
 const results = ref<CardSearchResult[]>([])
-const loading = ref(false) // chargement initial (nouvelle recherche)
-const loadingMore = ref(false) // chargement d'un lot suivant
-const reachedEnd = ref(false) // plus de résultats à charger
+const total = ref(0)
+const loading = ref(false)
 
 const detailOpen = ref(false)
 const selectedId = ref<string | null>(null)
 
-const scrollAnchor = ref<HTMLElement | null>(null)
+const filterOptions = ref({
+  attributes: [],
+  races: [],
+  archetypes: [],
+  monsterTypes: [],
+  spellTrapTypes: [],
+})
+onMounted(async () => {
+  filterOptions.value = await getYgoFilterOptions()
+})
 
-// une recherche fraîche : on remet tout à zéro
-async function runSearch() {
+async function load() {
   loading.value = true
-  reachedEnd.value = false
   try {
-    const batch = await searchCards('ygo', {
+    const params = {
       query: query.value,
-      field: 'name',
-      limit: PAGE_SIZE,
-      offset: 0,
-    })
+      field: field.value,
+      filters: filters.value,
+      limit: perPage.value,
+      offset: (page.value - 1) * perPage.value,
+    }
+    const [batch, count] = await Promise.all([
+      searchCards('ygo', params),
+      countCards('ygo', params),
+    ])
     results.value = batch
-    reachedEnd.value = batch.length < PAGE_SIZE
+    total.value = count
   } finally {
     loading.value = false
   }
 }
 
-// charge le lot suivant et l'ajoute aux résultats existants
-async function loadMore() {
-  if (loadingMore.value || reachedEnd.value || loading.value) return
-  loadingMore.value = true
-  try {
-    const batch = await searchCards('ygo', {
-      query: query.value,
-      field: 'name',
-      limit: PAGE_SIZE,
-      offset: results.value.length,
-    })
-    results.value.push(...batch)
-    if (batch.length < PAGE_SIZE) reachedEnd.value = true
-  } finally {
-    loadingMore.value = false
-  }
-}
+watchDebounced(
+  [query, field, filters, perPage],
+  () => {
+    page.value = 1
+    load()
+  },
+  { debounce: 300, deep: true, immediate: true }
+)
 
-// relance une recherche fraîche quand la query change
-watchDebounced(query, runSearch, { debounce: 300, immediate: true })
-
-// observe la sentinelle : quand elle entre dans le viewport, charge plus
-useIntersectionObserver(scrollAnchor, ([entry]) => {
-  if (entry?.isIntersecting) loadMore()
-})
+watch(page, load)
 
 function onSelect(card: CardSearchResult) {
   selectedId.value = card.id
