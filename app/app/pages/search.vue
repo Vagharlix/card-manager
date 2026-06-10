@@ -5,6 +5,7 @@
     </template>
 
     <div class="flex flex-col h-full">
+      <!-- barre de recherche : fixe -->
       <div class="flex gap-2 mb-4 shrink-0">
         <UInput
           v-model="query"
@@ -15,10 +16,12 @@
         <USelect v-model="field" :items="fieldItems" class="w-32" />
       </div>
 
+      <!-- grille : prend l'espace restant et scrolle dedans -->
       <div class="flex-1 min-h-0 overflow-y-auto">
-        <CardGrid :cards="results" :loading="loading" @select="onSelect" />
+        <CardGrid :cards="results" :loading="loading" :owned-ids="ownedIds" @select="onSelect" />
       </div>
 
+      <!-- pagination : fixe en bas -->
       <div
         v-if="total > 0"
         class="flex items-center justify-between gap-4 pt-4 shrink-0 border-t border-default"
@@ -29,7 +32,7 @@
       </div>
     </div>
 
-    <CardDetail v-model:open="detailOpen" game="ygo" :card-id="selectedId" />
+    <CardDetail v-model:open="detailOpen" game="ygo" :card-id="selectedId" @added="refreshOwned" />
   </AppPage>
 </template>
 
@@ -41,6 +44,7 @@ import {
   type CardSearchResult,
   type YgoFilters,
 } from '~/services/search'
+import { ownedCardIds } from '~/services/collection'
 
 const query = ref('')
 const field = ref<'name' | 'effect'>('name')
@@ -58,6 +62,8 @@ const results = ref<CardSearchResult[]>([])
 const total = ref(0)
 const loading = ref(false)
 
+const ownedIds = ref<Set<string>>(new Set())
+
 const detailOpen = ref(false)
 const selectedId = ref<string | null>(null)
 
@@ -68,9 +74,15 @@ const filterOptions = ref({
   monsterTypes: [],
   spellTrapTypes: [],
 })
+
 onMounted(async () => {
   filterOptions.value = await getYgoFilterOptions()
+  await refreshOwned()
 })
+
+async function refreshOwned() {
+  ownedIds.value = await ownedCardIds('ygo')
+}
 
 async function load() {
   loading.value = true

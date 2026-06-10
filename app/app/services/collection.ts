@@ -163,6 +163,18 @@ export async function entriesForCard(game: string, cardId: string): Promise<Coll
   return rows.map(rowToEntry)
 }
 
+// ── all owned passcodes for a game (for grid "owned" pills) ──
+// Returns a Set for O(1) lookup when rendering search results.
+export async function ownedCardIds(game = 'ygo'): Promise<Set<string>> {
+  const { user } = await useDatabase()
+  const rows = await user.select<{ card_id: string }[]>(
+    `SELECT DISTINCT card_id FROM collection
+     WHERE deleted_at IS NULL AND game = ?`,
+    [game]
+  )
+  return new Set(rows.map((r) => r.card_id))
+}
+
 function rowToEntry(r: any): CollectionEntry {
   return {
     id: r.id,
