@@ -42,7 +42,6 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_http::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations(&db_name("user"), user_migrations)

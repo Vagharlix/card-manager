@@ -6,6 +6,7 @@ export default defineNuxtConfig({
     clearScreen: false,
     envPrefix: ['VITE_', 'TAURI_'],
     server: {
+      host: process.env.TAURI_DEV_HOST || 'localhost',
       strictPort: true,
     },
     optimizeDeps: {
