@@ -8,8 +8,15 @@
       <slot name="sidebar" />
     </aside>
 
-    <!-- MOBILE : sidebar en slideover -->
-    <USlideover v-if="isMobile && $slots.sidebar" v-model:open="sidebarOpen" :title="sidebarLabel">
+    <!-- MOBILE : sidebar en slideover par la GAUCHE
+         (le menu de navigation s'ouvre par la droite — côtés distincts
+         pour éviter la confusion entre contexte de page et navigation) -->
+    <USlideover
+      v-if="isMobile && $slots.sidebar"
+      v-model:open="sidebarOpen"
+      side="left"
+      :title="sidebarLabel"
+    >
       <template #body>
         <slot name="sidebar" />
       </template>
@@ -36,7 +43,6 @@
 const props = withDefaults(defineProps<{ sidebarLabel?: string }>(), {
   sidebarLabel: 'Filtres',
 })
-
 const { isMobile } = useResponsive()
 const sidebarOpen = ref(false)
 </script>
