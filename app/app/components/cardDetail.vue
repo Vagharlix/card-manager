@@ -108,12 +108,52 @@
           </div>
         </div>
 
+        <!-- ranger dans un conteneur (flux A) -->
+        <UButton
+          v-if="unrangedForCard > 0"
+          block
+          icon="i-lucide-folder-input"
+          color="neutral"
+          variant="soft"
+          :label="`Ranger (${unrangedForCard} non rangé${unrangedForCard > 1 ? 's' : ''})`"
+          @click="openPicker"
+        />
+
+        <!-- ── où est cette carte ── -->
+        <div v-if="locations.length" class="border-t border-default pt-4">
+          <p class="text-muted text-xs mb-2">RANGEMENT</p>
+          <div class="space-y-1.5">
+            <div
+              v-for="(loc, i) in locations"
+              :key="i"
+              class="flex items-center gap-2 text-sm rounded-lg border border-default p-2"
+            >
+              <UIcon :name="locationIcon(loc.locationType)" class="text-muted shrink-0" />
+              <span class="flex-1 truncate">{{ loc.locationName }}</span>
+              <span
+                v-if="loc.locationType === 'binder' && loc.page !== null"
+                class="text-xs text-muted"
+              >
+                p.{{ loc.page + 1 }} · L{{ (loc.row ?? 0) + 1 }}C{{ (loc.col ?? 0) + 1 }}
+              </span>
+              <span
+                v-else-if="loc.locationType === 'deck' && loc.extraInfo"
+                class="text-xs text-muted"
+              >
+                {{ loc.extraInfo }}
+              </span>
+              <UBadge v-if="loc.locationType !== 'binder'" color="neutral" variant="soft" size="xs"
+                >×{{ loc.quantity }}</UBadge
+              >
+            </div>
+          </div>
+        </div>
+
         <!-- ── mes exemplaires ── -->
         <div v-if="entries.length" class="border-t border-default pt-4">
           <p class="text-muted text-xs mb-2">MES EXEMPLAIRES ({{ entries.length }})</p>
           <div class="space-y-1.5">
             <div v-for="entry in entries" :key="entry.id" class="rounded-lg border border-default">
-              <!-- ligne résumé -->
               <div class="flex items-center gap-2 p-2">
                 <UBadge color="neutral" variant="soft">×{{ entry.quantity }}</UBadge>
                 <span class="text-sm">{{ entry.condition }}</span>
@@ -139,7 +179,6 @@
                 />
               </div>
 
-              <!-- formulaire d'édition dépliant -->
               <div v-if="editingId === entry.id" class="border-t border-default p-2 space-y-2">
                 <div class="grid grid-cols-2 gap-2">
                   <div>
@@ -251,7 +290,7 @@
     </template>
   </USlideover>
 
-  <!-- modal de confirmation de suppression (hors du slideover pour le z-index) -->
+  <!-- confirmation de suppression (hors slideover pour le z-index) -->
   <UModal v-model:open="confirmOpen" title="Supprimer cet exemplaire ?">
     <template #body>
       <p class="text-sm text-muted">
@@ -271,6 +310,15 @@
       </div>
     </template>
   </UModal>
+
+  <!-- sélecteur de conteneur (flux A) -->
+  <ContainerPicker
+    v-model:open="pickerOpen"
+    :containers="containers"
+    :max-quantity="unrangedForCard"
+    :busy="ranging"
+    @confirm="onRange"
+  />
 </template>
 
 <script setup lang="ts">
@@ -284,6 +332,15 @@ import {
   type CardCondition,
   type CollectionEntry,
 } from '~/services/collection'
+import {
+  listContainersWithCapacity,
+  assignCardToContainer,
+  cardLocations,
+  type ContainerWithCapacity,
+  type ContainerType,
+  type CardLocation,
+} from '~/services/containers'
+import { useDatabase } from '~/composables/useDatabase'
 
 const props = defineProps<{
   open: boolean
@@ -308,9 +365,17 @@ const editingId = ref<string | null>(null)
 const savingEdit = ref(false)
 const deletingId = ref<string | null>(null)
 
-// confirmation de suppression
 const confirmOpen = ref(false)
 const pendingDeleteId = ref<string | null>(null)
+
+// rangement dans un conteneur
+const containers = ref<ContainerWithCapacity[]>([])
+const pickerOpen = ref(false)
+const ranging = ref(false)
+const unrangedForCard = ref(0)
+
+// où est cette carte
+const locations = ref<CardLocation[]>([])
 
 const CONDITIONS: CardCondition[] = ['NM', 'LP', 'MP', 'HP', 'DMG']
 const LANGUAGES = ['en', 'fr', 'de', 'it', 'pt', 'es', 'ja', 'ko']
@@ -342,9 +407,61 @@ const printingItems = computed(() =>
   }))
 )
 
+function locationIcon(type: string): string {
+  return type === 'deckbox'
+    ? 'i-lucide-box'
+    : type === 'binder'
+      ? 'i-lucide-notebook'
+      : type === 'bulk_box'
+        ? 'i-lucide-archive'
+        : 'i-lucide-layers' // deck
+}
+
+// quantité non rangée de l'artwork actif
+async function refreshUnrangedForCard() {
+  const { user } = await useDatabase()
+  const rows = await user.select<{ n: number }[]>(
+    `SELECT COALESCE(SUM(c.quantity - COALESCE(a.qty, 0)), 0) AS n
+     FROM collection c
+     LEFT JOIN (
+        SELECT collection_id, SUM(qty) AS qty FROM (
+            SELECT dc.collection_id, dc.quantity AS qty
+              FROM deckbox_cards dc
+              JOIN containers ct ON ct.id = dc.deckbox_id AND ct.deleted_at IS NULL
+            UNION ALL
+            SELECT bs.collection_id, 1 AS qty
+              FROM binder_slots bs
+              JOIN containers ct ON ct.id = bs.container_id AND ct.deleted_at IS NULL
+            UNION ALL
+            SELECT bb.collection_id, bb.quantity AS qty
+              FROM bulk_box_contents bb
+              JOIN containers ct ON ct.id = bb.container_id AND ct.deleted_at IS NULL
+        ) GROUP BY collection_id
+     ) a ON a.collection_id = c.id
+     WHERE c.deleted_at IS NULL AND c.game = ? AND c.card_id = ?`,
+    [props.game, activeArtId.value]
+  )
+  unrangedForCard.value = rows[0]?.n ?? 0
+}
+
+async function refreshLocations() {
+  locations.value = await cardLocations(props.game, activeArtId.value)
+}
+
 async function refreshOwned() {
   owned.value = await ownedQuantity(props.game, activeArtId.value)
   entries.value = await entriesForCard(props.game, activeArtId.value)
+  await refreshUnrangedForCard()
+  await refreshLocations()
+}
+
+async function refreshContainers() {
+  containers.value = await listContainersWithCapacity()
+}
+
+async function openPicker() {
+  await refreshContainers()
+  pickerOpen.value = true
 }
 
 watch(
@@ -359,6 +476,7 @@ watch(
       detail.value = await getCardDetail(props.game, id)
       activeArtId.value = id
       await refreshOwned()
+      await refreshContainers()
     } finally {
       loading.value = false
     }
@@ -471,6 +589,35 @@ async function confirmRemove() {
     deletingId.value = null
     confirmOpen.value = false
     pendingDeleteId.value = null
+  }
+}
+
+async function onRange(payload: { containerId: string; type: ContainerType; quantity: number }) {
+  ranging.value = true
+  try {
+    const placed = await assignCardToContainer(
+      props.game,
+      activeArtId.value,
+      payload.containerId,
+      payload.type,
+      payload.quantity
+    )
+    pickerOpen.value = false
+    toast.add({
+      title: placed > 0 ? `${placed} carte(s) rangée(s)` : 'Rien à ranger',
+      icon: 'i-lucide-check',
+      color: placed > 0 ? 'success' : 'warning',
+    })
+    await refreshOwned()
+    await refreshContainers()
+    emit('added')
+  } catch (e: any) {
+    toast.add({
+      title: e?.message === 'BINDER_FULL' ? 'Le classeur est plein' : 'Échec du rangement',
+      color: 'error',
+    })
+  } finally {
+    ranging.value = false
   }
 }
 </script>

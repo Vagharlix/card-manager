@@ -3,30 +3,65 @@
     <button
       type="button"
       class="group relative block w-full text-left focus:outline-none"
-      @click="$emit('select', card)"
+      @click="onClick"
     >
       <div
-        class="aspect-[0.686] overflow-hidden bg-elevated border border-default transition group-hover:border-primary group-hover:shadow-lg"
+        class="aspect-[0.686] rounded-lg bg-elevated relative border-2 transition-colors"
+        :class="
+          selectable && selected
+            ? 'border-primary'
+            : 'border-transparent group-hover:border-primary'
+        "
       >
-        <USkeleton v-if="loading" class="w-full h-full" />
+        <USkeleton v-if="loading" class="w-full h-full rounded-lg" />
         <div v-else-if="error" class="w-full h-full flex items-center justify-center text-dimmed">
           <UIcon name="i-lucide-image-off" class="text-2xl" />
         </div>
-        <img v-else :src="src" :alt="card.name" class="w-full h-full object-cover" loading="lazy" />
+        <img
+          v-else
+          :src="src"
+          :alt="card.name"
+          class="w-full h-full object-cover rounded-md"
+          loading="lazy"
+        />
+
+        <!-- voile + coche en mode sélection -->
+        <div
+          v-if="selectable"
+          class="absolute inset-0 rounded-md transition z-20"
+          :class="selected ? 'bg-primary/20' : 'bg-black/0 group-hover:bg-black/10'"
+        >
+          <div
+            class="absolute top-1.5 left-1.5 size-5 rounded-full border-2 flex items-center justify-center"
+            :class="
+              selected ? 'bg-primary border-primary text-inverted' : 'border-white/70 bg-black/30'
+            "
+          >
+            <UIcon v-if="selected" name="i-lucide-check" class="text-xs" />
+          </div>
+        </div>
       </div>
 
-      <!-- pastille "possédée" -->
+      <!-- pastille "possédée" (masquée en mode sélection) -->
       <div
-        v-if="owned"
-        class="absolute top-1.5 right-1.5 size-5 rounded-full bg-success text-inverted flex items-center justify-center shadow z-10"
+        v-if="owned && !selectable"
+        class="absolute top-1.5 right-1.5 size-5 rounded-full bg-success text-inverted flex items-center justify-center shadow z-20"
       >
         <UIcon name="i-lucide-check" class="text-xs" />
       </div>
 
-      <!-- badge quantité (vue collection) -->
+      <!-- badge quantité (masqué en mode sélection) -->
       <div
-        v-if="quantity"
-        class="absolute top-1.5 left-1.5 min-w-5 h-5 px-1 rounded-full bg-primary text-inverted text-xs font-medium flex items-center justify-center shadow z-10"
+        v-if="quantity && !selectable"
+        class="absolute top-1.5 left-1.5 min-w-5 h-5 px-1 rounded-full bg-primary text-inverted text-xs font-medium flex items-center justify-center shadow z-20"
+      >
+        ×{{ quantity }}
+      </div>
+
+      <!-- quantité en mode sélection : en bas à droite -->
+      <div
+        v-if="quantity && selectable"
+        class="absolute bottom-1.5 right-1.5 min-w-5 h-5 px-1 rounded-full bg-primary text-inverted text-xs font-medium flex items-center justify-center shadow z-20"
       >
         ×{{ quantity }}
       </div>
@@ -45,14 +80,26 @@ const props = withDefaults(
     owned?: boolean
     showName?: boolean
     quantity?: number
+    selectable?: boolean
+    selected?: boolean
   }>(),
   {
     owned: false,
     showName: false,
+    selectable: false,
+    selected: false,
   }
 )
 
-defineEmits<{ select: [card: CardSearchResult] }>()
+const emit = defineEmits<{
+  select: [card: CardSearchResult]
+  toggle: [card: CardSearchResult]
+}>()
 
 const { src, loading, error } = useCardImage(() => props.card.id, 'small')
+
+function onClick() {
+  if (props.selectable) emit('toggle', props.card)
+  else emit('select', props.card)
+}
 </script>
