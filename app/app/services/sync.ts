@@ -5,13 +5,16 @@ import { useDatabase } from '~/composables/useDatabase'
 // Syncs card data from YGOPRODeck API into local cards-ygo.db.
 // Only runs when the remote DB version differs from local.
 // All writes happen in a single transaction for atomicity and speed.
+//
+// ALIAS RECONSTRUCTION:
+// YGOPRODeck does NOT fill the `alias` field on aliased entries.
+// Instead, all artworks of one logical card share the same
+// misc_info.konami_id. We rebuild the alias ourselves: the first
+// passcode seen for a given konami_id is the "main" print; every
+// other passcode in that group gets alias = main passcode.
 // ============================================================
 
 const BASE_URL = 'https://db.ygoprodeck.com/api/v7'
-
-// ============================================================
-// TYPES — mirrors the YGOPRODeck API response shape
-// ============================================================
 
 interface YgoCardImage {
   id: number
@@ -50,6 +53,7 @@ interface YgoApiCard {
     ban_ocg?: string
     ban_goat?: string
   }
+  misc_info?: { konami_id?: number }[]
 }
 
 interface YgoApiResponse {
@@ -60,12 +64,8 @@ interface SyncMetaRow {
   value: string
 }
 
-// ============================================================
-// SYNC STATE — reactive, consumed by the UI for progress display
-// ============================================================
-
-export const syncProgress = ref(0) // 0–100
-export const syncStatus = ref('') // human-readable current step
+export const syncProgress = ref(0)
+export const syncStatus = ref('')
 export const syncError = ref<string | null>(null)
 export const isSyncing = ref(false)
 
@@ -73,11 +73,6 @@ function setProgress(value: number, status: string) {
   syncProgress.value = value
   syncStatus.value = status
 }
-
-// ============================================================
-// VERSION CHECK
-// Single cheap request — determines if a full sync is needed.
-// ============================================================
 
 async function fetchRemoteVersion(): Promise<string> {
   const res = await fetch(`${BASE_URL}/checkDBVer.php`)
@@ -95,13 +90,6 @@ async function getLocalVersion(
   return rows.length > 0 ? rows[0].value : null
 }
 
-// ============================================================
-// FETCH
-// One request for the full card dump.
-// includeAliased=true → alt artworks get their own passcode entry.
-// misc=yes            → extra metadata fields.
-// ============================================================
-
 async function fetchAllCards(): Promise<YgoApiCard[]> {
   const res = await fetch(`${BASE_URL}/cardinfo.php?includeAliased=true&misc=yes`)
   if (!res.ok) throw new Error(`cardinfo fetch failed: ${res.status}`)
@@ -109,15 +97,8 @@ async function fetchAllCards(): Promise<YgoApiCard[]> {
   return json.data
 }
 
-// ============================================================
-// PRE-PROCESS IN MEMORY
-// Two passes over the raw array before touching the DB:
-//   1. Collect unique lookup values (types, attributes, races)
-//   2. Flatten printings (each card has an array of set printings)
-// ============================================================
-
 interface FlatPrinting {
-  id: string // set_code e.g. 'LOB-EN005'
+  id: string
   card_id: string
   set_name: string
   set_code: string
@@ -131,6 +112,7 @@ interface PreProcessResult {
   attributes: string[]
   races: string[]
   printings: FlatPrinting[]
+  aliasByCard: Map<string, string | null>
 }
 
 function preProcess(cards: YgoApiCard[]): PreProcessResult {
@@ -138,6 +120,9 @@ function preProcess(cards: YgoApiCard[]): PreProcessResult {
   const attributes = new Set<string>()
   const races = new Set<string>()
   const printings: FlatPrinting[] = []
+
+  const mainByKonami = new Map<number, string>()
+  const aliasByCard = new Map<string, string | null>()
 
   for (const card of cards) {
     if (card.type) types.add(card.type)
@@ -157,6 +142,20 @@ function preProcess(cards: YgoApiCard[]): PreProcessResult {
         })
       }
     }
+
+    const passcode = String(card.id)
+    const konami = card.misc_info?.[0]?.konami_id
+    if (konami == null) {
+      aliasByCard.set(passcode, null)
+    } else {
+      const existingMain = mainByKonami.get(konami)
+      if (existingMain === undefined) {
+        mainByKonami.set(konami, passcode)
+        aliasByCard.set(passcode, null)
+      } else {
+        aliasByCard.set(passcode, existingMain)
+      }
+    }
   }
 
   return {
@@ -164,15 +163,9 @@ function preProcess(cards: YgoApiCard[]): PreProcessResult {
     attributes: [...attributes],
     races: [...races],
     printings,
+    aliasByCard,
   }
 }
-
-// ============================================================
-// BATCH INSERT HELPER
-// Splits an array into chunks and inserts each chunk in one
-// multi-row VALUES statement. Dramatically faster than one
-// INSERT per row even inside a transaction.
-// ============================================================
 
 async function batchInsert(
   db: import('@tauri-apps/plugin-sql').default,
@@ -197,12 +190,8 @@ async function batchInsert(
   }
 }
 
-// ============================================================
-// MAIN SYNC FUNCTION
-// ============================================================
-
 export async function syncYgo(): Promise<void> {
-  if (isSyncing.value) return // prevent concurrent runs
+  if (isSyncing.value) return
 
   isSyncing.value = true
   syncError.value = null
@@ -211,7 +200,6 @@ export async function syncYgo(): Promise<void> {
   try {
     const { ygo } = await useDatabase()
 
-    // ── 1. version check ─────────────────────────────────────
     const [localVersion, remoteVersion] = await Promise.all([
       getLocalVersion(ygo),
       fetchRemoteVersion(),
@@ -223,23 +211,16 @@ export async function syncYgo(): Promise<void> {
     }
 
     setProgress(10, 'Downloading card data...')
-
-    // ── 2. fetch ─────────────────────────────────────────────
     const cards = await fetchAllCards()
     setProgress(25, 'Processing card data...')
 
-    // ── 3. pre-process in memory ─────────────────────────────
-    const { types, attributes, races, printings } = preProcess(cards)
+    const { types, attributes, races, printings, aliasByCard } = preProcess(cards)
     setProgress(30, 'Writing to database...')
 
-    // ── 4. transaction ────────────────────────────────────────
-    // tauri-plugin-sql doesn't expose BEGIN/COMMIT directly,
-    // so we use the execute method with raw SQL statements.
     await ygo.execute('PRAGMA foreign_keys = OFF')
     await ygo.execute('BEGIN TRANSACTION')
 
     try {
-      // step 1 — lookup tables
       for (const v of types)
         await ygo.execute('INSERT OR IGNORE INTO card_types      VALUES (?)', [v])
       for (const v of attributes)
@@ -248,7 +229,6 @@ export async function syncYgo(): Promise<void> {
         await ygo.execute('INSERT OR IGNORE INTO card_races      VALUES (?)', [v])
       setProgress(35, 'Inserting cards...')
 
-      // step 2 — cards base table
       const cardRows: unknown[][] = cards.map((c) => [
         String(c.id),
         c.name,
@@ -265,34 +245,34 @@ export async function syncYgo(): Promise<void> {
         cardRows,
         200,
         (done, total) => {
-          const pct = 35 + Math.round((done / total) * 35) // 35→70%
+          const pct = 35 + Math.round((done / total) * 35)
           setProgress(pct, `Inserting cards... ${done}/${total}`)
         }
       )
 
-      // step 3 — ygo_details
-      // alias cards reference another card's passcode.
-      // All cards are inserted before details so the FK is always satisfied.
       setProgress(70, 'Inserting card details...')
 
-      const detailRows: unknown[][] = cards.map((c) => [
-        String(c.id),
-        c.type ?? null,
-        c.attribute ?? null,
-        c.race ?? null,
-        c.atk ?? null,
-        c.def ?? null,
-        c.level ?? null,
-        null, // rank — not in API directly
-        c.linkval ?? null,
-        c.linkmarkers ? JSON.stringify(c.linkmarkers) : null,
-        c.scale ?? null,
-        c.archetype ?? null,
-        c.alias ? String(c.alias) : null,
-        c.banlist_info?.ban_tcg ?? null,
-        c.banlist_info?.ban_ocg ?? null,
-        null, // banlist_md — not in main API
-      ])
+      const detailRows: unknown[][] = cards.map((c) => {
+        const passcode = String(c.id)
+        return [
+          passcode,
+          c.type ?? null,
+          c.attribute ?? null,
+          c.race ?? null,
+          c.atk ?? null,
+          c.def ?? null,
+          c.level ?? null,
+          null,
+          c.linkval ?? null,
+          c.linkmarkers ? JSON.stringify(c.linkmarkers) : null,
+          c.scale ?? null,
+          c.archetype ?? null,
+          aliasByCard.get(passcode) ?? null,
+          c.banlist_info?.ban_tcg ?? null,
+          c.banlist_info?.ban_ocg ?? null,
+          null,
+        ]
+      })
 
       await batchInsert(
         ygo,
@@ -318,12 +298,11 @@ export async function syncYgo(): Promise<void> {
         detailRows,
         200,
         (done, total) => {
-          const pct = 70 + Math.round((done / total) * 15) // 70→85%
+          const pct = 70 + Math.round((done / total) * 15)
           setProgress(pct, `Inserting card details... ${done}/${total}`)
         }
       )
 
-      // step 4 — printings
       setProgress(85, 'Inserting printings...')
 
       const printingRows: unknown[][] = printings.map((p) => [
@@ -343,21 +322,18 @@ export async function syncYgo(): Promise<void> {
         printingRows,
         200,
         (done, total) => {
-          const pct = 85 + Math.round((done / total) * 10) // 85→95%
+          const pct = 85 + Math.round((done / total) * 10)
           setProgress(pct, `Inserting printings... ${done}/${total}`)
         }
       )
 
-      // ── 5. commit ─────────────────────────────────────────
       await ygo.execute('COMMIT')
       await ygo.execute('PRAGMA foreign_keys = ON')
     } catch (err) {
-      // something failed inside the transaction — roll back entirely
       await ygo.execute('ROLLBACK')
       throw err
     }
 
-    // ── 6. store new version (after commit — acts as success flag) ──
     await ygo.execute(`INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('db_version', ?)`, [
       remoteVersion,
     ])
