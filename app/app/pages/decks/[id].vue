@@ -66,6 +66,15 @@
             class="w-40"
             @update:model-value="onFormatChange"
           />
+          <!-- ranger dans un deckbox -->
+          <UButton
+            icon="i-lucide-package"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            :label="currentBox ? currentBox.name : 'Ranger'"
+            @click="rangeOpen = true"
+          />
           <!-- bouton ré-afficher le panneau si masqué (desktop) -->
           <UButton
             v-if="!isMobile && !showPreview"
@@ -151,6 +160,14 @@
       :card-id="detailCardId"
       @added="refreshOwned"
     />
+
+    <!-- ranger le deck dans un deckbox -->
+    <DeckboxRangeModal
+      v-model:open="rangeOpen"
+      :deck-id="deckId"
+      :applying="rangeApplying"
+      @confirm="onRangeConfirm"
+    />
   </AppPage>
 </template>
 
@@ -171,6 +188,12 @@ import {
   type DeckCard,
   type DeckValidation,
 } from '~/services/decks'
+import {
+  deckCurrentDeckbox,
+  applyDeckToDeckbox,
+  type CurrentDeckbox,
+  type DeckLinkPlan,
+} from '~/services/deckLink'
 import type { Board } from '~/services/deck/types'
 
 const route = useRoute()
@@ -202,6 +225,11 @@ const previewCardId = ref<string | null>(null)
 const detailOpen = ref(false)
 const detailCardId = ref<string | null>(null)
 
+// ranger dans un deckbox
+const rangeOpen = ref(false)
+const rangeApplying = ref(false)
+const currentBox = ref<CurrentDeckbox | null>(null)
+
 const totalCards = computed(() =>
   [...contents.value.main, ...contents.value.extra, ...contents.value.side].reduce(
     (s, c) => s + c.quantity,
@@ -217,6 +245,7 @@ async function loadDeck() {
     return
   }
   format.value = deck.value.format ?? engine.rules.defaultFormat
+  currentBox.value = await deckCurrentDeckbox(deckId.value)
   await refreshContents()
 }
 
@@ -343,6 +372,26 @@ async function fetchType(cardId: string): Promise<string | null> {
     [cardId]
   )
   return rows[0]?.type ?? null
+}
+
+// applique le rangement du deck dans le deckbox choisi
+async function onRangeConfirm(plan: DeckLinkPlan) {
+  rangeApplying.value = true
+  try {
+    await applyDeckToDeckbox(deckId.value, plan.deckboxId, 'ygo')
+    rangeOpen.value = false
+    currentBox.value = await deckCurrentDeckbox(deckId.value)
+    toast.add({
+      title: `Deck rangé dans « ${plan.deckboxName} »`,
+      icon: 'i-lucide-check',
+      color: 'success',
+    })
+    await refreshOwned()
+  } catch {
+    toast.add({ title: 'Échec du rangement', color: 'error' })
+  } finally {
+    rangeApplying.value = false
+  }
 }
 
 onMounted(async () => {
