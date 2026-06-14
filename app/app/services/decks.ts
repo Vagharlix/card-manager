@@ -38,6 +38,7 @@ export interface DeckListItem extends Deck {
   mainCount: number
   extraCount: number
   sideCount: number
+  deckboxName: string | null // deckbox the deck is ranged in (badge)
 }
 
 function uuid(): string {
@@ -159,6 +160,16 @@ export async function listDecks(game = 'ygo'): Promise<DeckListItem[]> {
   )
   const coverMap = new Map(covers.map((c) => [c.deck_id, c.card_id]))
 
+  // deckbox each deck is ranged in (for the badge)
+  const boxes = await user.select<{ deck_id: string; name: string }[]>(
+    `SELECT dd.deck_id, c.name
+     FROM deckbox_decks dd
+     JOIN containers c ON c.id = dd.deckbox_id AND c.deleted_at IS NULL
+     WHERE dd.deck_id IN (${decks.map(() => '?').join(', ')})`,
+    decks.map((d) => d.id)
+  )
+  const boxMap = new Map(boxes.map((b) => [b.deck_id, b.name]))
+
   return decks.map((d) => {
     const c = countMap.get(d.id) ?? { main: 0, extra: 0, side: 0 }
     return {
@@ -171,6 +182,7 @@ export async function listDecks(game = 'ygo'): Promise<DeckListItem[]> {
       mainCount: c.main,
       extraCount: c.extra,
       sideCount: c.side,
+      deckboxName: boxMap.get(d.id) ?? null,
     }
   })
 }
@@ -399,7 +411,10 @@ export async function removeCardFromDeck(
   await touchDeck(deckId)
 }
 
-// move one copy of a card between boards (e.g. main → side)
+// move one copy of a card between boards (e.g. main → side).
+// A move never changes the logical total, so it must NOT be blocked
+// by the copy limit — we write the board change directly instead of
+// going through addCardToDeck (which enforces the limit).
 export async function moveCardBoard(
   deckId: string,
   game: string,
@@ -408,8 +423,27 @@ export async function moveCardBoard(
   from: Board,
   to: Board
 ): Promise<void> {
+  const { user } = await useDatabase()
+
+  // remove one copy from the source board
   await removeCardFromDeck(deckId, cardId, from)
-  await addCardToDeck(deckId, game, cardId, cardType, to)
+
+  // add one copy to the target board directly (no limit check)
+  const existing = await user.select<{ id: string; quantity: number }[]>(
+    `SELECT id, quantity FROM deck_cards WHERE deck_id = ? AND card_id = ? AND board = ?`,
+    [deckId, cardId, to]
+  )
+  if (existing.length) {
+    await user.execute(`UPDATE deck_cards SET quantity = quantity + 1 WHERE id = ?`, [
+      existing[0].id,
+    ])
+  } else {
+    await user.execute(
+      `INSERT INTO deck_cards (id, deck_id, game, card_id, quantity, board) VALUES (?, ?, ?, ?, 1, ?)`,
+      [uuid(), deckId, game, cardId, to]
+    )
+  }
+  await touchDeck(deckId)
 }
 
 async function touchDeck(deckId: string): Promise<void> {

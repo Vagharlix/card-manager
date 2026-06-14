@@ -29,7 +29,17 @@
 
     <!-- infos -->
     <div class="p-2.5">
-      <p class="font-medium text-sm truncate">{{ deck.name }}</p>
+      <div class="flex items-center gap-2">
+        <p class="font-medium text-sm truncate flex-1">{{ deck.name }}</p>
+        <span
+          v-if="deck.deckboxName"
+          class="flex items-center gap-1 text-[11px] text-muted shrink-0 max-w-[45%]"
+          :title="deck.deckboxName"
+        >
+          <UIcon name="i-lucide-package" class="shrink-0" />
+          <span class="truncate">{{ deck.deckboxName }}</span>
+        </span>
+      </div>
       <p class="text-xs text-muted mt-0.5">
         Main {{ deck.mainCount }} · Extra {{ deck.extraCount }} · Side {{ deck.sideCount }}
       </p>
@@ -45,11 +55,17 @@ const emit = defineEmits<{
   open: [deck: DeckListItem]
   rename: [deck: DeckListItem]
   delete: [deck: DeckListItem]
+  range: [deck: DeckListItem]
 }>()
 
 const menuItems = computed(() => [
   [
     { label: 'Renommer', icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.deck) },
+    {
+      label: 'Ranger dans une deckbox',
+      icon: 'i-lucide-package',
+      onSelect: () => emit('range', props.deck),
+    },
     {
       label: 'Supprimer',
       icon: 'i-lucide-trash-2',

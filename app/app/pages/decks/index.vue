@@ -30,6 +30,7 @@
             @open="openDeck"
             @rename="askRename"
             @delete="askDelete"
+            @range="askRange"
           />
         </div>
       </div>
@@ -106,11 +107,20 @@
         </div>
       </template>
     </UModal>
+
+    <!-- ranger dans un deckbox -->
+    <DeckboxRangeModal
+      v-model:open="rangeOpen"
+      :deck-id="rangeDeckId"
+      :applying="rangeApplying"
+      @confirm="onRangeConfirm"
+    />
   </AppPage>
 </template>
 
 <script setup lang="ts">
 import { listDecks, createDeck, renameDeck, deleteDeck, type DeckListItem } from '~/services/decks'
+import { applyDeckToDeckbox, type DeckLinkPlan } from '~/services/deckLink'
 
 const router = useRouter()
 const toast = useToast()
@@ -209,6 +219,35 @@ async function confirmDelete() {
   } finally {
     deleting.value = false
     pendingDelete.value = null
+  }
+}
+
+// ── ranger dans un deckbox ──
+const rangeOpen = ref(false)
+const rangeDeckId = ref('')
+const rangeApplying = ref(false)
+
+function askRange(d: DeckListItem) {
+  rangeDeckId.value = d.id
+  rangeOpen.value = true
+}
+
+async function onRangeConfirm(plan: DeckLinkPlan) {
+  rangeApplying.value = true
+  try {
+    await applyDeckToDeckbox(rangeDeckId.value, plan.deckboxId, 'ygo')
+    rangeOpen.value = false
+    toast.add({
+      title: `Deck rangé dans « ${plan.deckboxName} »`,
+      icon: 'i-lucide-check',
+      color: 'success',
+    })
+    await load()
+  } catch (e) {
+    console.error('Range failed:', e)
+    toast.add({ title: 'Échec du rangement', color: 'error' })
+  } finally {
+    rangeApplying.value = false
   }
 }
 

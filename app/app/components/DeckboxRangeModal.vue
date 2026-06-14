@@ -4,7 +4,7 @@
       <div class="space-y-4">
         <!-- sélecteur de deckbox -->
         <div v-if="!deckboxes.length" class="text-sm text-muted text-center py-4">
-          Aucun deckbox. Crée-en un d'abord dans la collection.
+          Aucune deckbox. Crée-en un d'abord dans la collection.
         </div>
         <template v-else>
           <!-- deckbox actuelle du deck -->
@@ -55,12 +55,12 @@
               variant="soft"
               icon="i-lucide-triangle-alert"
               title="Capacité dépassée"
-              :description="`Le deck nécessite ${plan.neededCapacity} places, le deckbox en a ${plan.capacity}. Sa capacité sera augmentée à ${plan.neededCapacity}.`"
+              :description="`Le deck nécessite ${plan.neededCapacity} places, la deckbox en a ${plan.capacity}. Sa capacité sera augmentée à ${plan.neededCapacity}.`"
             />
 
             <!-- rien à faire -->
             <p v-if="!plan.lines.length" class="text-sm text-muted text-center py-2">
-              Toutes les cartes possédées sont déjà dans ce deckbox.
+              Toutes les cartes possédées sont déjà dans cette deckbox.
             </p>
 
             <!-- détail par carte -->
@@ -161,7 +161,7 @@ const canConfirm = computed(() => {
   return false
 })
 
-const title = computed(() => 'Ranger le deck dans un deckbox')
+const title = computed(() => 'Ranger le deck dans une deckbox')
 
 async function loadDeckboxes() {
   const all = await listContainers()
