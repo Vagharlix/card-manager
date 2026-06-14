@@ -260,17 +260,23 @@ export async function getDeckContents(deckId: string, game = 'ygo'): Promise<Dec
   return result
 }
 
+// result of an add attempt — lets the UI show a precise message
+export interface AddResult {
+  ok: boolean
+  reason?: 'forbidden' | 'limited' | 'semi' | 'max' // why it was rejected
+  limit?: number // allowed copies
+}
+
 // add one copy of a card to a deck. The board is decided by the
 // engine (auto-placement) unless `board` is given explicitly (e.g.
 // moving to side). Respects the per-card copy limit across boards.
-// Returns false if the copy limit is reached.
 export async function addCardToDeck(
   deckId: string,
   game: string,
   cardId: string,
   cardType: string | null,
   board?: Board
-): Promise<boolean> {
+): Promise<AddResult> {
   const { user, ygo } = await useDatabase()
   const engine = deckEngine(game)
 
@@ -290,8 +296,21 @@ export async function addCardToDeck(
     [deckId, ...variantIds]
   )
   const current = totals[0]?.n ?? 0
-  const max = engine.maxCopiesForCard?.({ cardId, type: cardType }) ?? engine.rules.defaultMaxCopies
-  if (current >= max) return false
+
+  // deck format + card banlist → format-aware copy limit
+  const format = await deckFormat(deckId, engine.rules.defaultFormat)
+  const banlist = await cardBanlist(cardId)
+  const max = engine.maxCopiesForCard({ cardId, type: cardType, banlist }, format)
+
+  if (current >= max) {
+    // precise reason based on the limit / banlist status
+    const status = format === 'casual' ? null : banlist[format]
+    let reason: AddResult['reason'] = 'max'
+    if (status === 'Forbidden') reason = 'forbidden'
+    else if (status === 'Limited') reason = 'limited'
+    else if (status === 'Semi-Limited') reason = 'semi'
+    return { ok: false, reason, limit: max }
+  }
 
   // existing row for THIS exact artwork on this board?
   const existing = await user.select<{ id: string; quantity: number }[]>(
@@ -310,7 +329,7 @@ export async function addCardToDeck(
     )
   }
   await touchDeck(deckId)
-  return true
+  return { ok: true }
 }
 
 // all passcodes that are the same logical card as `cardId`
@@ -332,6 +351,30 @@ async function logicalVariants(cardId: string): Promise<string[]> {
   )
   const ids = variants.map((v) => v.id)
   return ids.length ? ids : [cardId]
+}
+
+// current format of a deck (falls back to engine default)
+async function deckFormat(deckId: string, fallback: string): Promise<string> {
+  const { user } = await useDatabase()
+  const rows = await user.select<{ format: string | null }[]>(
+    `SELECT format FROM decks WHERE id = ?`,
+    [deckId]
+  )
+  return rows[0]?.format ?? fallback
+}
+
+// banlist status of a card per format, from cards-ygo.db.
+// Uses the alias root so all artworks share the same banlist.
+async function cardBanlist(cardId: string): Promise<Record<string, string | null>> {
+  const { ygo } = await useDatabase()
+  const rows = await ygo.select<{ banlist_tcg: string | null; banlist_ocg: string | null }[]>(
+    `SELECT banlist_tcg, banlist_ocg
+     FROM ygo_details
+     WHERE card_id = COALESCE((SELECT alias FROM ygo_details WHERE card_id = ?), ?)`,
+    [cardId, cardId]
+  )
+  const r = rows[0]
+  return { tcg: r?.banlist_tcg ?? null, ocg: r?.banlist_ocg ?? null }
 }
 
 // remove one copy of a card from a specific board (deletes row at 0)
@@ -372,4 +415,102 @@ export async function moveCardBoard(
 async function touchDeck(deckId: string): Promise<void> {
   const { user } = await useDatabase()
   await user.execute(`UPDATE decks SET updated_at = ? WHERE id = ?`, [now(), deckId])
+}
+
+// ============================================================
+// VALIDATION — checks the deck against the current format.
+// Copy limits apply to the LOGICAL card across all boards
+// (main + extra + side combined), per official YGO rules.
+// Reports violations without modifying the deck.
+// ============================================================
+
+export interface CardViolation {
+  rootId: string // alias root (logical card)
+  name: string
+  quantity: number // total copies across all boards
+  limit: number // allowed in this format
+  status: string // 'Forbidden' | 'Limited' | 'Semi-Limited' | 'Over'
+}
+
+export interface DeckValidation {
+  valid: boolean
+  violations: CardViolation[]
+  // passcodes (any artwork) that are in violation, for quick UI lookup
+  flagged: Set<string>
+}
+
+export async function validateDeck(deckId: string, game = 'ygo'): Promise<DeckValidation> {
+  const { user, ygo } = await useDatabase()
+  const engine = deckEngine(game)
+  const format = await deckFormat(deckId, engine.rules.defaultFormat)
+
+  // all deck rows
+  const rows = await user.select<{ card_id: string; quantity: number }[]>(
+    `SELECT card_id, quantity FROM deck_cards WHERE deck_id = ?`,
+    [deckId]
+  )
+  if (!rows.length) return { valid: true, violations: [], flagged: new Set() }
+
+  // resolve each passcode to its alias root + name + banlist
+  const ids = [...new Set(rows.map((r) => r.card_id))]
+  const ph = ids.map(() => '?').join(', ')
+  const meta = await ygo.select<
+    {
+      id: string
+      root: string
+      name: string
+      banlist_tcg: string | null
+      banlist_ocg: string | null
+    }[]
+  >(
+    `SELECT c.id,
+            COALESCE(d.alias, c.id) AS root,
+            c.name,
+            rd.banlist_tcg, rd.banlist_ocg
+     FROM cards c
+     JOIN ygo_details d  ON d.card_id = c.id
+     JOIN ygo_details rd ON rd.card_id = COALESCE(d.alias, c.id)
+     WHERE c.id IN (${ph})`,
+    ids
+  )
+  const metaById = new Map(meta.map((m) => [m.id, m]))
+
+  // sum quantities per logical root
+  interface Agg {
+    root: string
+    name: string
+    qty: number
+    banlist: Record<string, string | null>
+    passcodes: string[]
+  }
+  const byRoot = new Map<string, Agg>()
+  for (const r of rows) {
+    const m = metaById.get(r.card_id)
+    if (!m) continue
+    const agg = byRoot.get(m.root) ?? {
+      root: m.root,
+      name: m.name,
+      qty: 0,
+      banlist: { tcg: m.banlist_tcg, ocg: m.banlist_ocg },
+      passcodes: [],
+    }
+    agg.qty += r.quantity
+    agg.passcodes.push(r.card_id)
+    byRoot.set(m.root, agg)
+  }
+
+  const violations: CardViolation[] = []
+  const flagged = new Set<string>()
+
+  for (const agg of byRoot.values()) {
+    const limit = engine.maxCopiesForCard({ cardId: agg.root, banlist: agg.banlist }, format)
+    if (agg.qty > limit) {
+      const status =
+        limit === 0 ? 'Forbidden' : limit === 1 ? 'Limited' : limit === 2 ? 'Semi-Limited' : 'Over'
+      violations.push({ rootId: agg.root, name: agg.name, quantity: agg.qty, limit, status })
+      for (const p of agg.passcodes) flagged.add(p)
+    }
+  }
+
+  return { valid: violations.length === 0, violations, flagged }
 }

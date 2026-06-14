@@ -10,27 +10,48 @@ const YGO_RULES: DeckRules = {
     { id: 'extra', label: 'Extra Deck', min: 0, max: 15 },
     { id: 'side', label: 'Side Deck', min: 0, max: 15 },
   ],
+  formats: [
+    { id: 'tcg', label: 'TCG' },
+    { id: 'ocg', label: 'OCG' },
+    { id: 'casual', label: 'Casual (sans banlist)' },
+  ],
+  defaultFormat: 'tcg',
   defaultMaxCopies: 3,
 }
 
-// Monster card types that belong to the Extra Deck.
-// A card whose `type` contains one of these tokens is an Extra Deck card.
+// Monster types that belong to the Extra Deck.
 const EXTRA_DECK_TOKENS = ['Fusion', 'Synchro', 'Xyz', 'Link']
+
+// banlist status → allowed copies
+function copiesFromStatus(status: string | null | undefined): number {
+  switch (status) {
+    case 'Forbidden':
+      return 0
+    case 'Limited':
+      return 1
+    case 'Semi-Limited':
+      return 2
+    default:
+      return 3
+  }
+}
 
 export const ygoDeckEngine: DeckEngine = {
   rules: YGO_RULES,
 
   boardForCard(card: CardForPlacement): Board {
     const type = card.type ?? ''
-    // Extra Deck monsters go to extra; everything else to main.
-    // (Side is never automatic — it's an explicit user move.)
     if (EXTRA_DECK_TOKENS.some((tok) => type.includes(tok))) return 'extra'
     return 'main'
   },
 
-  // banlist-aware copy limit will be wired later (reads ygo_details
-  // banlist columns). For now, the default of 3 applies.
-  maxCopiesForCard(_card: CardForPlacement): number {
-    return YGO_RULES.defaultMaxCopies
+  maxCopiesForCard(card: CardForPlacement, format: string): number {
+    // Casual (or unknown format) → no banlist, full 3 copies
+    if (format === 'casual') return YGO_RULES.defaultMaxCopies
+
+    const status = card.banlist?.[format]
+    // if we have a banlist status for this format, apply it; else default 3
+    if (status === undefined) return YGO_RULES.defaultMaxCopies
+    return copiesFromStatus(status)
   },
 }

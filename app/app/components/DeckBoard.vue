@@ -19,7 +19,12 @@
           @contextmenu.prevent="$emit('remove', c)"
         >
           <div
-            class="aspect-[0.686] rounded overflow-hidden border border-transparent group-hover:border-primary transition-colors"
+            class="aspect-[0.686] rounded overflow-hidden border-2 transition-colors"
+            :class="
+              flagged?.has(c.cardId)
+                ? 'border-error'
+                : 'border-transparent group-hover:border-primary'
+            "
           >
             <ArtThumb :passcode="c.cardId" class="w-full h-full object-cover" />
           </div>
@@ -30,8 +35,17 @@
         >
           {{ c.quantity }}
         </div>
+        <!-- infraction banlist -->
         <div
-          v-if="c.owned < c.quantity"
+          v-if="flagged?.has(c.cardId)"
+          class="absolute top-0.5 left-0.5 size-4 rounded-full bg-error text-inverted flex items-center justify-center"
+          title="Dépasse la limite du format"
+        >
+          <UIcon name="i-lucide-ban" class="text-[10px]" />
+        </div>
+        <!-- non possédée (déplacé à droite si infraction occupe la gauche) -->
+        <div
+          v-else-if="c.owned < c.quantity"
           class="absolute top-0.5 left-0.5 size-4 rounded-full bg-warning text-inverted flex items-center justify-center"
           :title="`Tu possèdes ${c.owned} / ${c.quantity}`"
         >
@@ -52,6 +66,7 @@ const props = defineProps<{
   min: number
   max: number
   showMax?: boolean
+  flagged?: Set<string>
 }>()
 
 defineEmits<{ remove: [card: DeckCard]; info: [card: DeckCard] }>()

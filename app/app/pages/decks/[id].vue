@@ -58,6 +58,14 @@
             <h2 class="font-medium">{{ deck?.name ?? 'Deck' }}</h2>
             <p class="text-xs text-muted">{{ totalCards }} cartes</p>
           </div>
+          <!-- sélecteur de format -->
+          <USelect
+            v-model="format"
+            :items="formatItems"
+            size="sm"
+            class="w-40"
+            @update:model-value="onFormatChange"
+          />
           <!-- bouton ré-afficher le panneau si masqué (desktop) -->
           <UButton
             v-if="!isMobile && !showPreview"
@@ -70,9 +78,27 @@
         </div>
 
         <div class="flex-1 min-h-0 overflow-y-auto space-y-5 pr-1">
+          <!-- bandeau récapitulatif des infractions banlist -->
+          <UAlert
+            v-if="!validation.valid"
+            color="error"
+            variant="soft"
+            icon="i-lucide-ban"
+            :title="`${validation.violations.length} carte(s) dépassent la banlist ${format.toUpperCase()}`"
+          >
+            <template #description>
+              <ul class="text-xs mt-1 space-y-0.5">
+                <li v-for="v in validation.violations" :key="v.rootId">
+                  {{ v.name }} — {{ v.quantity }} en deck, {{ statusLabel(v) }}
+                </li>
+              </ul>
+            </template>
+          </UAlert>
+
           <DeckBoard
             label="Main Deck"
             :cards="contents.main"
+            :flagged="validation.flagged"
             :min="40"
             :max="60"
             show-max
@@ -82,6 +108,7 @@
           <DeckBoard
             label="Extra Deck"
             :cards="contents.extra"
+            :flagged="validation.flagged"
             :min="0"
             :max="15"
             show-max
@@ -91,6 +118,7 @@
           <DeckBoard
             label="Side Deck"
             :cards="contents.side"
+            :flagged="validation.flagged"
             :min="0"
             :max="15"
             show-max
@@ -127,9 +155,13 @@ import {
   getDeckContents,
   addCardToDeck,
   removeCardFromDeck,
+  updateDeckMeta,
+  deckEngine,
+  validateDeck,
   type Deck,
   type DeckContents,
   type DeckCard,
+  type DeckValidation,
 } from '~/services/decks'
 import type { Board } from '~/services/deck/types'
 
@@ -143,6 +175,12 @@ const deckId = computed(() => route.params.id as string)
 const deck = ref<Deck | null>(null)
 const contents = ref<DeckContents>({ main: [], extra: [], side: [] })
 const ownedIds = ref<Set<string>>(new Set())
+const validation = ref<DeckValidation>({ valid: true, violations: [], flagged: new Set() })
+
+// format du deck
+const engine = deckEngine('ygo')
+const format = ref<string>(engine.rules.defaultFormat)
+const formatItems = engine.rules.formats.map((f) => ({ label: f.label, value: f.id }))
 
 const query = ref('')
 const results = ref<CardSearchResult[]>([])
@@ -170,11 +208,21 @@ async function loadDeck() {
     router.push('/decks')
     return
   }
+  format.value = deck.value.format ?? engine.rules.defaultFormat
   await refreshContents()
+}
+
+async function onFormatChange(value: string) {
+  format.value = value
+  await updateDeckMeta(deckId.value, { format: value })
+  // un changement de format peut rendre le deck invalide → revalider
+  validation.value = await validateDeck(deckId.value, 'ygo')
+  toast.add({ title: `Format : ${value.toUpperCase()}`, icon: 'i-lucide-check', color: 'success' })
 }
 
 async function refreshContents() {
   contents.value = await getDeckContents(deckId.value, 'ygo')
+  validation.value = await validateDeck(deckId.value, 'ygo')
 }
 
 async function refreshOwned() {
@@ -216,11 +264,27 @@ function showInfo(cardId: string) {
   onCardClick(cardId)
 }
 
+// libellé de la limite pour une infraction
+function statusLabel(v: { status: string; limit: number }): string {
+  if (v.status === 'Forbidden') return 'interdite (0)'
+  if (v.status === 'Limited') return 'limitée à 1'
+  if (v.status === 'Semi-Limited') return 'semi-limitée (2)'
+  return `max ${v.limit}`
+}
+
 async function addCard(r: CardSearchResult) {
   const type = await fetchType(r.id)
-  const ok = await addCardToDeck(deckId.value, 'ygo', r.id, type)
-  if (!ok) {
-    toast.add({ title: 'Limite de 3 exemplaires atteinte', color: 'warning' })
+  const res = await addCardToDeck(deckId.value, 'ygo', r.id, type)
+  if (!res.ok) {
+    const msg =
+      res.reason === 'forbidden'
+        ? 'Carte interdite dans ce format'
+        : res.reason === 'limited'
+          ? 'Carte limitée à 1 exemplaire'
+          : res.reason === 'semi'
+            ? 'Carte semi-limitée (2 max)'
+            : 'Limite de 3 exemplaires atteinte'
+    toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }
   // alimente l'aperçu desktop avec la carte ajoutée
