@@ -104,6 +104,8 @@
             show-max
             @info="(c) => onCardClick(c.cardId)"
             @remove="(c) => removeCard(c, 'main')"
+            @move="(c) => moveToSide(c, 'main')"
+            @add="(c) => addExisting(c)"
           />
           <DeckBoard
             label="Extra Deck"
@@ -114,6 +116,8 @@
             show-max
             @info="(c) => onCardClick(c.cardId)"
             @remove="(c) => removeCard(c, 'extra')"
+            @move="(c) => moveToSide(c, 'extra')"
+            @add="(c) => addExisting(c)"
           />
           <DeckBoard
             label="Side Deck"
@@ -122,8 +126,11 @@
             :min="0"
             :max="15"
             show-max
+            is-side
             @info="(c) => onCardClick(c.cardId)"
             @remove="(c) => removeCard(c, 'side')"
+            @move="(c) => moveFromSide(c)"
+            @add="(c) => addExisting(c, 'side')"
           />
         </div>
       </div>
@@ -158,6 +165,7 @@ import {
   updateDeckMeta,
   deckEngine,
   validateDeck,
+  moveCardBoard,
   type Deck,
   type DeckContents,
   type DeckCard,
@@ -294,6 +302,37 @@ async function addCard(r: CardSearchResult) {
 
 async function removeCard(c: DeckCard, board: Board) {
   await removeCardFromDeck(deckId.value, c.cardId, board)
+  await refreshContents()
+}
+
+// envoie une carte du Main/Extra vers le Side
+async function moveToSide(c: DeckCard, from: Board) {
+  await moveCardBoard(deckId.value, 'ygo', c.cardId, c.type, from, 'side')
+  await refreshContents()
+}
+
+// renvoie une carte du Side vers le deck (Main ou Extra selon son type)
+async function moveFromSide(c: DeckCard) {
+  const target = engine.boardForCard({ cardId: c.cardId, type: c.type })
+  await moveCardBoard(deckId.value, 'ygo', c.cardId, c.type, 'side', target)
+  await refreshContents()
+}
+
+// +1 d'une carte déjà dans le deck (menu mobile). board explicite pour le Side.
+async function addExisting(c: DeckCard, board?: Board) {
+  const res = await addCardToDeck(deckId.value, 'ygo', c.cardId, c.type, board)
+  if (!res.ok) {
+    const msg =
+      res.reason === 'forbidden'
+        ? 'Carte interdite dans ce format'
+        : res.reason === 'limited'
+          ? 'Carte limitée à 1 exemplaire'
+          : res.reason === 'semi'
+            ? 'Carte semi-limitée (2 max)'
+            : 'Limite de 3 exemplaires atteinte'
+    toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
+    return
+  }
   await refreshContents()
 }
 
