@@ -3,7 +3,13 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 mod image_cache;
 
 fn db_name(name: &str) -> String {
-    if cfg!(debug_assertions) {
+    // Test build: the frontend is generated with VITE_TEST_MODE=true and the
+    // Tauri binary is compiled in the same env, so we read it at compile time.
+    // This MUST match the suffix chosen by db-names.ts on the JS side, so that
+    // migrations are registered for the same database file the app opens.
+    if option_env!("VITE_TEST_MODE") == Some("true") {
+        format!("sqlite:{}.test.db", name)
+    } else if cfg!(debug_assertions) {
         format!("sqlite:{}.dev.db", name)
     } else {
         format!("sqlite:{}.db", name)
