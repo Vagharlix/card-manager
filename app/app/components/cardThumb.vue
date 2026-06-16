@@ -2,7 +2,8 @@
   <div class="[content-visibility:auto] [contain-intrinsic-size:auto_180px]">
     <button
       type="button"
-      class="group relative block w-full text-left focus:outline-none"
+      class="card-thumb group relative block w-full text-left focus:outline-none"
+      :data-card-id="card.id"
       @click="onClick"
     >
       <div
@@ -24,7 +25,6 @@
           class="w-full h-full object-cover rounded-md"
           loading="lazy"
         />
-
         <!-- voile + coche en mode sélection -->
         <div
           v-if="selectable"
@@ -41,7 +41,6 @@
           </div>
         </div>
       </div>
-
       <!-- pastille "possédée" (masquée en mode sélection) -->
       <div
         v-if="owned && !selectable"
@@ -49,7 +48,6 @@
       >
         <UIcon name="i-lucide-check" class="text-xs" />
       </div>
-
       <!-- badge quantité (masqué en mode sélection) -->
       <div
         v-if="quantity && !selectable"
@@ -57,7 +55,6 @@
       >
         ×{{ quantity }}
       </div>
-
       <!-- quantité en mode sélection : en bas à droite -->
       <div
         v-if="quantity && selectable"
@@ -65,15 +62,12 @@
       >
         ×{{ quantity }}
       </div>
-
       <p v-if="showName" class="mt-1 text-xs truncate text-muted">{{ card.name }}</p>
     </button>
   </div>
 </template>
-
 <script setup lang="ts">
 import type { CardSearchResult } from '~/services/search'
-
 const props = withDefaults(
   defineProps<{
     card: CardSearchResult
@@ -90,14 +84,11 @@ const props = withDefaults(
     selected: false,
   }
 )
-
 const emit = defineEmits<{
   select: [card: CardSearchResult]
   toggle: [card: CardSearchResult]
 }>()
-
 const { src, loading, error } = useCardImage(() => props.card.id, 'small')
-
 function onClick() {
   if (props.selectable) emit('toggle', props.card)
   else emit('select', props.card)

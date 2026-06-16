@@ -12,7 +12,7 @@
         <USkeleton class="h-4 w-1/2" />
       </div>
 
-      <div v-else-if="detail" class="space-y-5">
+      <div v-else-if="detail" id="card-detail" class="space-y-5">
         <!-- image en grand -->
         <div class="rounded-lg overflow-hidden ring-1 ring-default max-w-xs mx-auto">
           <img
@@ -44,7 +44,10 @@
         <!-- statut possédée -->
         <div class="flex items-center gap-2 text-sm">
           <UIcon name="i-lucide-layers" class="text-muted" />
-          <span :class="owned > 0 ? 'text-success font-medium' : 'text-muted'">
+          <span
+            id="card-detail-owned"
+            :class="owned > 0 ? 'text-success font-medium' : 'text-muted'"
+          >
             {{ owned }} dans ta collection
           </span>
         </div>
@@ -53,6 +56,7 @@
         <div class="space-y-2">
           <div class="flex gap-2">
             <UButton
+              id="btn-quick-add"
               block
               icon="i-lucide-plus"
               label="Ajouter"
@@ -61,6 +65,7 @@
               @click="quickAdd"
             />
             <UButton
+              id="btn-toggle-detailed"
               icon="i-lucide-sliders-horizontal"
               color="neutral"
               variant="soft"
@@ -99,6 +104,7 @@
               <UCheckbox v-model="form.signed" label="Signed" size="sm" />
             </div>
             <UButton
+              id="btn-detailed-add"
               block
               icon="i-lucide-check"
               label="Ajouter avec ces détails"
