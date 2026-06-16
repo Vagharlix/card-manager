@@ -3,7 +3,6 @@
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
-
     <Transition name="fade">
       <div
         v-if="isSyncing || syncError"
@@ -40,6 +39,9 @@ async function retry() {
 }
 
 async function runSync() {
+  // In E2E test mode the reference database is provided (copied from dev),
+  // so we never sync — tests must not depend on the network.
+  if (import.meta.env.VITE_TEST_MODE === 'true') return
   try {
     await syncYgo()
   } catch {}
