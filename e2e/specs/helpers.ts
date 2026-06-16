@@ -124,3 +124,42 @@ export async function waitVisible(selector: string, timeout = 10000): Promise<vo
 export async function waitForApp(): Promise<void> {
   await waitFor('header', { timeout: 30000 })
 }
+
+// Read an attribute of the first element matching a selector (null if absent).
+export async function attrOf(selector: string, attr: string): Promise<string | null> {
+  return browser.execute(
+    (sel: string, a: string) => {
+      const el = document.querySelector(sel)
+      return el ? el.getAttribute(a) : null
+    },
+    selector,
+    attr
+  )
+}
+
+// Wait until an element's attribute satisfies a predicate (language-invariant).
+export async function waitForAttr(
+  selector: string,
+  attr: string,
+  pred: (v: string | null) => boolean,
+  timeout = 10000
+): Promise<void> {
+  await browser.waitUntil(async () => pred(await attrOf(selector, attr)), {
+    timeout,
+    timeoutMsg: `attribute "${attr}" of "${selector}" never matched`,
+  })
+}
+
+// ── Dropdown menus (Nuxt UI, teleported) ──────────────────
+// Open a container row's ⋮ menu by container id, then wait for the
+// teleported menu content to mount.
+export async function openContainerMenu(containerId: string): Promise<void> {
+  await click(`[data-menu-trigger="${containerId}"]`)
+  await waitFor('[data-menu-action]', { timeout: 5000 })
+}
+
+// Click a menu entry by its stable action (language-invariant).
+export async function clickMenuAction(action: string): Promise<void> {
+  await waitFor(`[data-menu-action="${action}"]`, { timeout: 5000 })
+  await click(`[data-menu-action="${action}"]`)
+}

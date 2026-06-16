@@ -46,6 +46,7 @@
           <UIcon name="i-lucide-layers" class="text-muted" />
           <span
             id="card-detail-owned"
+            :data-owned-count="owned"
             :class="owned > 0 ? 'text-success font-medium' : 'text-muted'"
           >
             {{ owned }} dans ta collection

@@ -3,6 +3,7 @@
     <div class="flex items-center justify-between mb-3 shrink-0">
       <p class="text-xs text-muted uppercase tracking-wide">Conteneurs</p>
       <UButton
+        id="container-create-btn"
         icon="i-lucide-plus"
         color="neutral"
         variant="ghost"
@@ -22,7 +23,9 @@
           <div
             v-for="c in group.items"
             :key="c.id"
-            class="group flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition cursor-pointer"
+            :data-container-id="c.id"
+            :data-container-name="c.name"
+            class="container-item group flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition cursor-pointer"
             :class="selectedId === c.id ? 'bg-elevated text-primary' : 'hover:bg-elevated'"
             @click="$emit('select', c.id)"
           >
@@ -30,6 +33,7 @@
 
             <UDropdownMenu :items="menuItems(c)" :content="{ align: 'end' }">
               <UButton
+                :data-menu-trigger="c.id"
                 icon="i-lucide-ellipsis-vertical"
                 color="neutral"
                 variant="ghost"
@@ -37,6 +41,15 @@
                 class="opacity-0 group-hover:opacity-100 transition"
                 @click.stop
               />
+              <template #item="{ item }">
+                <span
+                  :data-menu-action="(item as any).action"
+                  class="flex items-center gap-2 w-full"
+                >
+                  <UIcon :name="item.icon as string" class="shrink-0" />
+                  <span class="flex-1 truncate">{{ item.label }}</span>
+                </span>
+              </template>
             </UDropdownMenu>
 
             <span class="text-xs text-muted shrink-0 w-5 text-right">{{ c.cardCount }}</span>
@@ -47,6 +60,7 @@
     </div>
 
     <button
+      data-container-id="__unranged__"
       class="mt-3 shrink-0 w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm text-left transition border"
       :class="
         selectedId === UNRANGED_ID
@@ -64,6 +78,7 @@
     <UModal v-model:open="renameOpen" title="Renommer le conteneur">
       <template #body>
         <UInput
+          id="container-rename-input"
           v-model="renameValue"
           placeholder="Nouveau nom"
           class="w-full"
@@ -75,6 +90,7 @@
         <div class="flex gap-2 justify-end w-full">
           <UButton label="Annuler" color="neutral" variant="ghost" @click="renameOpen = false" />
           <UButton
+            id="container-rename-confirm"
             label="Renommer"
             icon="i-lucide-check"
             :loading="renaming"
@@ -104,6 +120,7 @@
         <div class="flex gap-2 justify-end w-full">
           <UButton label="Annuler" color="neutral" variant="ghost" @click="confirmOpen = false" />
           <UButton
+            id="container-delete-confirm"
             label="Supprimer"
             color="error"
             icon="i-lucide-trash-2"
@@ -153,11 +170,22 @@ const groups = computed(() => {
 function menuItems(c: ContainerListItem) {
   return [
     [
-      { label: 'Renommer', icon: 'i-lucide-pencil', onSelect: () => askRename(c) },
-      { label: 'Modifier', icon: 'i-lucide-settings-2', onSelect: () => askEdit(c) },
+      {
+        label: 'Renommer',
+        icon: 'i-lucide-pencil',
+        action: 'rename',
+        onSelect: () => askRename(c),
+      },
+      {
+        label: 'Modifier',
+        icon: 'i-lucide-settings-2',
+        action: 'edit',
+        onSelect: () => askEdit(c),
+      },
       {
         label: 'Supprimer',
         icon: 'i-lucide-trash-2',
+        action: 'delete',
         color: 'error' as const,
         onSelect: () => askDelete(c),
       },

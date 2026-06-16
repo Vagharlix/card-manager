@@ -9,7 +9,8 @@
             <button
               v-for="t in TYPES"
               :key="t.value"
-              class="flex flex-col items-center gap-1 p-3 rounded-lg border text-sm transition"
+              :data-type="t.value"
+              class="container-type-btn flex flex-col items-center gap-1 p-3 rounded-lg border text-sm transition"
               :class="
                 type === t.value
                   ? 'border-primary bg-primary/5 text-primary'
@@ -26,22 +27,46 @@
         <!-- nom -->
         <div>
           <p class="text-sm text-muted mb-1.5">Nom</p>
-          <UInput v-model="name" placeholder="ex. Classeur rares" class="w-full" autofocus />
+          <UInput
+            id="container-name-input"
+            v-model="name"
+            placeholder="ex. Classeur rares"
+            class="w-full"
+            autofocus
+          />
         </div>
 
         <!-- options binder -->
         <div v-if="type === 'binder'" class="grid grid-cols-3 gap-2">
           <div>
             <p class="text-xs text-muted mb-1">Pages</p>
-            <UInput v-model.number="pageCount" type="number" min="0" size="sm" />
+            <UInput
+              id="container-pages-input"
+              v-model.number="pageCount"
+              type="number"
+              min="0"
+              size="sm"
+            />
           </div>
           <div>
             <p class="text-xs text-muted mb-1">Lignes</p>
-            <UInput v-model.number="rows" type="number" min="1" size="sm" />
+            <UInput
+              id="container-rows-input"
+              v-model.number="rows"
+              type="number"
+              min="1"
+              size="sm"
+            />
           </div>
           <div>
             <p class="text-xs text-muted mb-1">Colonnes</p>
-            <UInput v-model.number="cols" type="number" min="1" size="sm" />
+            <UInput
+              id="container-cols-input"
+              v-model.number="cols"
+              type="number"
+              min="1"
+              size="sm"
+            />
           </div>
         </div>
 
@@ -49,6 +74,7 @@
         <div v-else>
           <p class="text-xs text-muted mb-1">Capacité max (optionnel)</p>
           <UInput
+            id="container-capacity-input"
             v-model.number="maxCapacity"
             type="number"
             min="1"
@@ -69,6 +95,7 @@
           @click="$emit('update:open', false)"
         />
         <UButton
+          id="container-create-confirm"
           label="Créer"
           icon="i-lucide-check"
           :loading="creating"
