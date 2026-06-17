@@ -3,6 +3,7 @@
     <!-- navigation de page -->
     <div class="flex items-center justify-center gap-3 mb-4 shrink-0">
       <UButton
+        id="binder-prev-page"
         icon="i-lucide-chevron-left"
         color="neutral"
         variant="soft"
@@ -10,8 +11,11 @@
         :disabled="page <= 0"
         @click="page--"
       />
-      <span class="text-sm">Page {{ page + 1 }} / {{ Math.max(1, pageCount) }}</span>
+      <span class="text-sm" data-binder-page
+        >Page {{ page + 1 }} / {{ Math.max(1, pageCount) }}</span
+      >
       <UButton
+        id="binder-next-page"
         icon="i-lucide-chevron-right"
         color="neutral"
         variant="soft"
@@ -30,7 +34,12 @@
         <div
           v-for="cell in pageSlots"
           :key="`${cell.row}-${cell.col}`"
-          class="group relative aspect-[0.686] rounded-lg border-2 flex items-center justify-center transition"
+          class="binder-slot group relative aspect-[0.686] rounded-lg border-2 flex items-center justify-center transition"
+          :data-slot-page="page"
+          :data-slot-row="cell.row"
+          :data-slot-col="cell.col"
+          :data-slot-filled="cell.card ? 'true' : 'false'"
+          :data-slot-card-id="cell.card ? cell.card.cardId : null"
           :class="
             cell.card
               ? 'border-solid border-default'
@@ -46,6 +55,7 @@
               />
             </button>
             <UButton
+              :data-slot-clear="cell.card.cardId"
               icon="i-lucide-x"
               color="error"
               variant="solid"

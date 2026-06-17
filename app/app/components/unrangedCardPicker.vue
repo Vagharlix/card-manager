@@ -3,24 +3,23 @@
     <template #body>
       <div class="space-y-3">
         <UInput
+          id="unranged-picker-search"
           v-model="query"
           placeholder="Rechercher par nom..."
           icon="i-lucide-search"
           class="w-full"
           autofocus
         />
-
         <div v-if="loading" class="py-8 text-center text-muted text-sm">Chargement…</div>
-
         <div v-else-if="!filtered.length" class="py-8 text-center text-dimmed text-sm">
           {{ query ? 'Aucune carte ne correspond' : 'Aucune carte non rangée' }}
         </div>
-
         <div v-else class="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-80 overflow-y-auto">
           <button
             v-for="c in filtered"
             :key="c.rootId"
-            class="group relative text-left"
+            :data-picker-card-id="c.displayId"
+            class="unranged-picker-card group relative text-left"
             @click="$emit('pick', c)"
           >
             <div
