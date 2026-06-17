@@ -62,7 +62,7 @@
       </div>
 
       <!-- contenu -->
-      <div class="flex-1 min-h-0 overflow-hidden">
+      <div id="container-content" class="flex-1 min-h-0 overflow-hidden">
         <!-- vue binder positionnelle -->
         <BinderView
           v-if="isBinder"
@@ -89,7 +89,12 @@
             v-else-if="view === 'grid'"
             class="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
           >
-            <div v-for="c in cards" :key="c.rootId" class="group relative">
+            <div
+              v-for="c in cards"
+              :key="c.rootId"
+              :data-content-card-id="c.displayId"
+              class="container-card group relative"
+            >
               <CardThumb
                 :card="{ game: c.game, id: c.displayId, name: c.name, imageUrl: '' }"
                 :quantity="c.totalQty"
@@ -100,6 +105,7 @@
               />
               <UButton
                 v-if="!isUnranged && !selectMode"
+                :data-unassign="c.displayId"
                 icon="i-lucide-folder-minus"
                 color="error"
                 variant="solid"
@@ -114,7 +120,8 @@
             <div
               v-for="c in cards"
               :key="c.rootId"
-              class="group w-full flex items-center gap-3 p-2 rounded-lg hover:bg-elevated"
+              :data-content-card-id="c.displayId"
+              class="container-card group w-full flex items-center gap-3 p-2 rounded-lg hover:bg-elevated"
             >
               <button class="flex items-center gap-3 flex-1 text-left min-w-0" @click="openCard(c)">
                 <div class="w-10 shrink-0 rounded overflow-hidden">
@@ -125,6 +132,7 @@
               <UBadge color="neutral" variant="soft">×{{ c.totalQty }}</UBadge>
               <UButton
                 v-if="!isUnranged"
+                :data-unassign="c.displayId"
                 icon="i-lucide-folder-minus"
                 color="error"
                 variant="ghost"
@@ -177,6 +185,7 @@
         <div class="flex gap-2 justify-end w-full">
           <UButton label="Annuler" color="neutral" variant="ghost" @click="unassignOpen = false" />
           <UButton
+            id="unassign-confirm"
             label="Retirer"
             color="error"
             icon="i-lucide-folder-minus"

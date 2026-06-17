@@ -117,6 +117,7 @@
 
         <!-- ranger dans un conteneur (flux A) -->
         <UButton
+          id="btn-range-card"
           v-if="unrangedForCard > 0"
           block
           icon="i-lucide-folder-input"

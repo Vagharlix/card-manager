@@ -6,6 +6,7 @@
         <div v-if="maxQuantity && maxQuantity > 1">
           <p class="text-sm text-muted mb-1.5">Quantité à ranger</p>
           <UInput
+            id="picker-qty-input"
             v-model.number="qty"
             type="number"
             min="1"
@@ -38,8 +39,9 @@
               <button
                 v-for="c in group.items"
                 :key="c.id"
+                :data-picker-container-id="c.id"
                 :disabled="c.isFull"
-                class="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition border mb-1"
+                class="picker-container w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition border mb-1"
                 :class="
                   c.isFull
                     ? 'border-default opacity-40 cursor-not-allowed'
@@ -68,6 +70,7 @@
           @click="$emit('update:open', false)"
         />
         <UButton
+          id="picker-confirm"
           label="Ranger"
           icon="i-lucide-check"
           :loading="busy"
