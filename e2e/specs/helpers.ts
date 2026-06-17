@@ -26,6 +26,14 @@ export async function goTo(path: string): Promise<void> {
   await browser.pause(400)
 }
 
+// Wait until window.location.pathname satisfies a predicate.
+export async function waitForPath(pred: (path: string) => boolean, timeout = 8000): Promise<void> {
+  await browser.waitUntil(async () => pred(await browser.execute(() => window.location.pathname)), {
+    timeout,
+    timeoutMsg: 'navigation did not reach the expected path',
+  })
+}
+
 // Set an input's value + fire input/change so Vue v-model updates.
 export async function typeInto(selector: string, text: string): Promise<void> {
   await browser.execute(
@@ -151,11 +159,17 @@ export async function waitForAttr(
 }
 
 // ── Dropdown menus (Nuxt UI, teleported) ──────────────────
-// Open a container row's ⋮ menu by container id, then wait for the
-// teleported menu content to mount.
-export async function openContainerMenu(containerId: string): Promise<void> {
-  await click(`[data-menu-trigger="${containerId}"]`)
+// Open a ⋮ menu by the id on its [data-menu-trigger], then wait for the
+// teleported menu content to mount. Works for any element using the
+// #item slot + data-menu-action convention (containers, decks, ...).
+export async function openMenu(triggerId: string): Promise<void> {
+  await click(`[data-menu-trigger="${triggerId}"]`)
   await waitFor('[data-menu-action]', { timeout: 5000 })
+}
+
+// Backwards-compatible alias.
+export async function openContainerMenu(containerId: string): Promise<void> {
+  await openMenu(containerId)
 }
 
 // Click a menu entry by its stable action (language-invariant).

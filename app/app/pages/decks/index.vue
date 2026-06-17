@@ -8,7 +8,12 @@
           <p class="text-xs text-muted">{{ decks.length }} deck{{ decks.length > 1 ? 's' : '' }}</p>
         </div>
         <div class="flex-1" />
-        <UButton icon="i-lucide-plus" label="Nouveau deck" @click="openCreate" />
+        <UButton
+          id="deck-create-btn"
+          icon="i-lucide-plus"
+          label="Nouveau deck"
+          @click="openCreate"
+        />
       </div>
 
       <!-- contenu -->
@@ -19,7 +24,13 @@
         >
           <UIcon name="i-lucide-layers" class="text-4xl mb-3" />
           <p>Aucun deck pour l'instant</p>
-          <UButton class="mt-4" icon="i-lucide-plus" label="Créer un deck" @click="openCreate" />
+          <UButton
+            id="deck-create-empty"
+            class="mt-4"
+            icon="i-lucide-plus"
+            label="Créer un deck"
+            @click="openCreate"
+          />
         </div>
 
         <div v-else class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -40,6 +51,7 @@
     <UModal v-model:open="createOpen" title="Nouveau deck">
       <template #body>
         <UInput
+          id="deck-name-input"
           v-model="createName"
           placeholder="Nom du deck"
           class="w-full"
@@ -51,6 +63,7 @@
         <div class="flex gap-2 justify-end w-full">
           <UButton label="Annuler" color="neutral" variant="ghost" @click="createOpen = false" />
           <UButton
+            id="deck-create-confirm"
             label="Créer"
             icon="i-lucide-check"
             :loading="creating"
@@ -65,6 +78,7 @@
     <UModal v-model:open="renameOpen" title="Renommer le deck">
       <template #body>
         <UInput
+          id="deck-rename-input"
           v-model="renameValue"
           placeholder="Nouveau nom"
           class="w-full"
@@ -76,6 +90,7 @@
         <div class="flex gap-2 justify-end w-full">
           <UButton label="Annuler" color="neutral" variant="ghost" @click="renameOpen = false" />
           <UButton
+            id="deck-rename-confirm"
             label="Renommer"
             icon="i-lucide-check"
             :loading="renaming"
@@ -98,6 +113,7 @@
         <div class="flex gap-2 justify-end w-full">
           <UButton label="Annuler" color="neutral" variant="ghost" @click="deleteOpen = false" />
           <UButton
+            id="deck-delete-confirm"
             label="Supprimer"
             color="error"
             icon="i-lucide-trash-2"
@@ -244,7 +260,6 @@ async function onRangeConfirm(plan: DeckLinkPlan) {
     })
     await load()
   } catch (e) {
-    console.error('Range failed:', e)
     toast.add({ title: 'Échec du rangement', color: 'error' })
   } finally {
     rangeApplying.value = false
