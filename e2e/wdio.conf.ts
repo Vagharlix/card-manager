@@ -2,7 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, copyFileSync, rmSync } from 'node:fs'
+import { existsSync, copyFileSync, rmSync, mkdirSync } from 'node:fs'
 
 // ============================================================
 // WebdriverIO config — E2E for the Tauri app (card-manager)
@@ -13,12 +13,14 @@ import { existsSync, copyFileSync, rmSync } from 'node:fs'
 // ============================================================
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-
 const REPO = resolve(__dirname, '..')
 const TAURI_DIR = join(REPO, 'src-tauri')
 const BINARY = join(TAURI_DIR, 'target', 'release', 'card-manager')
-
 const DATA_DIR = join(homedir(), '.config', 'com.card-manager.app')
+
+// Committed reference fixture (deterministic, used in CI and as the
+// default locally). See e2e/fixtures/build-fixture.sh to (re)generate.
+const FIXTURE = join(REPO, 'e2e', 'fixtures', 'cards-ygo.test.db')
 
 let tauriDriver: ChildProcess
 
@@ -33,10 +35,8 @@ export const config: WebdriverIO.Config = {
   runner: 'local',
   specs: ['./specs/**/*.spec.ts'],
   maxInstances: 1,
-
   hostname: '127.0.0.1',
   port: 4444,
-
   capabilities: [
     {
       // @ts-expect-error tauri:options is a custom capability
@@ -45,13 +45,11 @@ export const config: WebdriverIO.Config = {
       },
     },
   ],
-
   logLevel: 'info',
   bail: 0,
   waitforTimeout: 10000,
   connectionRetryTimeout: 120000,
   connectionRetryCount: 3,
-
   framework: 'mocha',
   reporters: ['spec'],
   mochaOpts: {
@@ -64,15 +62,25 @@ export const config: WebdriverIO.Config = {
     // clear any stale drivers from a previous failed run
     killStaleProcesses()
 
-    // 1. seed reference DB: copy the already-synced dev DB to .test.db
+    // 1. seed reference DB
+    //    En CI (ou pour quiconque sans dev DB synchronisée), on utilise la
+    //    fixture committée. En local, si la fixture est absente, on retombe
+    //    sur la dev DB déjà synchronisée. Le dossier n'existe pas forcément
+    //    sur un runner CI neuf, donc on le crée.
+    mkdirSync(DATA_DIR, { recursive: true })
     const devRef = join(DATA_DIR, 'cards-ygo.dev.db')
     const testRef = join(DATA_DIR, 'cards-ygo.test.db')
-    if (!existsSync(devRef)) {
+    if (existsSync(FIXTURE)) {
+      copyFileSync(FIXTURE, testRef)
+    } else if (existsSync(devRef)) {
+      copyFileSync(devRef, testRef)
+    } else {
       throw new Error(
-        `Reference DB not found at ${devRef}. Run the app in dev once to sync before E2E.`
+        `No reference DB available. Expected a committed fixture at ${FIXTURE} ` +
+          `or a synced dev DB at ${devRef}. Run the app in dev once to sync, ` +
+          `or build the fixture with e2e/fixtures/build-fixture.sh.`
       )
     }
-    copyFileSync(devRef, testRef)
 
     // 2. fresh user DB
     for (const suffix of ['', '-shm', '-wal']) {

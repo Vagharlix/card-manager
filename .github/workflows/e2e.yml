@@ -1,0 +1,106 @@
+name: E2E
+
+# Lance la suite WebdriverIO + tauri-driver sur la vraie app Tauri.
+# Déclenché sur push vers dev et sur toute PR.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+
+# Annule un run précédent encore en cours sur la même ref (économise des minutes).
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Dépendances système pour Tauri v2 + WebKitWebDriver headless ──
+      # webkit2gtk-driver fournit le binaire WebKitWebDriver que tauri-driver pilote.
+      # xvfb crée un display virtuel (pas d'écran sur le runner).
+      - name: Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            webkit2gtk-driver \
+            xvfb
+          # vérifie que le driver est bien là (échoue tôt et clairement sinon)
+          which WebKitWebDriver
+
+      # ── Rust (toolchain + cache du dossier target) ──
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # tauri-driver : le proxy WebDriver attendu par beforeSession dans wdio.conf.ts
+      # (~/.cargo/bin/tauri-driver). --locked pour un build reproductible.
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      # ── Node + pnpm (avec cache du store pnpm) ──
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: |
+            app/pnpm-lock.yaml
+            e2e/package-lock.json
+
+      # ── Dépendances JS ──
+      # app/ : le front Nuxt. --ignore-workspace comme en local.
+      - name: Install app deps
+        working-directory: app
+        run: pnpm install --ignore-workspace --frozen-lockfile
+
+      # e2e/ : le runner WebdriverIO.
+      - name: Install e2e deps
+        working-directory: e2e
+        run: npm ci
+
+      # ── Lancement des tests ──
+      # On NE build PAS séparément : onPrepare (wdio.conf.ts) fait déjà
+      # `pnpm --dir app generate` puis `pnpm tauri build --no-bundle` en
+      # VITE_TEST_MODE=true, et copie la fixture cards-ygo.test.db dans
+      # ~/.config/com.card-manager.app/. On exécute juste la suite sous
+      # xvfb-run pour fournir un display virtuel.
+      - name: Run E2E
+        working-directory: e2e
+        run: xvfb-run -a npm test
+
+      # ── Diagnostic en cas d'échec ──
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: |
+            e2e/logs
+            e2e/errorShots
+          if-no-files-found: ignore
+          retention-days: 7

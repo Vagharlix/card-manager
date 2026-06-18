@@ -107,3 +107,7 @@ pnpm-debug.log*
 .eslintcache
 .stylelintcache
 src-tauri/gen/
+
+
+# Fixture E2E versionnée (cards de référence pour la CI) — on garde celle-ci
+!e2e/fixtures/cards-ygo.test.db
