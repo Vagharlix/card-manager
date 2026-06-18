@@ -69,10 +69,15 @@ jobs:
           node-version: 20
           cache: pnpm
           cache-dependency-path: |
+            pnpm-lock.yaml
             app/pnpm-lock.yaml
             e2e/package-lock.json
 
       # ── Dépendances JS ──
+      # racine : fournit le CLI @tauri-apps/cli (commande `tauri`) + concurrently/wait-on.
+      - name: Install root deps
+        run: pnpm install --ignore-workspace --frozen-lockfile
+
       # app/ : le front Nuxt. --ignore-workspace comme en local.
       - name: Install app deps
         working-directory: app
@@ -85,10 +90,10 @@ jobs:
 
       # ── Lancement des tests ──
       # On NE build PAS séparément : onPrepare (wdio.conf.ts) fait déjà
-      # `pnpm --dir app generate` puis `pnpm tauri build --no-bundle` en
-      # VITE_TEST_MODE=true, et copie la fixture cards-ygo.test.db dans
-      # ~/.config/com.card-manager.app/. On exécute juste la suite sous
-      # xvfb-run pour fournir un display virtuel.
+      # `pnpm --ignore-workspace generate` (dans app/) puis `pnpm tauri build
+      # --no-bundle` en VITE_TEST_MODE=true, et copie la fixture
+      # cards-ygo.test.db dans ~/.config/com.card-manager.app/. On exécute
+      # juste la suite sous xvfb-run pour fournir un display virtuel.
       - name: Run E2E
         working-directory: e2e
         run: xvfb-run -a npm test
