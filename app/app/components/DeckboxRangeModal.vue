@@ -1,7 +1,7 @@
 <template>
   <UModal :open="open" :title="title" @update:open="$emit('update:open', $event)">
     <template #body>
-      <div class="space-y-4">
+      <div class="space-y-4" data-range-modal-body>
         <!-- sélecteur de deckbox -->
         <div v-if="!deckboxes.length" class="text-sm text-muted text-center py-4">
           Aucune deckbox. Crée-en un d'abord dans la collection.
@@ -16,19 +16,29 @@
           <div>
             <p class="text-sm text-muted mb-1.5">Deckbox</p>
             <USelect
+              id="deck-range-select"
               v-model="selectedId"
               :items="deckboxItems"
               placeholder="Choisir un deckbox"
               size="sm"
               class="w-full"
-            />
+            >
+              <template #item="{ item }">
+                <span
+                  :data-select-value="(item as any).value"
+                  class="flex items-center gap-2 w-full"
+                >
+                  {{ item.label }}
+                </span>
+              </template>
+            </USelect>
           </div>
 
           <!-- calcul en cours -->
           <div v-if="planning" class="text-sm text-muted text-center py-4">Calcul…</div>
 
           <!-- récap du plan -->
-          <div v-else-if="plan" class="space-y-3">
+          <div v-else-if="plan" class="space-y-3" data-range-plan>
             <!-- purge : cartes étrangères au deck qui sortent de la deckbox -->
             <UAlert
               v-if="plan.purgeTotal > 0"
@@ -92,7 +102,7 @@
             </div>
 
             <!-- résumé -->
-            <p class="text-xs text-muted">
+            <p class="text-xs text-muted" :data-plan-total="plan.totalToPlace">
               {{ plan.totalToPlace }} carte(s) entreront dans « {{ plan.deckboxName }} ».
             </p>
           </div>
@@ -109,6 +119,7 @@
           @click="$emit('update:open', false)"
         />
         <UButton
+          id="deck-range-confirm"
           label="Confirmer"
           icon="i-lucide-check"
           :disabled="!canConfirm"

@@ -177,3 +177,16 @@ export async function clickMenuAction(action: string): Promise<void> {
   await waitFor(`[data-menu-action="${action}"]`, { timeout: 5000 })
   await click(`[data-menu-action="${action}"]`)
 }
+
+// ── USelect (Reka combobox, teleported options) ───────────
+// Open a USelect by the id on its role="combobox" trigger.
+export async function openSelect(triggerId: string): Promise<void> {
+  await click(`#${triggerId}`)
+  await waitFor('[data-select-value]', { timeout: 5000 })
+}
+
+// Click a select option by its stable value (via #item slot data-select-value).
+export async function clickSelectOption(value: string): Promise<void> {
+  await waitFor(`[data-select-value="${value}"]`, { timeout: 5000 })
+  await click(`[data-select-value="${value}"]`)
+}
