@@ -1,8 +1,8 @@
 <template>
-  <div class="flex flex-col">
+  <div class="flex flex-col" :data-board="board">
     <div class="flex items-center gap-2 mb-2 sticky top-0 bg-default py-1 z-10">
       <h3 class="text-sm font-medium">{{ label }}</h3>
-      <span class="text-xs px-1.5 py-0.5 rounded" :class="countClass">
+      <span class="text-xs px-1.5 py-0.5 rounded" :class="countClass" :data-board-count="count">
         {{ count }}<template v-if="showMax"> / {{ max }}</template>
       </span>
     </div>
@@ -11,7 +11,13 @@
       v-if="cards.length"
       class="grid gap-2 grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10"
     >
-      <div v-for="c in cards" :key="c.cardId" class="relative group">
+      <div
+        v-for="c in cards"
+        :key="c.cardId"
+        class="deck-board-card relative group"
+        :data-deck-card-id="c.cardId"
+        :data-quantity="c.quantity"
+      >
         <!-- ── MOBILE : tap ouvre le menu d'actions ── -->
         <UDropdownMenu v-if="isMobile" :items="menuItems(c)" :content="{ align: 'center' }">
           <button class="block w-full">
@@ -22,6 +28,12 @@
               <ArtThumb :passcode="c.cardId" class="w-full h-full object-cover" />
             </div>
           </button>
+          <template #item="{ item }">
+            <span :data-menu-action="(item as any).action" class="flex items-center gap-2 w-full">
+              <UIcon :name="item.icon as string" class="shrink-0" />
+              <span class="flex-1 truncate">{{ item.label }}</span>
+            </span>
+          </template>
         </UDropdownMenu>
 
         <!-- ── DESKTOP : clic gauche = aperçu, clic droit = retirer ── -->
@@ -70,17 +82,25 @@
         <!-- ── DESKTOP : icône menu au survol (actions rapides : +1, Side, retirer) ── -->
         <UDropdownMenu v-if="!isMobile" :items="menuItems(c)" :content="{ align: 'end' }">
           <button
+            :data-menu-trigger="c.cardId"
             class="absolute top-0.5 right-0.5 size-5 rounded bg-elevated/90 border border-default flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-primary hover:text-inverted"
             title="Actions"
             @click.stop
           >
             <UIcon name="i-lucide-ellipsis-vertical" class="text-xs" />
           </button>
+          <template #item="{ item }">
+            <span :data-menu-action="(item as any).action" class="flex items-center gap-2 w-full">
+              <UIcon :name="item.icon as string" class="shrink-0" />
+              <span class="flex-1 truncate">{{ item.label }}</span>
+            </span>
+          </template>
         </UDropdownMenu>
 
         <!-- DESKTOP : bouton déplacer vers/depuis le Side (au survol, accès direct) -->
         <button
           v-if="!isMobile"
+          :data-move="c.cardId"
           class="absolute bottom-0.5 left-0.5 size-5 rounded bg-elevated/90 border border-default flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-primary hover:text-inverted"
           :title="isSide ? 'Renvoyer au deck' : 'Envoyer au Side'"
           @click.stop="$emit('move', c)"
@@ -98,6 +118,7 @@ import type { DeckCard } from '~/services/decks'
 
 const props = defineProps<{
   label: string
+  board: string
   cards: DeckCard[]
   min: number
   max: number
@@ -127,14 +148,30 @@ const countClass = computed(() => {
 function menuItems(c: DeckCard) {
   return [
     [
-      { label: 'Infos', icon: 'i-lucide-info', onSelect: () => emit('info', c) },
-      { label: 'Ajouter (+1)', icon: 'i-lucide-plus', onSelect: () => emit('add', c) },
-      { label: 'Retirer (−1)', icon: 'i-lucide-minus', onSelect: () => emit('remove', c) },
+      { label: 'Infos', icon: 'i-lucide-info', action: 'info', onSelect: () => emit('info', c) },
+      {
+        label: 'Ajouter (+1)',
+        icon: 'i-lucide-plus',
+        action: 'add',
+        onSelect: () => emit('add', c),
+      },
+      {
+        label: 'Retirer (−1)',
+        icon: 'i-lucide-minus',
+        action: 'remove',
+        onSelect: () => emit('remove', c),
+      },
       props.isSide
-        ? { label: 'Renvoyer au deck', icon: 'i-lucide-arrow-up', onSelect: () => emit('move', c) }
+        ? {
+            label: 'Renvoyer au deck',
+            icon: 'i-lucide-arrow-up',
+            action: 'move',
+            onSelect: () => emit('move', c),
+          }
         : {
             label: 'Envoyer au Side',
             icon: 'i-lucide-arrow-down',
+            action: 'move',
             onSelect: () => emit('move', c),
           },
     ],

@@ -5,6 +5,7 @@
       <div class="flex flex-col h-full">
         <div class="flex gap-2 mb-3 shrink-0">
           <UInput
+            id="deck-search-input"
             v-model="query"
             placeholder="Nom de carte..."
             icon="i-lucide-search"
@@ -20,7 +21,8 @@
           <div v-else class="grid grid-cols-3 gap-2">
             <div v-for="r in results" :key="r.id" class="relative group">
               <button
-                class="block w-full"
+                :data-search-card-id="r.id"
+                class="deck-search-result block w-full"
                 @click="addCard(r)"
                 @contextmenu.prevent="showInfo(r.id)"
               >
@@ -56,7 +58,7 @@
           />
           <div class="flex-1">
             <h2 class="font-medium">{{ deck?.name ?? 'Deck' }}</h2>
-            <p class="text-xs text-muted">{{ totalCards }} cartes</p>
+            <p class="text-xs text-muted" :data-total-cards="totalCards">{{ totalCards }} cartes</p>
           </div>
           <!-- sélecteur de format -->
           <USelect
@@ -68,6 +70,7 @@
           />
           <!-- ranger dans un deckbox -->
           <UButton
+            id="deck-range-btn"
             icon="i-lucide-package"
             color="neutral"
             variant="soft"
@@ -93,6 +96,7 @@
             color="error"
             variant="soft"
             icon="i-lucide-ban"
+            data-banlist-alert
             :title="`${validation.violations.length} carte(s) dépassent la banlist ${format.toUpperCase()}`"
           >
             <template #description>
@@ -106,6 +110,7 @@
 
           <DeckBoard
             label="Main Deck"
+            board="main"
             :cards="contents.main"
             :flagged="validation.flagged"
             :min="40"
@@ -118,6 +123,7 @@
           />
           <DeckBoard
             label="Extra Deck"
+            board="extra"
             :cards="contents.extra"
             :flagged="validation.flagged"
             :min="0"
@@ -130,6 +136,7 @@
           />
           <DeckBoard
             label="Side Deck"
+            board="side"
             :cards="contents.side"
             :flagged="validation.flagged"
             :min="0"
