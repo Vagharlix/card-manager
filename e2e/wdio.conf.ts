@@ -90,8 +90,8 @@ export const config: WebdriverIO.Config = {
 
     // 3. generate the static frontend in test mode
     console.log('Building test frontend (VITE_TEST_MODE=true)...')
-    const gen = spawnSync('pnpm', ['--dir', 'app', 'generate'], {
-      cwd: REPO,
+    const gen = spawnSync('pnpm', ['--ignore-workspace', 'generate'], {
+      cwd: join(REPO, 'app'),
       stdio: 'inherit',
       env: { ...process.env, VITE_TEST_MODE: 'true' },
     })
