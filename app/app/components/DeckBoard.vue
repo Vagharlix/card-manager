@@ -11,12 +11,14 @@
       v-if="cards.length"
       class="grid gap-2 grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10"
     >
+      <
       <div
         v-for="c in cards"
         :key="c.cardId"
         class="deck-board-card relative group"
         :data-deck-card-id="c.cardId"
         :data-quantity="c.quantity"
+        :data-flagged="flagged?.has(c.cardId) ? 'true' : 'false'"
       >
         <!-- ── MOBILE : tap ouvre le menu d'actions ── -->
         <UDropdownMenu v-if="isMobile" :items="menuItems(c)" :content="{ align: 'center' }">

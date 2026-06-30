@@ -62,12 +62,19 @@
           </div>
           <!-- sélecteur de format -->
           <USelect
+            id="deck-format-select"
             v-model="format"
             :items="formatItems"
             size="sm"
             class="w-40"
             @update:model-value="onFormatChange"
-          />
+          >
+            <template #item="{ item }">
+              <span :data-select-value="(item as any).value" class="block w-full">{{
+                item.label
+              }}</span>
+            </template>
+          </USelect>
           <!-- ranger dans un deckbox -->
           <UButton
             id="deck-range-btn"
