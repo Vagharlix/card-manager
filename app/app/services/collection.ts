@@ -1,5 +1,5 @@
 import { useDatabase } from '~/composables/useDatabase'
-import { getSetting } from '~/services/settings'
+import { getDefaultCondition, getDefaultLanguage } from '~/services/settings'
 
 // ============================================================
 // COLLECTION SERVICE
@@ -46,10 +46,8 @@ function uuid(): string {
 // Unspecified condition/language come from settings (quick add).
 export async function addCard(input: AddCardInput): Promise<string> {
   const { user } = await useDatabase()
-
-  const condition = input.condition ?? ((await getSetting('default_condition')) as CardCondition)
-  const language = input.language ?? (await getSetting('default_language'))
-
+  const condition = input.condition ?? ((await getDefaultCondition(input.game)) as CardCondition)
+  const language = input.language ?? (await getDefaultLanguage(input.game))
   const id = uuid()
   const now = new Date().toISOString()
 
