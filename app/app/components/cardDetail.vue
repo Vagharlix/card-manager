@@ -349,6 +349,7 @@ import {
   type CardLocation,
 } from '~/services/containers'
 import { useDatabase } from '~/composables/useDatabase'
+import { gameDef } from '~/services/game'
 
 const props = defineProps<{
   open: boolean
@@ -385,8 +386,12 @@ const unrangedForCard = ref(0)
 // où est cette carte
 const locations = ref<CardLocation[]>([])
 
-const CONDITIONS: CardCondition[] = ['NM', 'LP', 'MP', 'HP', 'DMG']
-const LANGUAGES = ['en', 'fr', 'de', 'it', 'pt', 'es', 'ja', 'ko']
+const conditionItems = computed(() =>
+  gameDef(props.game).conditions.map((c) => ({ label: c.label, value: c.id }))
+)
+const languageItems = computed(() =>
+  gameDef(props.game).languages.map((l) => ({ label: l.label, value: l.id }))
+)
 
 const form = reactive({
   quantity: 1,
