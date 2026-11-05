@@ -117,24 +117,6 @@ export async function removeCard(id: string): Promise<void> {
   ])
 }
 
-// ── list owned cards (optionally for one game) ────────────
-export async function listCollection(game?: string): Promise<CollectionEntry[]> {
-  const { user } = await useDatabase()
-  const where = game ? `AND game = ?` : ''
-  const params = game ? [game] : []
-
-  const rows = await user.select<any[]>(
-    `SELECT id, game, card_id, printing_id, quantity, condition, language,
-            foil, altered, signed, notes
-     FROM collection
-     WHERE deleted_at IS NULL ${where}
-     ORDER BY created_at DESC`,
-    params
-  )
-
-  return rows.map(rowToEntry)
-}
-
 // ── total quantity owned of a given card (across all entries) ──
 export async function ownedQuantity(game: string, cardId: string): Promise<number> {
   const { user } = await useDatabase()
@@ -187,71 +169,4 @@ function rowToEntry(r: any): CollectionEntry {
     signed: !!r.signed,
     notes: r.notes,
   }
-}
-
-// ============================================================
-// GROUPED VIEW
-// Collapses all owned entries into one row per logical card
-// (all artworks/versions grouped via alias), with total quantity
-// and a default display artwork (the most-owned passcode).
-// ============================================================
-
-export interface CollectionCard {
-  game: string
-  rootId: string // alias root = the logical card
-  displayId: string // passcode used for the thumbnail
-  name: string
-  totalQty: number
-  artworkIds: string[] // all owned passcodes for this card
-}
-
-export async function listCollectionGrouped(game = 'ygo'): Promise<CollectionCard[]> {
-  const { user, ygo } = await useDatabase()
-
-  // 1. owned entries with their quantities, grouped by passcode
-  const owned = await user.select<{ card_id: string; qty: number }[]>(
-    `SELECT card_id, SUM(quantity) AS qty
-     FROM collection
-     WHERE deleted_at IS NULL AND game = ?
-     GROUP BY card_id`,
-    [game]
-  )
-  if (!owned.length) return []
-
-  // 2. resolve alias root + name for each owned passcode
-  const ids = owned.map((o) => o.card_id)
-  const placeholders = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<{ id: string; name: string; alias: string | null }[]>(
-    `SELECT c.id, c.name, d.alias
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${placeholders})`,
-    ids
-  )
-  const metaById = new Map(meta.map((m) => [m.id, m]))
-
-  // 3. group by alias root
-  const groups = new Map<string, CollectionCard>()
-  for (const o of owned) {
-    const m = metaById.get(o.card_id)
-    const root = m?.alias ?? o.card_id
-    let g = groups.get(root)
-    if (!g) {
-      g = {
-        game,
-        rootId: root,
-        displayId: o.card_id,
-        name: m?.name ?? o.card_id,
-        totalQty: 0,
-        artworkIds: [],
-      }
-      groups.set(root, g)
-    }
-    g.totalQty += o.qty
-    g.artworkIds.push(o.card_id)
-    // default display = the most-owned passcode so far
-    const currentMax = owned.find((x) => x.card_id === g!.displayId)?.qty ?? 0
-    if (o.qty > currentMax) g.displayId = o.card_id
-  }
-
-  return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name))
 }

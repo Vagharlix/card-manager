@@ -39,6 +39,7 @@ import {
   getYgoFilterOptions,
   type CardSearchResult,
   type YgoFilters,
+  type YgoFilterOptions,
 } from '~/services/search'
 import { ownedCardIds } from '~/services/collection'
 const query = ref('')
@@ -57,7 +58,7 @@ const loading = ref(false)
 const ownedIds = ref<Set<string>>(new Set())
 const detailOpen = ref(false)
 const selectedId = ref<string | null>(null)
-const filterOptions = ref({
+const filterOptions = ref<YgoFilterOptions>({
   attributes: [],
   races: [],
   archetypes: [],

@@ -54,7 +54,7 @@
             color="neutral"
             variant="ghost"
             size="sm"
-            @click="router.push('/decks')"
+            to="/decks"
           />
           <div class="flex-1">
             <h2 class="font-medium">{{ deck?.name ?? 'Deck' }}</h2>
@@ -83,7 +83,7 @@
             variant="soft"
             size="sm"
             :label="currentBox ? currentBox.name : 'Ranger'"
-            @click="rangeOpen = true"
+            @click="openRange"
           />
           <!-- bouton ré-afficher le panneau si masqué (desktop) -->
           <UButton
@@ -92,7 +92,7 @@
             color="neutral"
             variant="ghost"
             size="sm"
-            @click="showPreview = true"
+            @click="openPreview"
           />
         </div>
 
@@ -233,6 +233,9 @@ const searching = ref(false)
 
 // aperçu desktop
 const showPreview = ref(true)
+function openPreview() {
+  showPreview.value = true
+}
 const previewCardId = ref<string | null>(null)
 
 // détail slideover (mobile)
@@ -241,6 +244,9 @@ const detailCardId = ref<string | null>(null)
 
 // ranger dans un deckbox
 const rangeOpen = ref(false)
+function openRange() {
+  rangeOpen.value = true
+}
 const rangeApplying = ref(false)
 const currentBox = ref<CurrentDeckbox | null>(null)
 

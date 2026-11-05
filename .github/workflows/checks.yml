@@ -1,18 +1,18 @@
-name: Unit
+name: Checks
 
-# Tests unitaires Vitest (logique des services, SQLite en mémoire).
-# Séparé du job e2e : pas de build Tauri, quelques secondes seulement.
+# Vérifications rapides du front : typecheck (vue-tsc) + tests unitaires Vitest
+# (services, SQLite en mémoire). Séparé du job e2e : pas de build Tauri.
 on:
   push:
     branches: [dev]
   pull_request:
 
 concurrency:
-  group: unit-${{ github.ref }}
+  group: checks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  unit:
+  checks:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
 
@@ -37,6 +37,10 @@ jobs:
         working-directory: app
         run: pnpm install --ignore-workspace --frozen-lockfile
 
-      - name: Run unit tests
+      - name: Typecheck
+        working-directory: app
+        run: pnpm --ignore-workspace typecheck
+
+      - name: Unit tests
         working-directory: app
         run: pnpm --ignore-workspace test:unit

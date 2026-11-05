@@ -39,8 +39,10 @@ export default defineNuxtPlugin(() => {
   ;(window as any).__seedOwned = async (cardId: string, qty = 1) => {
     const { user } = await useDatabase()
 
-    const cols = await user.select(`PRAGMA table_info(collection)`)
-    const colNames = cols.map((c: any) => c.name)
+    const cols = await user.select<{ name: string; notnull: number; dflt_value: unknown }[]>(
+      `PRAGMA table_info(collection)`
+    )
+    const colNames = cols.map((c) => c.name)
 
     const id =
       (globalThis.crypto?.randomUUID?.() as string) ||
@@ -60,7 +62,7 @@ export default defineNuxtPlugin(() => {
     if (colNames.includes('updated_at')) values.updated_at = nowIso
     if (colNames.includes('deleted_at')) values.deleted_at = null
 
-    for (const c of cols as any[]) {
+    for (const c of cols) {
       if (c.notnull === 1 && c.dflt_value === null && !(c.name in values)) {
         values[c.name] = ''
       }

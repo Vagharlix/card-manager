@@ -59,9 +59,9 @@
           @keydown.enter="confirmCreate"
         />
       </template>
-      <template #footer>
+      <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="createOpen = false" />
+          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="deck-create-confirm"
             label="Créer"
@@ -86,9 +86,9 @@
           @keydown.enter="confirmRename"
         />
       </template>
-      <template #footer>
+      <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="renameOpen = false" />
+          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="deck-rename-confirm"
             label="Renommer"
@@ -109,9 +109,9 @@
           (soft delete).
         </p>
       </template>
-      <template #footer>
+      <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="deleteOpen = false" />
+          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="deck-delete-confirm"
             label="Supprimer"

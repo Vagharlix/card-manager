@@ -17,13 +17,13 @@ import { fallbackCondition, fallbackLanguage } from '~/services/game'
 // ============================================================
 
 // known setting keys + their default if the row is somehow missing
-const DEFAULTS: Record<string, string> = {
+const DEFAULTS = {
   favorite_game: '',
   show_game_picker: 'true',
   default_condition: 'NM', // legacy GLOBAL key — superseded by per-game
   default_language: 'en', //  keys below; kept only for back-compat
   image_cache_limit_mb: '200',
-}
+} satisfies Record<string, string>
 
 let cache: Record<string, string> | null = null
 
@@ -36,11 +36,6 @@ async function loadAll(): Promise<Record<string, string>> {
   cache = { ...DEFAULTS }
   for (const r of rows) cache[r.key] = r.value
   return cache
-}
-
-export async function getSetting(key: string): Promise<string> {
-  const all = await loadAll()
-  return all[key] ?? DEFAULTS[key] ?? ''
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {

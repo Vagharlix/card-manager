@@ -29,7 +29,8 @@ export interface SearchParams {
   query?: string
   field?: SearchField // default 'name'
   filters?: Record<string, unknown>
-  limit?: number // default 50
+  limit?: number // default 48
+  offset?: number // default 0
 }
 
 // ── YGO-specific filters ──────────────────────────────────────

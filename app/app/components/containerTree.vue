@@ -86,9 +86,9 @@
           @keydown.enter="confirmRename"
         />
       </template>
-      <template #footer>
+      <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="renameOpen = false" />
+          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="container-rename-confirm"
             label="Renommer"
@@ -116,9 +116,9 @@
           perdues — elles redeviendront « non rangées ».
         </p>
       </template>
-      <template #footer>
+      <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="confirmOpen = false" />
+          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="container-delete-confirm"
             label="Supprimer"

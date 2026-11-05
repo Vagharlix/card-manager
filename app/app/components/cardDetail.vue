@@ -71,7 +71,7 @@
               color="neutral"
               variant="soft"
               aria-label="Ajout détaillé"
-              @click="showDetailedForm = !showDetailedForm"
+              @click="toggleDetailedForm"
             />
           </div>
 
@@ -83,11 +83,11 @@
               </div>
               <div>
                 <p class="text-xs text-muted mb-1">État</p>
-                <USelect v-model="form.condition" :items="CONDITIONS" size="sm" />
+                <USelect v-model="form.condition" :items="conditionItems" size="sm" />
               </div>
               <div>
                 <p class="text-xs text-muted mb-1">Langue</p>
-                <USelect v-model="form.language" :items="LANGUAGES" size="sm" />
+                <USelect v-model="form.language" :items="languageItems" size="sm" />
               </div>
               <div>
                 <p class="text-xs text-muted mb-1">Printing</p>
@@ -195,11 +195,11 @@
                   </div>
                   <div>
                     <p class="text-xs text-muted mb-1">État</p>
-                    <USelect v-model="editForm.condition" :items="CONDITIONS" size="sm" />
+                    <USelect v-model="editForm.condition" :items="conditionItems" size="sm" />
                   </div>
                   <div>
                     <p class="text-xs text-muted mb-1">Langue</p>
-                    <USelect v-model="editForm.language" :items="LANGUAGES" size="sm" />
+                    <USelect v-model="editForm.language" :items="languageItems" size="sm" />
                   </div>
                   <div>
                     <p class="text-xs text-muted mb-1">Printing</p>
@@ -229,7 +229,7 @@
                     label="Annuler"
                     color="neutral"
                     variant="ghost"
-                    @click="editingId = null"
+                    @click="cancelEdit"
                   />
                 </div>
               </div>
@@ -305,9 +305,9 @@
         Cette action retirera cet exemplaire de ta collection. Tu pourras le rajouter plus tard.
       </p>
     </template>
-    <template #footer>
+    <template #footer="{ close }">
       <div class="flex gap-2 justify-end w-full">
-        <UButton label="Annuler" color="neutral" variant="ghost" @click="confirmOpen = false" />
+        <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
         <UButton
           label="Supprimer"
           color="error"
@@ -371,6 +371,12 @@ const entries = ref<CollectionEntry[]>([])
 const adding = ref(false)
 const showDetailedForm = ref(false)
 const editingId = ref<string | null>(null)
+function toggleDetailedForm() {
+  showDetailedForm.value = !showDetailedForm.value
+}
+function cancelEdit() {
+  editingId.value = null
+}
 const savingEdit = ref(false)
 const deletingId = ref<string | null>(null)
 

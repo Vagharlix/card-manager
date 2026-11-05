@@ -390,7 +390,7 @@ export async function listUnranged(game = 'ygo'): Promise<UnrangedEntry[]> {
 }
 
 // unranged cards grouped by logical card (for grid/list display),
-// crossing user.db + cards-ygo.db like listCollectionGrouped.
+// crossing user.db + cards-ygo.db.
 export async function listUnrangedCards(game = 'ygo'): Promise<ContainerCard[]> {
   const { ygo } = await useDatabase()
   const entries = await listUnranged(game)
@@ -483,7 +483,7 @@ export async function nextFreeBinderSlot(
   >(`SELECT page_count, rows_per_page, cols_per_page FROM binder_details WHERE container_id = ?`, [
     containerId,
   ])
-  if (!details.length) return null
+  if (!details[0]) return null
   const { page_count, rows_per_page, cols_per_page } = details[0]
 
   const taken = await user.select<{ page: number; row: number; col: number }[]>(
@@ -500,33 +500,6 @@ export async function nextFreeBinderSlot(
     }
   }
   return null // binder full
-}
-
-// ── unified assignment: routes to the right table by container type ──
-// For binder: quantity is ignored (1 per slot), uses next free slot.
-// Throws BINDER_FULL if no slot available.
-// For deckbox/bulk_box: throws CONTAINER_FULL if max_capacity exceeded.
-export async function assignToContainer(
-  containerId: string,
-  type: ContainerType,
-  collectionId: string,
-  quantity = 1
-): Promise<void> {
-  if (type === 'deckbox' || type === 'bulk_box') {
-    const room = await remainingCapacity(containerId, type)
-    if (room !== null && quantity > room) throw new Error('CONTAINER_FULL')
-  }
-
-  if (type === 'deckbox') {
-    await assignToDeckbox(containerId, collectionId, quantity)
-  } else if (type === 'bulk_box') {
-    await assignToBulkBox(containerId, collectionId, quantity)
-  } else {
-    // binder: one card per slot, find next free position
-    const slot = await nextFreeBinderSlot(containerId)
-    if (!slot) throw new Error('BINDER_FULL')
-    await assignToBinderSlot(containerId, collectionId, slot.page, slot.row, slot.col)
-  }
 }
 
 // remaining free capacity of a deckbox / bulk_box.
@@ -726,9 +699,10 @@ export async function assignCardToBinderSlot(
      LIMIT 1`,
     [game, cardId]
   )
-  if (!entries.length) throw new Error('NO_COPY')
+  const entry = entries[0]
+  if (!entry) throw new Error('NO_COPY')
 
-  await assignToBinderSlot(containerId, entries[0].id, page, row, col)
+  await assignToBinderSlot(containerId, entry.id, page, row, col)
 }
 
 // raw assignment rows for a container (collection_id + quantity)
@@ -817,29 +791,6 @@ export async function listContainerCards(
 // ============================================================
 // UNASSIGN
 // ============================================================
-
-export async function unassignDeckboxCard(id: string): Promise<void> {
-  const { user } = await useDatabase()
-  await user.execute(`DELETE FROM deckbox_cards WHERE id = ?`, [id])
-}
-
-export async function unassignBulkBoxCard(id: string): Promise<void> {
-  const { user } = await useDatabase()
-  await user.execute(`DELETE FROM bulk_box_contents WHERE id = ?`, [id])
-}
-
-export async function clearBinderSlot(
-  containerId: string,
-  page: number,
-  row: number,
-  col: number
-): Promise<void> {
-  const { user } = await useDatabase()
-  await user.execute(
-    `DELETE FROM binder_slots WHERE container_id = ? AND page = ? AND row = ? AND col = ?`,
-    [containerId, page, row, col]
-  )
-}
 
 // ── remove N copies of a CARD (passcode) from a container ──────
 // Mirror of assignCardToContainer: the user removes "cards", the DB

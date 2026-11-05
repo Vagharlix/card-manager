@@ -125,16 +125,6 @@ async function variantsOfRoot(root: string): Promise<string[]> {
   return ids.length ? ids : [root]
 }
 
-// where a logical card's owned copies currently are, for one game.
-// Returns, per collection entry: total owned, and assigned breakdown.
-interface CopyLocation {
-  collectionId: string
-  ownedQty: number
-  unranged: number
-  inThisBox: number
-  elsewhere: { containerId: string; name: string; qty: number }[]
-}
-
 // Soft-deleted collection entries (removeCard) keep their assignment
 // rows: every query below that reads assignments joins `collection`
 // with `deleted_at IS NULL`, so those ghost copies never count as
@@ -172,7 +162,7 @@ export async function deckCurrentDeckbox(deckId: string): Promise<CurrentDeckbox
      LIMIT 1`,
     [deckId]
   )
-  return rows.length ? { id: rows[0].id, name: rows[0].name } : null
+  return rows[0] ?? null
 }
 
 // build a plan WITHOUT modifying anything
