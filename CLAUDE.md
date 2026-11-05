@@ -11,8 +11,8 @@
 - **Stack** : Tauri v2 (Rust) + Nuxt 4 SPA (`app/`) + Nuxt UI v4 (4.8.1, embarque Reka UI) + Tailwind v4 + SQLite (`tauri-plugin-sql`) + VueUse. `withGlobalTauri: true`.
 - **Dépôt** : branche d'intégration `dev`, commits conventionnels. Claude travaille sur des branches `claude/*`, committe et pousse lui-même, ouvre une PR vers `dev` ; **Félix relit et merge**. Jamais de push direct sur `dev`.
 - **Langue** : répondre **en français**.
-- **OS dev** : Fedora. Bases dans `~/.config/com.card-manager.app/`.
-- **CI** : GitHub Actions, deux workflows sur push `dev` + PR : `checks` (typecheck + Vitest, ~1 min) et `e2e` (9 parcours WebdriverIO, ~5-15 min).
+- **OS dev** : CachyOS (Arch). Bases dans `~/.config/com.card-manager.app/`.
+- **CI** : GitHub Actions, `checks` (typecheck + Vitest, ~1 min) et `e2e` (9 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
 
 ---
 
@@ -94,7 +94,8 @@ card-manager/
 │   ├── specs/*.spec.ts
 │   ├── specs/helpers.ts
 │   └── fixtures/             # cards-ygo.test.db (committée), build-fixture.sh, passcodes.txt
-└── .github/workflows/checks.yml, e2e.yml
+├── .github/release/android-test.keystore   # clé de signature APK de TEST (cf. §5 Release)
+└── .github/workflows/checks.yml, e2e.yml, release.yml
 ```
 
 **Pièges majeurs :**
@@ -202,6 +203,12 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 - `DeckboxRangeModal` : on peut re-confirmer sur la même deckbox s'il y a quelque chose à placer/purger (le commentaire le disait, le code non).
 - `nuxt.config` : `vite.server.host` (ignoré par Nuxt) → `devServer.host`.
 - Code mort supprimé (`listCollection`, `listCollectionGrouped`, `assignToContainer`, `unassignDeckboxCard`, `unassignBulkBoxCard`, `clearBinderSlot`, `getSetting`) ; restes de templates (`public/` racine, README Nuxt) ; `.gitignore` réparé (commentaires en fin de ligne = motifs invalides : `*.db-shm`/`*.db-wal` n'étaient pas ignorés).
+
+### Release de test (`.github/workflows/release.yml`)
+- Push sur `dev` (ou lancement manuel) → jobs `linux` (AppImage, ubuntu-22.04) + `android` (APK arm64) → job `publish` recrée la pré-release **`dev-latest`** avec `card-manager-linux-x86_64.AppImage` et `card-manager-android-arm64.apk`. Sur une PR qui touche le workflow : build sans publication.
+- Version = `0.1.<run_number>` (passée via `--config`) → chaque build met à jour le précédent.
+- Android : `src-tauri/gen/` n'est pas versionné → `tauri android init --ci` + `tauri icon` en CI, build `--target aarch64`, puis `zipalign` + `apksigner` avec `.github/release/android-test.keystore` (mdp `card-manager-test`, alias `card-manager`). **Clé de test** : un APK construit en local (autre clé) doit être désinstallé avant d'installer celui de la CI. Pour une diffusion publique → vraie clé en secret GitHub.
+- Builds release = bases `.db` (pas `.dev.db`) → n'interfèrent pas avec les données de dev.
 
 ### CI E2E (`.github/workflows/e2e.yml`) — verte
 `ubuntu-22.04`, push `dev` + PR, `timeout 30`, `concurrency` cancel-in-progress. Étapes : checkout → deps système (`libwebkit2gtk-4.1-dev`, gtk-3, ayatana-appindicator3, rsvg2, xdo, ssl, build-essential, **`webkit2gtk-driver`**, **`xvfb`** ; `which WebKitWebDriver`) → Rust + `Swatinem/rust-cache` → `cargo install tauri-driver --locked` → pnpm v9 → Node 20 + cache pnpm → **`pnpm install --ignore-workspace --frozen-lockfile` racine** (fournit le CLI `tauri`) → idem dans `app/` → `npm ci` dans `e2e/` → **`xvfb-run -a npm test`** → upload logs si échec. **Le build n'est PAS dupliqué** : `onPrepare` de wdio fait generate + tauri build. ~4 min avec cache.
