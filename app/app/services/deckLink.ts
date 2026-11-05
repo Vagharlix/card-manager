@@ -69,10 +69,31 @@ interface DeckNeed {
   needed: number
 }
 
+// resolve passcodes to their logical card (alias root) + name.
+// Unknown ids are absent from the maps: callers fall back to the id.
+async function rootsOf(
+  cardIds: string[]
+): Promise<{ rootById: Map<string, string>; nameById: Map<string, string> }> {
+  const ids = [...new Set(cardIds)]
+  if (!ids.length) return { rootById: new Map(), nameById: new Map() }
+  const { ygo } = await useDatabase()
+  const ph = ids.map(() => '?').join(', ')
+  const meta = await ygo.select<{ id: string; root: string; name: string }[]>(
+    `SELECT c.id, COALESCE(d.alias, c.id) AS root, c.name
+     FROM cards c JOIN ygo_details d ON d.card_id = c.id
+     WHERE c.id IN (${ph})`,
+    ids
+  )
+  return {
+    rootById: new Map(meta.map((m) => [m.id, m.root])),
+    nameById: new Map(meta.map((m) => [m.id, m.name])),
+  }
+}
+
 // resolve every deck card to its alias root, sum the quantities per
 // logical card (so all artworks + all boards combine into one need).
 async function deckNeeds(deckId: string): Promise<Map<string, DeckNeed>> {
-  const { user, ygo } = await useDatabase()
+  const { user } = await useDatabase()
 
   const rows = await user.select<DeckRow[]>(
     `SELECT card_id, quantity, board FROM deck_cards WHERE deck_id = ?`,
@@ -80,15 +101,7 @@ async function deckNeeds(deckId: string): Promise<Map<string, DeckNeed>> {
   )
   if (!rows.length) return new Map()
 
-  const ids = [...new Set(rows.map((r) => r.card_id))]
-  const ph = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<{ id: string; root: string }[]>(
-    `SELECT c.id, COALESCE(d.alias, c.id) AS root
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${ph})`,
-    ids
-  )
-  const rootById = new Map(meta.map((m) => [m.id, m.root]))
+  const { rootById } = await rootsOf(rows.map((r) => r.card_id))
 
   const needs = new Map<string, DeckNeed>()
   for (const r of rows) {
@@ -122,6 +135,10 @@ interface CopyLocation {
   elsewhere: { containerId: string; name: string; qty: number }[]
 }
 
+// Soft-deleted collection entries (removeCard) keep their assignment
+// rows: every query below that reads assignments joins `collection`
+// with `deleted_at IS NULL`, so those ghost copies never count as
+// present, never get moved, and don't take capacity.
 const ASSIGNED_SUBQUERY = `
   SELECT collection_id, SUM(qty) AS qty FROM (
       SELECT dc.collection_id, dc.quantity AS qty
@@ -164,7 +181,7 @@ export async function planDeckToDeckbox(
   deckboxId: string,
   game = 'ygo'
 ): Promise<DeckLinkPlan> {
-  const { user, ygo } = await useDatabase()
+  const { user } = await useDatabase()
 
   // deckbox name + capacity
   const boxRows = await user.select<{ name: string; max_capacity: number | null }[]>(
@@ -178,7 +195,10 @@ export async function planDeckToDeckbox(
 
   // copies already in this box (any card) — for capacity math
   const inBoxRows = await user.select<{ n: number }[]>(
-    `SELECT COALESCE(SUM(quantity), 0) AS n FROM deckbox_cards WHERE deckbox_id = ?`,
+    `SELECT COALESCE(SUM(dc.quantity), 0) AS n
+     FROM deckbox_cards dc
+     JOIN collection c ON c.id = dc.collection_id AND c.deleted_at IS NULL
+     WHERE dc.deckbox_id = ?`,
     [deckboxId]
   )
   const currentInBox = inBoxRows[0]?.n ?? 0
@@ -213,7 +233,7 @@ export async function planDeckToDeckbox(
     const hereRows = await user.select<{ n: number }[]>(
       `SELECT COALESCE(SUM(dc.quantity), 0) AS n
        FROM deckbox_cards dc
-       JOIN collection c ON c.id = dc.collection_id
+       JOIN collection c ON c.id = dc.collection_id AND c.deleted_at IS NULL
        WHERE dc.deckbox_id = ? AND c.game = ? AND c.card_id IN (${vph})`,
       [deckboxId, game, ...variantIds]
     )
@@ -242,7 +262,7 @@ export async function planDeckToDeckbox(
             UNION ALL SELECT bs.collection_id, bs.container_id, 1 AS qty FROM binder_slots bs
             UNION ALL SELECT bb.collection_id, bb.container_id, bb.quantity AS qty FROM bulk_box_contents bb
          ) asg
-         JOIN collection c ON c.id = asg.collection_id
+         JOIN collection c ON c.id = asg.collection_id AND c.deleted_at IS NULL
          JOIN containers ct ON ct.id = asg.cid AND ct.deleted_at IS NULL
          WHERE c.game = ? AND c.card_id IN (${vph}) AND ct.id != ?
          GROUP BY asg.cid, ct.name
@@ -277,13 +297,7 @@ export async function planDeckToDeckbox(
 
   // fill names
   if (lines.length) {
-    const ids = lines.map((l) => l.displayId)
-    const ph = ids.map(() => '?').join(', ')
-    const names = await ygo.select<{ id: string; name: string }[]>(
-      `SELECT id, name FROM cards WHERE id IN (${ph})`,
-      ids
-    )
-    const nameById = new Map(names.map((n) => [n.id, n.name]))
+    const { nameById } = await rootsOf(lines.map((l) => l.displayId))
     for (const l of lines) l.name = nameById.get(l.displayId) ?? l.displayId
     lines.sort((a, b) => a.name.localeCompare(b.name))
   }
@@ -294,7 +308,7 @@ export async function planDeckToDeckbox(
   const boxCards = await user.select<{ card_id: string; qty: number }[]>(
     `SELECT c.card_id, SUM(dc.quantity) AS qty
      FROM deckbox_cards dc
-     JOIN collection c ON c.id = dc.collection_id
+     JOIN collection c ON c.id = dc.collection_id AND c.deleted_at IS NULL
      WHERE dc.deckbox_id = ? AND c.game = ?
      GROUP BY c.card_id`,
     [deckboxId, game]
@@ -303,17 +317,7 @@ export async function planDeckToDeckbox(
   const purge: { name: string; qty: number }[] = []
   let purgeTotal = 0
   if (boxCards.length) {
-    const boxIds = boxCards.map((b) => b.card_id)
-    const bph = boxIds.map(() => '?').join(', ')
-    const boxMeta = await ygo.select<{ id: string; root: string; name: string }[]>(
-      `SELECT c.id, COALESCE(d.alias, c.id) AS root, c.name
-       FROM cards c JOIN ygo_details d ON d.card_id = c.id
-       WHERE c.id IN (${bph})`,
-      boxIds
-    )
-    const rootById = new Map(boxMeta.map((m) => [m.id, m.root]))
-    const nameById = new Map(boxMeta.map((m) => [m.id, m.name]))
-
+    const { rootById, nameById } = await rootsOf(boxCards.map((b) => b.card_id))
     for (const b of boxCards) {
       const root = rootById.get(b.card_id) ?? b.card_id
       if (!needs.has(root)) {
@@ -371,21 +375,12 @@ export async function applyDeckToDeckbox(
   const boxRows = await user.select<{ id: string; card_id: string }[]>(
     `SELECT dc.id, c.card_id
      FROM deckbox_cards dc
-     JOIN collection c ON c.id = dc.collection_id
+     JOIN collection c ON c.id = dc.collection_id AND c.deleted_at IS NULL
      WHERE dc.deckbox_id = ? AND c.game = ?`,
     [deckboxId, game]
   )
   if (boxRows.length) {
-    const ids = [...new Set(boxRows.map((r) => r.card_id))]
-    const ph = ids.map(() => '?').join(', ')
-    const { ygo } = await useDatabase()
-    const meta = await ygo.select<{ id: string; root: string }[]>(
-      `SELECT c.id, COALESCE(d.alias, c.id) AS root
-       FROM cards c JOIN ygo_details d ON d.card_id = c.id
-       WHERE c.id IN (${ph})`,
-      ids
-    )
-    const rootById = new Map(meta.map((m) => [m.id, m.root]))
+    const { rootById } = await rootsOf(boxRows.map((r) => r.card_id))
     for (const r of boxRows) {
       const root = rootById.get(r.card_id) ?? r.card_id
       if (!needs.has(root)) {
@@ -445,7 +440,7 @@ export async function applyDeckToDeckbox(
         const dbRows = await user.select<{ id: string; collection_id: string; quantity: number }[]>(
           `SELECT dc.id, dc.collection_id, dc.quantity
            FROM deckbox_cards dc
-           JOIN collection c ON c.id = dc.collection_id
+           JOIN collection c ON c.id = dc.collection_id AND c.deleted_at IS NULL
            WHERE dc.deckbox_id = ? AND c.game = ? AND c.card_id IN (${vph})
            ORDER BY dc.quantity`,
           [src.containerId, game, ...variantIds]
@@ -476,7 +471,7 @@ export async function applyDeckToDeckbox(
           const slots = await user.select<{ id: string; collection_id: string }[]>(
             `SELECT bs.id, bs.collection_id
              FROM binder_slots bs
-             JOIN collection c ON c.id = bs.collection_id
+             JOIN collection c ON c.id = bs.collection_id AND c.deleted_at IS NULL
              WHERE bs.container_id = ? AND c.game = ? AND c.card_id IN (${vph})
              ORDER BY bs.page, bs.row, bs.col`,
             [src.containerId, game, ...variantIds]
@@ -500,7 +495,7 @@ export async function applyDeckToDeckbox(
           >(
             `SELECT bb.id, bb.collection_id, bb.quantity
              FROM bulk_box_contents bb
-             JOIN collection c ON c.id = bb.collection_id
+             JOIN collection c ON c.id = bb.collection_id AND c.deleted_at IS NULL
              WHERE bb.container_id = ? AND c.game = ? AND c.card_id IN (${vph})
              ORDER BY bb.quantity`,
             [src.containerId, game, ...variantIds]
