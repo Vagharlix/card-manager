@@ -86,12 +86,12 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
-
+      # SDK + NDK sont préinstallés sur les runners ubuntu (ANDROID_HOME,
+      # ANDROID_NDK_LATEST_HOME) ; Tauri attend NDK_HOME.
       - name: Android NDK
         run: |
-          sdkmanager --install "ndk;27.2.12479018" > /dev/null
-          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          test -d "$ANDROID_NDK_LATEST_HOME"
+          echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
