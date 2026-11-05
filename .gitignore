@@ -3,15 +3,14 @@
 # ============================================================
 target/
 **/*.rs.bk
-Cargo.lock          # remove this line if you want to keep it (recommended for apps, optional for libs)
- 
+
 # ============================================================
 # NODE / PNPM
 # ============================================================
 node_modules/
 .pnpm-store/
 .pnpm-debug.log
- 
+
 # ============================================================
 # NUXT
 # ============================================================
@@ -19,40 +18,42 @@ app/.nuxt/
 app/.output/
 app/dist/
 app/.cache/
- 
+
 # ============================================================
 # VITE
 # ============================================================
 dist/
 dist-ssr/
 *.local
- 
+
 # ============================================================
 # TAURI
 # ============================================================
 src-tauri/target/
-src-tauri/gen/        # generated mobile project files (Android/iOS)
-WixTools/             # Windows installer toolchain, downloaded at build time
- 
+# generated mobile project files (Android/iOS)
+src-tauri/gen/
+# Windows installer toolchain, downloaded at build time
+WixTools/
+
 # ============================================================
 # DATABASES — never commit db files
 # Both dev (.dev.db) and prod (.db) stay local
 # ============================================================
 *.db
-*.db-shm              # WAL shared memory file
-*.db-wal              # WAL write-ahead log
- 
+*.db-shm
+*.db-wal
+
 # ============================================================
 # ENVIRONMENT & SECRETS
 # ============================================================
 .env
 .env.*
-!.env.example         # keep the example template committed
- 
+!.env.example
+
 # ============================================================
 # OS
 # ============================================================
- 
+
 # macOS
 .DS_Store
 .AppleDouble
@@ -60,7 +61,7 @@ WixTools/             # Windows installer toolchain, downloaded at build time
 ._*
 .Spotlight-V100
 .Trashes
- 
+
 # Windows
 Thumbs.db
 Thumbs.db:encryptable
@@ -68,28 +69,28 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
- 
+
 # Linux
 *~
- 
+
 # ============================================================
 # EDITORS & IDEs
 # ============================================================
- 
+
 # VS Code — keep shared settings, ignore personal/local ones
 .vscode/*
 !.vscode/extensions.json
-!.vscode/settings.json    # remove this if your settings.json has personal paths
- 
+!.vscode/settings.json
+
 # JetBrains (Rider, WebStorm, etc.)
 .idea/
 *.iml
- 
+
 # Vim / Neovim
 *.swp
 *.swo
 Session.vim
- 
+
 # ============================================================
 # LOGS & TEMP
 # ============================================================
@@ -99,15 +100,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
- 
+
 # ============================================================
 # BUILD ARTIFACTS
 # ============================================================
 *.tsbuildinfo
 .eslintcache
 .stylelintcache
-src-tauri/gen/
-
 
 # Fixture E2E versionnée (cards de référence pour la CI) — on garde celle-ci
 !e2e/fixtures/cards-ygo.test.db
