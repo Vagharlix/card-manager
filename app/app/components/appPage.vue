@@ -30,7 +30,7 @@
         variant="soft"
         :label="sidebarLabel"
         class="mb-4 shrink-0 self-start"
-        @click="sidebarOpen = true"
+        @click="openSidebar"
       />
       <div class="flex-1 min-h-0">
         <slot />
@@ -45,4 +45,7 @@ const props = withDefaults(defineProps<{ sidebarLabel?: string }>(), {
 })
 const { isMobile } = useResponsive()
 const sidebarOpen = ref(false)
+function openSidebar() {
+  sidebarOpen.value = true
+}
 </script>

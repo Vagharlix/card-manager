@@ -9,7 +9,7 @@
         variant="soft"
         size="sm"
         :disabled="page <= 0"
-        @click="page--"
+        @click="prevPage"
       />
       <span class="text-sm" data-binder-page
         >Page {{ page + 1 }} / {{ Math.max(1, pageCount) }}</span
@@ -21,7 +21,7 @@
         variant="soft"
         size="sm"
         :disabled="page >= pageCount - 1"
-        @click="page++"
+        @click="nextPage"
       />
     </div>
 
@@ -92,6 +92,12 @@ defineEmits<{
 }>()
 
 const page = ref(0)
+function prevPage() {
+  page.value--
+}
+function nextPage() {
+  page.value++
+}
 const cols = computed(() => props.colsPerPage)
 
 const pageSlots = computed(() => {

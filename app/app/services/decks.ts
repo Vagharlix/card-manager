@@ -330,7 +330,7 @@ export async function addCardToDeck(
     [deckId, cardId, targetBoard]
   )
 
-  if (existing.length) {
+  if (existing[0]) {
     await user.execute(`UPDATE deck_cards SET quantity = quantity + 1 WHERE id = ?`, [
       existing[0].id,
     ])
@@ -400,13 +400,12 @@ export async function removeCardFromDeck(
     `SELECT id, quantity FROM deck_cards WHERE deck_id = ? AND card_id = ? AND board = ?`,
     [deckId, cardId, board]
   )
-  if (!existing.length) return
-  if (existing[0].quantity <= 1) {
-    await user.execute(`DELETE FROM deck_cards WHERE id = ?`, [existing[0].id])
+  const row = existing[0]
+  if (!row) return
+  if (row.quantity <= 1) {
+    await user.execute(`DELETE FROM deck_cards WHERE id = ?`, [row.id])
   } else {
-    await user.execute(`UPDATE deck_cards SET quantity = quantity - 1 WHERE id = ?`, [
-      existing[0].id,
-    ])
+    await user.execute(`UPDATE deck_cards SET quantity = quantity - 1 WHERE id = ?`, [row.id])
   }
   await touchDeck(deckId)
 }
@@ -433,7 +432,7 @@ export async function moveCardBoard(
     `SELECT id, quantity FROM deck_cards WHERE deck_id = ? AND card_id = ? AND board = ?`,
     [deckId, cardId, to]
   )
-  if (existing.length) {
+  if (existing[0]) {
     await user.execute(`UPDATE deck_cards SET quantity = quantity + 1 WHERE id = ?`, [
       existing[0].id,
     ])

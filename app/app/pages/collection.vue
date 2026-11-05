@@ -50,13 +50,13 @@
             :variant="view === 'grid' ? 'solid' : 'soft'"
             color="neutral"
             icon="i-lucide-layout-grid"
-            @click="view = 'grid'"
+            @click="setView('grid')"
           />
           <UButton
             :variant="view === 'list' ? 'solid' : 'soft'"
             color="neutral"
             icon="i-lucide-list"
-            @click="view = 'list'"
+            @click="setView('list')"
           />
         </UButtonGroup>
       </div>
@@ -181,9 +181,9 @@
           </div>
         </div>
       </template>
-      <template #footer>
+      <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="unassignOpen = false" />
+          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="unassign-confirm"
             label="Retirer"
@@ -220,6 +220,9 @@ import {
 const toast = useToast()
 
 const view = ref<'grid' | 'list'>('grid')
+function setView(v: 'grid' | 'list') {
+  view.value = v
+}
 const loading = ref(false)
 
 const containers = ref<ContainerListItem[]>([])

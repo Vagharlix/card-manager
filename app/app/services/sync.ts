@@ -87,7 +87,7 @@ async function getLocalVersion(
   const rows = await ygo.select<SyncMetaRow[]>(
     `SELECT value FROM sync_meta WHERE key = 'db_version'`
   )
-  return rows.length > 0 ? rows[0].value : null
+  return rows[0]?.value ?? null
 }
 
 async function fetchAllCards(): Promise<YgoApiCard[]> {

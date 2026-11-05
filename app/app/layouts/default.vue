@@ -21,7 +21,7 @@
             color="neutral"
             variant="ghost"
             aria-label="Menu"
-            @click="menuOpen = true"
+            @click="openMenu"
           />
         </div>
       </div>
@@ -53,6 +53,9 @@
 <script setup lang="ts">
 const { isMobile } = useResponsive()
 const menuOpen = ref(false)
+function openMenu() {
+  menuOpen.value = true
+}
 const navItems = [
   { label: 'Collection', to: '/collection' },
   { label: 'Decks', to: '/decks' },

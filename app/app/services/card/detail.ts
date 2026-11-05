@@ -78,8 +78,8 @@ async function getYgoDetail(id: string): Promise<YgoCardDetail | null> {
      WHERE c.id = ?`,
     [id]
   )
-  if (!rows.length) return null
   const r = rows[0]
+  if (!r) return null
 
   // ── 2. printings ──────────────────────────────────────────
   const printings = await ygo.select<

@@ -124,7 +124,7 @@
           icon="i-lucide-check"
           :disabled="!canConfirm"
           :loading="applying"
-          @click="$emit('confirm', plan)"
+          @click="confirm"
         />
       </div>
     </template>
@@ -146,7 +146,7 @@ const props = defineProps<{
   applying?: boolean
 }>()
 
-defineEmits<{ 'update:open': [value: boolean]; confirm: [plan: DeckLinkPlan] }>()
+const emit = defineEmits<{ 'update:open': [value: boolean]; confirm: [plan: DeckLinkPlan] }>()
 
 const deckboxes = ref<ContainerListItem[]>([])
 const current = ref<CurrentDeckbox | null>(null)
@@ -167,10 +167,15 @@ const planning = ref(false)
 // on peut confirmer dès qu'une deckbox différente de l'actuelle est choisie
 // (le lien changera), ou s'il y a quelque chose à faire physiquement.
 const canConfirm = computed(() => {
-  if (!selectedId.value || planning.value) return false
+  const p = plan.value
+  if (!selectedId.value || planning.value || !p) return false
   if (selectedId.value !== current.value?.id) return true // déplacement / nouveau rangement
-  return false
+  return p.totalToPlace > 0 || p.purgeTotal > 0 // même deckbox : resynchronisation
 })
+
+function confirm() {
+  if (plan.value) emit('confirm', plan.value)
+}
 
 const title = computed(() => 'Ranger le deck dans une deckbox')
 
