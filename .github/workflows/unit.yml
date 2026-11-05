@@ -1,0 +1,42 @@
+name: Unit
+
+# Tests unitaires Vitest (logique des services, SQLite en mémoire).
+# Séparé du job e2e : pas de build Tauri, quelques secondes seulement.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+
+concurrency:
+  group: unit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      # Node 22 : les tests utilisent node:sqlite (intégré, pas de module natif).
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install app deps
+        working-directory: app
+        run: pnpm install --ignore-workspace --frozen-lockfile
+
+      - name: Run unit tests
+        working-directory: app
+        run: pnpm --ignore-workspace test:unit
