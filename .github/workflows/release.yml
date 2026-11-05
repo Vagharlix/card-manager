@@ -1,0 +1,181 @@
+name: Release
+
+# Builds de test installables, publiés sur la pré-release « dev-latest »
+# (page Releases du dépôt) à chaque push sur dev :
+#   - card-manager-linux-x86_64.AppImage  (toute distrib Linux)
+#   - card-manager-android-arm64.apk      (téléphones Android 64 bits)
+# Sur une PR qui touche ce workflow : build seul, sans publication.
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - .github/release/**
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # version croissante → l'APK et l'AppImage se mettent à jour par-dessus
+  APP_VERSION: 0.1.${{ github.run_number }}
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04 # glibc ancienne = AppImage compatible avec les distribs récentes
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file \
+            libxdo-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: release-linux
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            app/pnpm-lock.yaml
+
+      - name: Install JS deps
+        run: |
+          pnpm install --ignore-workspace --frozen-lockfile
+          cd app && pnpm install --ignore-workspace --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: app
+        run: pnpm --ignore-workspace generate
+
+      - name: Build AppImage
+        run: pnpm tauri build --bundles appimage --config "{\"version\":\"$APP_VERSION\"}"
+
+      - name: Collect
+        run: |
+          mkdir out
+          cp src-tauri/target/release/bundle/appimage/*.AppImage out/card-manager-linux-x86_64.AppImage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: out/
+          retention-days: 7
+
+  android:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Android NDK
+        run: |
+          sdkmanager --install "ndk;27.2.12479018" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: release-android
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            app/pnpm-lock.yaml
+
+      - name: Install JS deps
+        run: |
+          pnpm install --ignore-workspace --frozen-lockfile
+          cd app && pnpm install --ignore-workspace --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: app
+        run: pnpm --ignore-workspace generate
+
+      # src-tauri/gen/ n'est pas versionné : on génère le projet Android ici,
+      # puis les icônes de l'app dans ses ressources.
+      - name: Init Android project
+        run: |
+          pnpm tauri android init --ci
+          pnpm tauri icon src-tauri/icons/icon.png
+
+      - name: Build APK (arm64)
+        run: pnpm tauri android build --apk --target aarch64 --ci --config "{\"version\":\"$APP_VERSION\"}"
+
+      # Signature avec une clé de TEST versionnée (dépôt privé, builds perso).
+      # Pour une diffusion publique : clé en secret GitHub, jamais dans le dépôt.
+      - name: Sign APK
+        run: |
+          apk=$(find src-tauri/gen/android/app/build/outputs/apk -name '*release*.apk' | head -n 1)
+          echo "APK non signé : $apk"
+          bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          mkdir out
+          "$bt/zipalign" -p -f 4 "$apk" aligned.apk
+          "$bt/apksigner" sign \
+            --ks .github/release/android-test.keystore \
+            --ks-pass pass:card-manager-test \
+            --ks-key-alias card-manager \
+            --out out/card-manager-android-arm64.apk aligned.apk
+          "$bt/apksigner" verify out/card-manager-android-arm64.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/
+          retention-days: 7
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: [linux, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish dev-latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete dev-latest --cleanup-tag --yes || true
+          gh release create dev-latest dist/* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Build de test $APP_VERSION" \
+            --notes "Build automatique de \`${GITHUB_SHA::7}\` (branche ${GITHUB_REF_NAME}).
+
+          **PC (Linux)** : télécharger l'AppImage, \`chmod +x card-manager-linux-x86_64.AppImage\`, puis le lancer.
+          **Android** : télécharger l'APK depuis le téléphone et l'installer (autoriser les sources inconnues)."
