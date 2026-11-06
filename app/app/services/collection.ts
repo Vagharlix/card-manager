@@ -24,6 +24,8 @@ export interface CollectionEntry {
   signed: boolean
   notes: string | null
   tradeQty: number // copies proposées à l'échange (0..quantity)
+  rarity: string | null // « Ultra Rare »… ; null = non précisée
+  firstEdition: boolean
 }
 
 // what you pass to add a card; missing fields fall back to settings/defaults
@@ -39,6 +41,8 @@ export interface AddCardInput {
   signed?: boolean
   notes?: string | null
   tradeQty?: number
+  rarity?: string | null
+  firstEdition?: boolean
 }
 
 function uuid(): string {
@@ -58,8 +62,9 @@ export async function addCard(input: AddCardInput): Promise<string> {
   await user.execute(
     `INSERT INTO collection
        (id, game, card_id, printing_id, quantity, condition, language,
-        foil, altered, signed, notes, trade_qty, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        foil, altered, signed, notes, trade_qty, rarity, first_edition,
+        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.game,
@@ -73,6 +78,8 @@ export async function addCard(input: AddCardInput): Promise<string> {
       input.signed ? 1 : 0,
       input.notes ?? null,
       Math.max(0, Math.min(input.tradeQty ?? 0, quantity)),
+      input.rarity ?? null,
+      input.firstEdition ? 1 : 0,
       now,
       now,
     ]
@@ -126,6 +133,8 @@ export async function updateCard(id: string, patch: Partial<AddCardInput>): Prom
     signed: patch.signed === undefined ? undefined : patch.signed ? 1 : 0,
     notes: patch.notes,
     trade_qty: patch.tradeQty === undefined ? undefined : Math.max(0, patch.tradeQty),
+    rarity: patch.rarity,
+    first_edition: patch.firstEdition === undefined ? undefined : patch.firstEdition ? 1 : 0,
   }
   for (const [col, val] of Object.entries(map)) {
     if (val !== undefined) {
@@ -179,7 +188,7 @@ export async function entriesForCard(game: string, cardId: string): Promise<Coll
   const { user } = await useDatabase()
   const rows = await user.select<any[]>(
     `SELECT id, game, card_id, printing_id, quantity, condition, language,
-            foil, altered, signed, notes, trade_qty
+            foil, altered, signed, notes, trade_qty, rarity, first_edition
      FROM collection
      WHERE deleted_at IS NULL AND game = ? AND card_id = ?
      ORDER BY created_at DESC`,
@@ -224,6 +233,8 @@ function rowToEntry(r: any): CollectionEntry {
     signed: !!r.signed,
     notes: r.notes,
     tradeQty: r.trade_qty ?? 0,
+    rarity: r.rarity ?? null,
+    firstEdition: !!r.first_edition,
   }
 }
 

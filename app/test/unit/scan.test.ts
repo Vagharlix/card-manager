@@ -18,6 +18,7 @@ const {
   extractSetCodes,
   extractPasscodes,
   regionLanguage,
+  detectFirstEdition,
   nameSimilarity,
   ScanStabilizer,
   identifyCard,
@@ -81,6 +82,30 @@ describe('codes d’impression', () => {
     ]
     expect(extractSetCodes(lines).map((c) => c.key)).toEqual(['LOB-005'])
   })
+})
+
+describe('1re édition', () => {
+  it.each([
+    '1st Edition',
+    'LOB-EN005 1st Edition',
+    '1re Édition',
+    '1ère édition',
+    '1. Auflage',
+    '1a Edizione',
+    '1ª Edición',
+    '1ª Edição',
+    'lst Editlon', // confusions de l’OCR
+    '1ST EDITION',
+  ])('lit « %s »', (text) => {
+    expect(detectFirstEdition([{ text }])).toBe(true)
+  })
+
+  it.each(['Limited Edition', 'Unlimited Edition', 'Duelist League', 'EDITION', '11st Edition'])(
+    'ignore « %s »',
+    (text) => {
+      expect(detectFirstEdition([{ text }])).toBe(false)
+    }
+  )
 })
 
 describe('passcode (8 chiffres)', () => {
@@ -241,6 +266,14 @@ describe('identification (YGO)', () => {
       via: 'passcode',
       score: 1,
       language: null,
+    })
+  })
+
+  it('1re édition lue sur la carte, quelle que soit la façon de l’identifier', async () => {
+    const r = await identifyCard('ygo', [{ text: 'LOB-EN005' }, { text: '1st Edition' }])
+    expect(r).toMatchObject({ cardId: DM, firstEdition: true })
+    expect(await identifyCard('ygo', [{ text: 'LOB-EN005' }])).toMatchObject({
+      firstEdition: false,
     })
   })
 

@@ -98,6 +98,26 @@ export function extractSetCodes(lines: OcrLine[]): SetCodeRef[] {
   return [...out.values()]
 }
 
+// ── 1re édition ──
+// Mention imprimée à gauche du code d'impression, selon la langue :
+// « 1st Edition », « 1re Édition », « 1. Auflage », « 1a Edizione »,
+// « 1a Edición », « 1a Edição ». Tolère les confusions de l'OCR sur le 1
+// (l, I) et le i d'« edition » (l, 1), et l'absence d'accents.
+const FIRST_EDITION_RE =
+  /(?:^|[^a-z0-9])[1li]\s*(?:st|re|ere|a|o|\.)?\s*(?:edit[il1]on|aufla[gq]e|ediz[il1]one|edic[il1]on|edicao)(?![a-z])/
+
+export function detectFirstEdition(lines: OcrLine[]): boolean {
+  return lines.some((l) =>
+    FIRST_EDITION_RE.test(
+      l.text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[ºª°]/g, 'a')
+    )
+  )
+}
+
 // ── passcode (8 chiffres en bas à gauche de la carte) ──
 // Les zéros de tête imprimés (« 04031928 ») n'existent pas dans les ids de
 // la base : on renvoie la forme canonique (« 4031928 »).

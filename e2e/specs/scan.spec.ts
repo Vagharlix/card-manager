@@ -1,4 +1,13 @@
-import { resetDb, goTo, waitFor, countOf, click, waitForApp, waitForAttr } from './helpers.js'
+import {
+  resetDb,
+  goTo,
+  waitFor,
+  countOf,
+  click,
+  waitForApp,
+  waitForAttr,
+  clickSelectOption,
+} from './helpers.js'
 import { browser } from '@wdio/globals'
 
 // ============================================================
@@ -17,6 +26,11 @@ const DM_FRAME = [
   { text: 'LOB-EN005', y: 300 },
 ]
 const POT_FRAME = [{ text: 'MP25-EN050', y: 300 }]
+const DM_1ST_FRAME = [
+  { text: 'Dark Magician', y: 10 },
+  { text: 'LOB-EN005', y: 300 },
+  { text: '1st Edition', y: 300 },
+]
 const DM_FR_FRAME = [
   { text: 'Magicien Sombre', y: 10 },
   { text: 'LOB-FR005', y: 300 },
@@ -96,5 +110,37 @@ describe('Scan de cartes', () => {
     await feed(DM_FR_FRAME)
     await waitForAttr('[data-scan-count]', 'data-scan-count', (v) => v === '3')
     expect(await countOf(`[data-scan-entry="${DM_LOB}"][data-scan-language="fr"]`)).toBe(1)
+  })
+
+  it('1re édition lue sur la carte, modifiable d’un geste', async () => {
+    for (let i = 0; i < 3; i++) await feed(EMPTY)
+    await feed(DM_1ST_FRAME)
+    await feed(DM_1ST_FRAME)
+    await waitForAttr('[data-scan-count]', 'data-scan-count', (v) => v === '4')
+    // la plus récente est en tête de liste
+    const first = '[data-scan-entry]:first-of-type'
+    expect(await countOf(`[data-scan-entry="${DM_LOB}"][data-scan-first-edition="true"]`)).toBe(1)
+    await click('[data-scan-entry] [data-scan-first-edition-toggle]')
+    await waitForAttr(first, 'data-scan-first-edition', (v) => v === 'false')
+  })
+
+  it('plusieurs raretés pour le code lu : choix dans la liste', async () => {
+    await browser.execute(async () => {
+      await (window as any).__seedRarities('MP25-EN050', ['Common', 'Ultra Rare'])
+    })
+    for (let i = 0; i < 3; i++) await feed(EMPTY)
+    await feed(POT_FRAME)
+    await feed(POT_FRAME)
+    await waitForAttr('[data-scan-count]', 'data-scan-count', (v) => v === '5')
+    // rareté pas devinée : à choisir
+    const entry = `[data-scan-entry="${POT}"][data-scan-rarity=""]`
+    expect(await countOf(entry)).toBe(1)
+    await click(`${entry} [data-scan-rarity-select]`)
+    await clickSelectOption('Ultra Rare')
+    await waitForAttr(
+      `[data-scan-entry="${POT}"]:first-of-type`,
+      'data-scan-rarity',
+      (v) => v === 'Ultra Rare'
+    )
   })
 })

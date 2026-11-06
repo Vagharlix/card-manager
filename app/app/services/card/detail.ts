@@ -14,6 +14,9 @@ export interface CardPrinting {
   setName: string
   setCode: string
   rarity: string | null
+  // toutes les raretés connues pour ce code (un même code peut exister en
+  // Super, Ultra, Secret…) ; à défaut, la rareté unique de `printings`
+  rarities: string[]
 }
 
 export interface CardArtwork {
@@ -96,6 +99,8 @@ async function getYgoDetail(id: string): Promise<YgoCardDetail | null> {
     [id]
   )
 
+  const rarities = await ygoRarities(printings.map((p) => p.id))
+
   // ── 3. alternate artworks via alias ───────────────────────
   // "root" id = the alias if this card has one, else its own id.
   // All arts share: id == root OR alias == root.
@@ -132,9 +137,38 @@ async function getYgoDetail(id: string): Promise<YgoCardDetail | null> {
       setName: p.set_name,
       setCode: p.set_code,
       rarity: p.rarity,
+      rarities: rarities.get(p.id) ?? (p.rarity ? [p.rarity] : []),
     })),
     artworks,
   }
+}
+
+// raretés par code d'impression (table remplie par la synchro, cf. ygo 002)
+async function ygoRarities(codes: string[]): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>()
+  if (!codes.length) return out
+  const { ygo } = await useDatabase()
+  const ph = codes.map(() => '?').join(', ')
+  const rows = await ygo.select<{ set_code: string; rarity: string }[]>(
+    `SELECT set_code, rarity FROM printing_rarities
+     WHERE set_code IN (${ph}) ORDER BY rarity`,
+    codes
+  )
+  for (const r of rows) out.set(r.set_code, [...(out.get(r.set_code) ?? []), r.rarity])
+  return out
+}
+
+// raretés possibles d'une impression (choix après un scan, fiche carte)
+export async function printingRarities(game: string, printingId: string): Promise<string[]> {
+  if (game !== 'ygo') return []
+  const found = (await ygoRarities([printingId])).get(printingId)
+  if (found?.length) return found
+  const { ygo } = await useDatabase()
+  const rows = await ygo.select<{ rarity: string | null }[]>(
+    `SELECT rarity FROM printings WHERE id = ?`,
+    [printingId]
+  )
+  return rows[0]?.rarity ? [rows[0].rarity] : []
 }
 
 export function getCardDetail(game: string, id: string): Promise<YgoCardDetail | null> {

@@ -263,3 +263,49 @@ describe('migration 004 — nettoyage des copies fantômes', () => {
     legacy.user.close()
   })
 })
+
+describe('rareté et 1re édition', () => {
+  it('enregistrées à l’ajout, modifiables, relues dans les exemplaires', async () => {
+    const id = await addCard({
+      game: 'ygo',
+      cardId: DM,
+      printingId: 'LOB-EN005',
+      rarity: 'Ultra Rare',
+      firstEdition: true,
+    })
+    expect((await entriesForCard('ygo', DM))[0]).toMatchObject({
+      rarity: 'Ultra Rare',
+      firstEdition: true,
+    })
+
+    await updateCard(id, { rarity: 'Secret Rare', firstEdition: false })
+    expect((await entriesForCard('ygo', DM))[0]).toMatchObject({
+      rarity: 'Secret Rare',
+      firstEdition: false,
+    })
+
+    await updateCard(id, { rarity: null })
+    expect((await entriesForCard('ygo', DM))[0]!.rarity).toBeNull()
+  })
+
+  it('non précisées par défaut', async () => {
+    await addCard({ game: 'ygo', cardId: POT })
+    expect((await entriesForCard('ygo', POT))[0]).toMatchObject({
+      rarity: null,
+      firstEdition: false,
+    })
+  })
+})
+
+describe('migration 008 — rareté et 1re édition', () => {
+  it('ajoute les colonnes sans toucher aux piles existantes', () => {
+    const legacy: TestDatabases = { user: new TestDatabase('user', { upTo: 7 }), ygo: dbs.ygo }
+    const id = createSeeder(legacy).owned(DM, 2)
+    legacy.user.applyMigration(8)
+    const r = legacy.user.raw
+      .prepare(`SELECT quantity, rarity, first_edition FROM collection WHERE id = ?`)
+      .get(id)
+    expect(r).toEqual({ quantity: 2, rarity: null, first_edition: 0 })
+    legacy.user.close()
+  })
+})

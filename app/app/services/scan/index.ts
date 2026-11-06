@@ -1,5 +1,6 @@
 import { useDatabase } from '~/composables/useDatabase'
 import {
+  detectFirstEdition,
   extractPasscodes,
   extractSetCodes,
   nameCandidates,
@@ -25,6 +26,7 @@ export {
   nameSimilarity,
   parseSetCode,
   regionLanguage,
+  detectFirstEdition,
 } from './text'
 export type { OcrLine, SetCodeRef } from './text'
 
@@ -37,6 +39,8 @@ export interface Identified {
   // langue lue dans la région du code d'impression (« LOB-FR005 » → fr) ;
   // null si pas de code lu (passcode et nom sont les mêmes dans toutes les langues)
   language: string | null
+  // mention « 1st Edition » (ou équivalent) lue sur la carte
+  firstEdition: boolean
 }
 
 export const NAME_THRESHOLD = 0.8
@@ -56,11 +60,14 @@ export async function identifyCard(game: string, lines: OcrLine[]): Promise<Iden
   return engine ? engine(lines) : null
 }
 
+type Found = Omit<Identified, 'firstEdition'>
+
 async function identifyYgo(lines: OcrLine[]): Promise<Identified | null> {
-  return (await bySetCode(lines)) ?? (await byPasscode(lines)) ?? (await byName(lines))
+  const found = (await bySetCode(lines)) ?? (await byPasscode(lines)) ?? (await byName(lines))
+  return found && { ...found, firstEdition: detectFirstEdition(lines) }
 }
 
-async function bySetCode(lines: OcrLine[]): Promise<Identified | null> {
+async function bySetCode(lines: OcrLine[]): Promise<Found | null> {
   const { ygo } = await useDatabase()
   for (const code of extractSetCodes(lines)) {
     const rows = await ygo.select<
@@ -88,7 +95,7 @@ async function bySetCode(lines: OcrLine[]): Promise<Identified | null> {
   return null
 }
 
-async function byPasscode(lines: OcrLine[]): Promise<Identified | null> {
+async function byPasscode(lines: OcrLine[]): Promise<Found | null> {
   const codes = extractPasscodes(lines)
   if (!codes.length) return null
   const { ygo } = await useDatabase()
@@ -110,9 +117,9 @@ async function byPasscode(lines: OcrLine[]): Promise<Identified | null> {
     : null
 }
 
-async function byName(lines: OcrLine[]): Promise<Identified | null> {
+async function byName(lines: OcrLine[]): Promise<Found | null> {
   const { ygo } = await useDatabase()
-  let best: Identified | null = null
+  let best: Found | null = null
   for (const text of nameCandidates(lines)) {
     const words = text
       .normalize('NFD')

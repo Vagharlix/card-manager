@@ -62,14 +62,28 @@ pub fn run() {
             sql: include_str!("../migrations/user/007_shared_collections.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "collection rarity and first edition",
+            sql: include_str!("../migrations/user/008_collection_rarity_edition.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
-    let ygo_migrations = vec![Migration {
-        version: 1,
-        description: "initial ygo schema",
-        sql: include_str!("../migrations/ygo/001_initial.sql"),
-        kind: MigrationKind::Up,
-    }];
+    let ygo_migrations = vec![
+        Migration {
+            version: 1,
+            description: "initial ygo schema",
+            sql: include_str!("../migrations/ygo/001_initial.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "printing rarities",
+            sql: include_str!("../migrations/ygo/002_printing_rarities.sql"),
+            kind: MigrationKind::Up,
+        },
+    ];
 
     let builder = tauri::Builder::default();
 
