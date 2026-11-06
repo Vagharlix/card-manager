@@ -12,7 +12,7 @@
 - **Dépôt** : branche d'intégration `dev`, commits conventionnels. Claude travaille sur des branches `claude/*`, committe et pousse lui-même, ouvre une PR vers `dev` ; **Félix relit et merge**. Jamais de push direct sur `dev`.
 - **Langue** : répondre **en français**.
 - **OS dev** : CachyOS (Arch). Bases dans `~/.config/com.card-manager.app/`.
-- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (9 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
+- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (10 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
 
 ---
 
@@ -207,10 +207,11 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 `e2e/fixtures/cards-ygo.test.db` (~244 Ko) : **54 cartes** (~20 noms classiques + artworks alt + alias), 663 printings, **1 Forbidden (Pot of Greed, passcode 55144522)**, FTS « Dark » = 20, zéro violation FK. Régénérable via `build-fixture.sh` (sélection par NOM, inclut alt arts + alias, lookups entières, rebuild FTS, check FK, aplatit le WAL). `.gitignore` a une exception `!e2e/fixtures/cards-ygo.test.db`.
 
 ### CI checks (`.github/workflows/checks.yml`)
-`ubuntu-22.04`, push `dev` + PR, **Node 22** (node:sqlite), pnpm v9, `pnpm install --ignore-workspace --frozen-lockfile` dans `app/` → `typecheck` → `test:unit`. Pas de build Tauri.
+`ubuntu-22.04`, push `dev` + PR, **Node 22** (node:sqlite), pnpm v9, `pnpm install --ignore-workspace --frozen-lockfile` dans `app/` → `typecheck` → `test:unit` → tests Rust std-only (`rustc --test src-tauri/src/cache_store.rs`). Pas de build Tauri.
 
 ### Sessions Claude Code cloud
-`.claude/hooks/session-start.sh` (uniquement si `CLAUDE_CODE_REMOTE=true`) installe les deps de `app/` ; ne réinstalle que si `package.json`/`pnpm-lock.yaml`/le script changent. Typecheck, test:unit et generate tournent dans le conteneur ; l'E2E non (pas de WebKit/tauri-driver) → s'appuyer sur la CI de la PR.
+- `.claude/hooks/session-start.sh` (uniquement si `CLAUDE_CODE_REMOTE=true`) installe les deps de `app/` ; ne réinstalle que si `package.json`/`pnpm-lock.yaml`/le script changent.
+- **Environnement cloud `card-manager`** (personnel, créé nov. 2026) : son script d'installation ajoute WebKitGTK, `webkit2gtk-driver`, `xvfb`, `tauri-driver` et les deps des trois `package.json`. Une session sur cet environnement peut lancer **tout** : `cargo check`, typecheck, Vitest, et l'E2E complet (`cd e2e && xvfb-run -a npm test`, ~4 min avec build). Sur l'environnement Default, l'E2E n'est pas disponible → s'appuyer sur la CI de la PR.
 
 ### Nettoyage (nov. 2026)
 - 59 erreurs vue-tsc corrigées, dont un vrai bug : `cardDetail.vue` référençait `CONDITIONS`/`LANGUAGES` supprimés (selects État/Langue vides) → `conditionItems`/`languageItems`.
