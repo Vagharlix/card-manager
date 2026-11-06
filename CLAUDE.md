@@ -75,13 +75,13 @@ card-manager/
 │   ├── build.rs              # rerun-if-env-changed=VITE_TEST_MODE
 │   └── migrations/
 │       ├── user/001_initial.sql, 002_settings.sql, 003_collection_printing.sql,
-│       │        004_detach_deleted_collection.sql
+│       │        004_detach_deleted_collection.sql, 005_binder_slots_multi_copy.sql
 │       └── ygo/001_initial.sql
 ├── app/                      # racine de config Nuxt (package.json "app", scripts generate/dev/build)
 │   ├── pnpm-lock.yaml
 │   ├── vitest.config.ts      # alias ~ -> app/app, env node, include test/unit/**
 │   ├── test/unit/            # tests Vitest (HORS de app/app, donc pas vus par Nuxt)
-│   │   ├── deckLink.test.ts, collection.test.ts
+│   │   ├── deckLink, collection, decks, containers (.test.ts)
 │   │   └── helpers/testDb.ts, seed.ts
 │   └── app/                  # ⚠️ DOUBLE app/ : LE CODE SOURCE RÉEL est ici
 │       ├── pages/            # decks/[id].vue, decks/index.vue, collection.vue, index.vue,
@@ -136,7 +136,7 @@ Deux bases, nom suffixé selon le mode.
   - `ygo_details.alias` → passcode « principal » d'une carte à artworks multiples.
   - `ygo_details.banlist_tcg/ocg/md` ∈ {`Forbidden`,`Limited`,`Semi-Limited`,NULL}.
   - Peuplée par une vraie **sync réseau YGOPRODeck** déclenchée dans l'app.
-- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection), `004` (nettoyage des assignations d'entrées soft-deleted).
+- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection), `004` (nettoyage des assignations d'entrées soft-deleted), `005` (`binder_slots` reconstruite sans `UNIQUE(collection_id)` : plusieurs cases par pile ; vue `card_locations` recréée).
 
 **Choix du nom** (`app/app/utils/db-names.ts`, `dbName(base)`) : `.test.db` si `VITE_TEST_MODE==='true'`, `.dev.db` si `import.meta.env.DEV`, sinon `.db`. Exporte `DB_NAMES = {user, ygo}`.
 **Côté Rust** (`src-tauri/src/lib.rs`, `db_name()`) : `option_env!("VITE_TEST_MODE")==Some("true")` → `.test.db` ; `cfg!(debug_assertions)` → `.dev.db` ; sinon `.db`.
@@ -197,6 +197,8 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 - `helpers/testDb.ts` : `TestDatabase` imite `select`/`execute` de plugin-sql (params `?`), active `foreign_keys`. `helpers/seed.ts` : builders (`card`, `owned`, `deck`, `deckCard`, `deckbox`, `binder`, `bulkBox`, `inDeckbox/inBinder/inBulk`, `softDelete*`, `linkDeck`) + lectures (`contentsOf`, `deckboxesOfDeck`, `capacityOf`).
 - `helpers/testDb.ts` accepte `{ upTo: n }` + `applyMigration(n)` pour tester une migration sur des données existantes.
 - `collection.test.ts` : défauts par jeu à l'ajout, `removeCard` détache des conteneurs, compteurs de conteneurs, `updateCard` refuse une quantité < copies rangées, migration 004.
+- `decks.test.ts` : placement auto (dont « XYZ Monster » → extra), limites alias/banlist par format, move, validation, possédées par carte logique, filtres de recherche.
+- `containers.test.ts` : classeur multi-copies, classeur plein, capacité deckbox, non rangées, retrait, regroupement artworks, migration 005 (orphelines écartées, vue OK).
 - `deckLink.test.ts` : 26 cas (plan + apply) : alias/boards fusionnés, déjà là, partiel, non rangées prioritaires, multi-sources ordonnées par nom, conteneur supprimé, isolation par jeu, purge (alt art conservée), capacité (NULL / purge déduite / dépassement + relève), relink unique, idempotence, pas de sur-assignation, entrées de collection soft-deleted.
 - **Bug corrigé grâce à ces tests** : `removeCard` (soft delete) laisse les lignes d'assignation ; `deckLink` les comptait (alreadyHere/currentInBox/purge) et pouvait déplacer ces copies fantômes. Toutes les requêtes d'assignation joignent maintenant `collection ... AND c.deleted_at IS NULL`. Résolution alias/nom factorisée dans `rootsOf()`.
 - Pour tester un autre service : même schéma `vi.hoisted` + `vi.mock` + `createTestDatabases()` / `createSeeder()` (cf. en-tête de `deckLink.test.ts`).
@@ -238,8 +240,13 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 ### ✅ Soft delete de collection corrigé à la racine
 `removeCard` supprime les assignations de l'entrée (deckbox/binder/bulk) avant le soft delete ; `updateCard` refuse une quantité inférieure aux copies rangées (`QUANTITY_BELOW_ASSIGNED`, toast dédié dans `cardDetail.vue`) ; migration `004` nettoie les fantômes existants. Les filtres `deleted_at` de `deckLink` restent en défense.
 
+### ✅ Bugs corrigés en écrivant les tests (nov. 2026)
+- Monstres Xyz placés dans le Main Deck (YGOPRODeck écrit « XYZ Monster ») + filtre « Xyz » jamais proposé → comparaisons insensibles à la casse.
+- Ranger 2 copies d'une même pile dans un classeur plantait (`UNIQUE(collection_id)`) → migration 005.
+- Vue deck : « possédées » compté par artwork exact → par carte logique (comme le rangement).
+
 ### ▶ Prochaines pistes de tests unitaires
-`services/containers.ts` (assign/unassign, binder slots, capacité), `services/decks.ts` (limites de copies, boards, banlist), `services/settings.ts`. Réutiliser `test/unit/helpers`.
+`services/settings.ts`, `services/search/ygo.ts` (requêtes FTS/filtres), `services/card/detail.ts`. Réutiliser `test/unit/helpers`.
 
 ### ▶ Tâche 3 — Protection de branche (ops, optionnel)
 Bloquer le merge des PR vers `dev` tant que les checks `e2e` et `checks` ne sont pas verts : Settings → Branches → Require status checks → cocher `e2e` et `checks` (n'apparaissent qu'après un 1er run). Réserve : build Tauri ~5-10 min/PR.
@@ -272,5 +279,7 @@ Bloquer le merge des PR vers `dev` tant que les checks `e2e` et `checks` ne sont
 - Asserter sur du texte d'UI → casse en multi-langue. (§3.2)
 - Multi-artwork : « 1er résultat » instable entre `/search` et sidebar deck. (§5 deck-range, §6 Tâche 1)
 - Double `app/` et casing des composants. (§2)
+- Types YGOPRODeck en casse variable (« XYZ Monster ») : toujours comparer en minuscules.
+- Contrainte à retirer en SQLite = reconstruire la table dans une migration (et supprimer/recréer les vues qui en dépendent, sinon le RENAME échoue). Recopier en filtrant les orphelines (anciennes bases sans foreign_keys).
 - Soft delete de `collection` : passer par `removeCard` (qui détache des conteneurs), jamais un `UPDATE ... deleted_at` direct. (§6)
 - Tests unitaires : Node >= 22 obligatoire (`node:sqlite`) ; le warning « SQLite is an experimental feature » est normal.
