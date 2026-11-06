@@ -13,8 +13,15 @@ vi.mock('~/composables/useDatabase', () => ({
   resetDatabaseInstance: () => {},
 }))
 
-const { parseSetCode, extractSetCodes, nameSimilarity, ScanStabilizer, identifyCard, canScan } =
-  await import('~/services/scan')
+const {
+  parseSetCode,
+  extractSetCodes,
+  extractPasscodes,
+  nameSimilarity,
+  ScanStabilizer,
+  identifyCard,
+  canScan,
+} = await import('~/services/scan')
 const { nameCandidates } = await import('~/services/scan/text')
 
 describe('codes d’impression', () => {
@@ -47,6 +54,18 @@ describe('codes d’impression', () => {
       { text: 'lob-en005' },
     ]
     expect(extractSetCodes(lines).map((c) => c.key)).toEqual(['LOB-005'])
+  })
+})
+
+describe('passcode (8 chiffres)', () => {
+  it('lit le passcode, retire les zéros de tête, corrige les confusions', () => {
+    expect(extractPasscodes([{ text: '46986414' }])).toEqual(['46986414'])
+    expect(extractPasscodes([{ text: '04031928' }])).toEqual(['4031928'])
+    expect(extractPasscodes([{ text: '4698641A 469B6414' }])).toEqual(['46986414'])
+  })
+
+  it('ignore les mots et les nombres trop courts ou trop longs', () => {
+    expect(extractPasscodes([{ text: 'MAGICIAN ATK/2500 123456789 1234567' }])).toEqual([])
   })
 })
 
@@ -84,12 +103,19 @@ describe('stabilisation', () => {
     expect(s.push(dm)).toBeNull()
   })
 
+  it('tolère les images ratées entre deux lectures (fréquent en direct)', () => {
+    const s = new ScanStabilizer()
+    expect(s.push(dm)).toBeNull()
+    expect(s.push(null)).toBeNull()
+    expect(s.push(pot)).toBeNull()
+    expect(s.push(dm)).toBe(dm) // 2 lectures sur les 4 dernières images
+  })
+
   it('une lecture isolée (faux positif) n’est pas retenue', () => {
     const s = new ScanStabilizer()
     expect(s.push(dm)).toBeNull()
-    expect(s.push(pot)).toBeNull()
-    expect(s.push(null)).toBeNull()
-    expect(s.push(dm)).toBeNull()
+    for (let i = 0; i < 4; i++) expect(s.push(null)).toBeNull()
+    expect(s.push(dm)).toBeNull() // la 1re lecture est sortie de la fenêtre
   })
 
   it('ré-ajoute le même exemplaire après qu’il a quitté l’image', () => {
@@ -172,6 +198,11 @@ describe('identification (YGO)', () => {
   it('ne confond pas une carte au nom proche', async () => {
     const r = await identifyCard('ygo', [{ text: 'Dark Magician Girl', y: 5 }])
     expect(r?.cardId).toBe('38033121')
+  })
+
+  it('sans code d’impression : par le passcode imprimé → l’artwork exact', async () => {
+    const r = await identifyCard('ygo', [{ text: 'Dark Magicien' }, { text: '36996508' }])
+    expect(r).toMatchObject({ cardId: DM_ALT, printingId: null, via: 'passcode', score: 1 })
   })
 
   it('rien de reconnaissable → null', async () => {

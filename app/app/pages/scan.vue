@@ -54,6 +54,26 @@
           :disabled="!pending"
           @click="addPending"
         />
+        <label class="flex items-center gap-2 text-sm">
+          <USwitch id="scan-debug-toggle" v-model="showDebug" size="sm" />
+          Diagnostic
+        </label>
+      </div>
+
+      <!-- diagnostic : ce que voit réellement le scan (pour comprendre un échec) -->
+      <div
+        v-if="showDebug"
+        id="scan-debug"
+        class="max-w-md mx-auto w-full shrink-0 rounded-lg border border-default p-2 text-xs font-mono space-y-1 max-h-48 overflow-y-auto"
+      >
+        <p>
+          caméra : {{ camera.active() ? 'active' : 'inactive' }} · images analysées :
+          {{ debug.frames }} · OCR : {{ debug.lastMs }} ms · image {{ debug.size }}
+        </p>
+        <p>résultat : {{ debug.result || '—' }}</p>
+        <p v-if="debug.error" class="text-error">erreur : {{ debug.error }}</p>
+        <p class="text-muted">texte lu ({{ debug.lines.length }} lignes) :</p>
+        <p v-for="(l, i) in debug.lines" :key="i" class="truncate">« {{ l }} »</p>
       </div>
 
       <!-- cartes ajoutées pendant la session -->
@@ -159,6 +179,8 @@ async function undo(entryId: string) {
 async function processLines(lines: OcrLine[]) {
   const found = await identifyCard(GAME, lines)
   current.value = found
+  debug.lines = lines.slice(0, 12).map((l) => l.text)
+  debug.result = found ? `${found.name} (${found.via}, ${found.score.toFixed(2)})` : ''
   const stable = stabilizer.push(found)
   if (!stable) return
   if (autoAdd.value) await add(stable)
@@ -176,20 +198,36 @@ async function vibrate() {
 
 // ── boucle caméra → OCR ──
 const canvas = document.createElement('canvas')
+const showDebug = ref(false)
+const debug = reactive({
+  frames: 0,
+  lastMs: 0,
+  size: '',
+  lines: [] as string[],
+  result: '',
+  error: '',
+})
 let timer: ReturnType<typeof setTimeout> | null = null
 let running = false
 
 async function tick() {
   if (!running) return
   try {
-    const ctx = camera.grab(canvas, 1280)
+    // haute résolution : le code d'impression est petit sur la carte
+    const ctx = camera.grab(canvas, 1600)
     if (ctx) {
-      const image = canvas.toDataURL('image/jpeg', 0.85).split(',')[1] ?? ''
+      const image = canvas.toDataURL('image/jpeg', 0.9).split(',')[1] ?? ''
+      const t0 = performance.now()
       const res = await invoke<{ lines: OcrLine[] }>('plugin:card-scanner|recognize', { image })
+      debug.lastMs = Math.round(performance.now() - t0)
+      debug.frames++
+      debug.size = `${canvas.width}×${canvas.height}`
+      debug.error = ''
       ocrError.value = ''
       await processLines(res.lines)
     }
-  } catch {
+  } catch (e) {
+    debug.error = e instanceof Error ? e.message : String(e)
     ocrError.value = 'Reconnaissance de texte indisponible'
   }
   if (running) timer = setTimeout(tick, 250)

@@ -36,6 +36,15 @@ export function useRearCamera(video: Ref<HTMLVideoElement | null>) {
       error.value = 'Caméra indisponible'
       return false
     }
+    // mise au point continue (sinon image souvent floue dans la WebView) : best-effort
+    const track = stream.getVideoTracks()[0]
+    try {
+      await track?.applyConstraints({
+        advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
+      })
+    } catch {
+      // caméra sans réglage de mise au point
+    }
     const el = video.value
     if (!el) {
       stop()

@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Autorise la lecture des marges système (barres d'état et de navigation)."
+permissions = ["allow-insets"]
