@@ -72,21 +72,23 @@
           <p class="text-xs text-muted" :data-share-card-count="myCardCount">
             {{ myCardCount }} carte(s) différente(s) · {{ myCode.length }} caractères
           </p>
-          <img
-            v-if="qrDataUrl"
+          <div
+            v-if="qrFrames.length"
             id="share-qr"
-            :src="qrDataUrl"
-            alt="QR code de partage"
-            class="w-72 max-w-full rounded-lg bg-white p-2"
-          />
-          <UAlert
-            v-else
-            color="warning"
-            variant="soft"
-            icon="i-lucide-triangle-alert"
-            title="Trop de cartes pour un QR code"
-            description="Envoie le code ci-dessous par message, ou partage seulement les cartes à l'échange."
-          />
+            :data-qr-frames="qrFrames.length"
+            class="space-y-1"
+          >
+            <img
+              :src="qrFrames[qrIndex]"
+              alt="QR code de partage"
+              class="w-72 max-w-full rounded-lg bg-white p-2"
+            />
+            <p v-if="qrFrames.length > 1" class="text-xs text-muted">
+              QR animé : image {{ qrIndex + 1 }} / {{ qrFrames.length }}. L'autre appareil le scanne
+              en continu jusqu'à la fin.
+            </p>
+          </div>
+          <p class="text-xs text-muted">À distance : copie le code et envoie-le par message.</p>
           <UTextarea
             id="share-code"
             :model-value="myCode"
@@ -122,8 +124,7 @@
           id="share-scan-btn"
           label="Scanner un QR code"
           icon="i-lucide-scan-line"
-          :loading="scanning"
-          @click="scanQr"
+          @click="openScanner"
         />
 
         <div class="space-y-2">
@@ -233,6 +234,7 @@
     </div>
 
     <CardDetail v-model:open="detailOpen" game="ygo" :card-id="detailCardId" />
+    <QrScanner v-model:open="scannerOpen" @code="importCode" />
   </AppPage>
 </template>
 
@@ -246,6 +248,7 @@ import {
   deleteSavedShare,
   resolveShare,
   decodeShare,
+  toFrames,
   ShareCodeError,
   type SavedShare,
   type SharePayload,
@@ -272,7 +275,32 @@ const onlyTrade = ref(false)
 const generating = ref(false)
 const myCode = ref('')
 const myCardCount = ref(0)
-const qrDataUrl = ref('')
+
+// QR animé : une image par morceau, affichées en boucle (4 par seconde)
+const qrFrames = ref<string[]>([])
+const qrIndex = ref(0)
+let qrTimer: ReturnType<typeof setInterval> | null = null
+
+function stopQrLoop() {
+  if (qrTimer) clearInterval(qrTimer)
+  qrTimer = null
+}
+
+async function buildQr(code: string) {
+  stopQrLoop()
+  qrIndex.value = 0
+  qrFrames.value = await Promise.all(
+    toFrames(code).map((f) =>
+      QRCode.toDataURL(f, { errorCorrectionLevel: 'M', margin: 1, width: 640 })
+    )
+  )
+  if (qrFrames.value.length > 1) {
+    qrTimer = setInterval(() => {
+      qrIndex.value = (qrIndex.value + 1) % qrFrames.value.length
+    }, 250)
+  }
+}
+onBeforeUnmount(stopQrLoop)
 
 async function generate() {
   generating.value = true
@@ -280,15 +308,7 @@ async function generate() {
     await setShareOwnerName(ownerName.value)
     myCode.value = await shareCode(GAME, { owner: ownerName.value, onlyTrade: onlyTrade.value })
     myCardCount.value = decodeShare(myCode.value).cards.length
-    try {
-      qrDataUrl.value = await QRCode.toDataURL(myCode.value, {
-        errorCorrectionLevel: 'L',
-        margin: 1,
-        width: 640,
-      })
-    } catch {
-      qrDataUrl.value = '' // dépasse la capacité d'un QR code
-    }
+    await buildQr(myCode.value)
   } catch {
     toast.add({ title: 'Échec de la génération du partage', color: 'error' })
   } finally {
@@ -308,9 +328,12 @@ async function copyCode() {
 // ── recevoir ──
 const importText = ref('')
 const importing = ref(false)
-const scanning = ref(false)
-// le scan QR (caméra) n'existe que dans l'app mobile
+// le scan QR (caméra) n'existe que dans l'app mobile ; sur PC on colle le code
 const canScan = /android/i.test(navigator.userAgent)
+const scannerOpen = ref(false)
+function openScanner() {
+  scannerOpen.value = true
+}
 
 async function importCode(code: string) {
   importing.value = true
@@ -327,24 +350,6 @@ async function importCode(code: string) {
     })
   } finally {
     importing.value = false
-  }
-}
-
-async function scanQr() {
-  scanning.value = true
-  try {
-    const { scan, Format, checkPermissions, requestPermissions } =
-      await import('@tauri-apps/plugin-barcode-scanner')
-    if ((await checkPermissions()) !== 'granted' && (await requestPermissions()) !== 'granted') {
-      toast.add({ title: 'Accès à la caméra refusé', color: 'error' })
-      return
-    }
-    const result = await scan({ formats: [Format.QRCode] })
-    if (result?.content) await importCode(result.content)
-  } catch {
-    toast.add({ title: 'Scan annulé ou impossible', color: 'warning' })
-  } finally {
-    scanning.value = false
   }
 }
 

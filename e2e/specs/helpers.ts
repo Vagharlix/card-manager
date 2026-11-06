@@ -34,16 +34,23 @@ export async function waitForPath(pred: (path: string) => boolean, timeout = 800
   })
 }
 
-// Set an input's value + fire input/change so Vue v-model updates.
+// Set an input's (or textarea's) value + fire input/change so Vue v-model updates.
+// If the selector hits a wrapper (Nuxt UI), the inner input/textarea is used.
 export async function typeInto(selector: string, text: string): Promise<void> {
   await browser.execute(
     (sel: string, val: string) => {
-      const el = document.querySelector(sel) as HTMLInputElement | null
+      const found = document.querySelector(sel)
+      const el = (
+        found instanceof HTMLInputElement || found instanceof HTMLTextAreaElement
+          ? found
+          : found?.querySelector('input, textarea')
+      ) as HTMLInputElement | HTMLTextAreaElement | null
       if (!el) throw new Error(`input not found: ${sel}`)
-      const setter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        'value'
-      )?.set
+      const proto =
+        el instanceof HTMLTextAreaElement
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
       setter?.call(el, val)
       el.dispatchEvent(new Event('input', { bubbles: true }))
       el.dispatchEvent(new Event('change', { bubbles: true }))

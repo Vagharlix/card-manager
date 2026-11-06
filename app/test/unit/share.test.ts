@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import QRCode from 'qrcode'
+import jsQR from 'jsqr'
 import { createTestDatabases, type TestDatabases } from './helpers/testDb'
 import { createSeeder } from './helpers/seed'
 
@@ -150,6 +152,34 @@ describe('QR animé', () => {
     for (const f of [shuffled[0]!, shuffled[0]!, ...shuffled.slice(1)]) result = a.add(f)
     expect(result.status).toBe('complete')
     if (result.status === 'complete') expect(decodeShare(result.code).cards).toHaveLength(5000)
+  })
+
+  it('vraie chaîne QR : images générées par qrcode, relues par jsQR, réassemblées', () => {
+    const code = encodeShare(bigCollection(1000))
+    const frames = toFrames(code)
+    const a = new FrameAssembler()
+    let last: ReturnType<FrameAssembler['add']> = { status: 'ignored' }
+    for (const frame of frames) {
+      // rendu en pixels (module = 4 px, marge de 4 modules), comme une image à l'écran
+      const qr = QRCode.create(frame, { errorCorrectionLevel: 'M' })
+      const n = qr.modules.size
+      const scale = 4
+      const margin = 4 * scale
+      const size = n * scale + 2 * margin
+      const px = new Uint8ClampedArray(size * size * 4).fill(255)
+      for (let y = 0; y < n; y++)
+        for (let x = 0; x < n; x++)
+          if (qr.modules.get(y, x))
+            for (let dy = 0; dy < scale; dy++)
+              for (let dx = 0; dx < scale; dx++) {
+                const i = ((margin + y * scale + dy) * size + margin + x * scale + dx) * 4
+                px[i] = px[i + 1] = px[i + 2] = 0
+              }
+      const read = jsQR(px, size, size)
+      expect(read?.data).toBe(frame)
+      last = a.add(read!.data)
+    }
+    expect(last).toEqual({ status: 'complete', code })
   })
 
   it('petite collection : une seule image', () => {
