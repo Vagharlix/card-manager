@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Autorise la connexion Google (synchro Drive) et l'oubli du jeton."
+permissions = ["allow-authorize", "allow-clear-token"]

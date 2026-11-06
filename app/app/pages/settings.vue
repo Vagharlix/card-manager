@@ -27,6 +27,72 @@
 
     <!-- desktop : une section à la fois ; mobile : toutes à la suite, en cartes -->
     <div class="h-full overflow-y-auto" :class="isMobile && 'space-y-4 pb-6'">
+      <!-- ── Synchronisation entre appareils (compte Google, Drive) ── -->
+      <section v-if="show('devices')" :class="sectionClass" data-section-body="devices">
+        <h2 :class="titleClass">Synchronisation entre appareils</h2>
+        <p class="text-xs text-muted">
+          Garde ta collection, tes rangements et tes decks identiques sur le PC et le téléphone, via
+          ton compte Google (dossier caché de l'appli dans ton Drive, invisible et séparé de tes
+          fichiers).
+        </p>
+
+        <p v-if="!gAvailable" class="text-sm text-muted">
+          Non disponible dans cette version de l'appli.
+        </p>
+
+        <template v-else-if="!gAccount">
+          <UButton
+            id="gsync-connect"
+            label="Se connecter avec Google"
+            icon="i-lucide-log-in"
+            :size="fieldSize"
+            :block="isMobile"
+            :loading="gBusy"
+            @click="onGoogleConnect"
+          />
+          <p v-if="gBusy && !isAndroidDevice" class="text-xs text-muted">
+            Termine la connexion dans le navigateur qui vient de s'ouvrir.
+          </p>
+        </template>
+
+        <template v-else>
+          <div class="space-y-1">
+            <p class="text-sm font-medium" data-gsync-email>
+              {{ gAccount.email ?? 'Compte Google connecté' }}
+            </p>
+            <p class="text-xs text-muted" :data-gsync-last="gLast?.at ?? ''">
+              {{ gLast ? `Dernière synchro : ${formatDateTime(gLast.at)}` : 'Jamais synchronisé' }}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2" :class="isMobile && 'flex-col'">
+            <UButton
+              id="gsync-now"
+              label="Synchroniser maintenant"
+              icon="i-lucide-refresh-cw"
+              :size="fieldSize"
+              :block="isMobile"
+              :loading="deviceSync.syncing.value"
+              @click="onGoogleSync"
+            />
+            <UButton
+              id="gsync-disconnect"
+              label="Se déconnecter"
+              icon="i-lucide-log-out"
+              color="neutral"
+              variant="soft"
+              :size="fieldSize"
+              :block="isMobile"
+              :disabled="deviceSync.syncing.value"
+              @click="onGoogleDisconnect"
+            />
+          </div>
+          <p class="text-xs text-muted">
+            La synchro se fait aussi à chaque lancement. En cas de modification du même élément sur
+            les deux appareils, la plus récente est gardée.
+          </p>
+        </template>
+      </section>
+
       <!-- ── Collection ── -->
       <section v-if="show('collection')" :class="sectionClass">
         <h2 :class="titleClass">Ajout de cartes</h2>
@@ -208,12 +274,22 @@ import {
 } from '~/services/imageCache'
 import { syncYgo, localSyncVersion, isSyncing } from '~/services/sync'
 import { getShareOwnerName, setShareOwnerName } from '~/services/settings'
+import {
+  googleAvailable,
+  googleAccount,
+  connectGoogle,
+  disconnectGoogle,
+  GoogleError,
+} from '~/services/userSync/google'
+import { lastSync, type LastSync } from '~/services/userSync/cloud'
+import { forgetSyncBase } from '~/services/userSync'
 
 // un seul jeu pour l'instant ; quand un 2e arrive, la section Collection
 // gagnera un sélecteur de jeu et GAME deviendra réactif.
 const GAME = 'ygo'
 
 const sections = [
+  { id: 'devices', label: 'Synchronisation' },
   { id: 'collection', label: 'Ajout de cartes' },
   { id: 'share', label: 'Partage' },
   { id: 'appearance', label: 'Apparence' },
@@ -221,7 +297,7 @@ const sections = [
   { id: 'storage', label: 'Stockage' },
   { id: 'games', label: 'Jeux' },
 ]
-const active = ref('collection')
+const active = ref('devices')
 
 const { isMobile } = useResponsive()
 const show = (id: string) => isMobile.value || active.value === id
@@ -348,7 +424,66 @@ async function runSync(force: boolean) {
 const checkUpdates = () => runSync(false)
 const forceResync = () => runSync(true)
 
+// ── synchronisation entre appareils ──
+const deviceSync = useDeviceSync()
+const gAvailable = googleAvailable()
+const isAndroidDevice = isAndroid()
+const gAccount = ref<{ email: string | null } | null>(null)
+const gLast = ref<LastSync | null>(null)
+const gBusy = ref(false)
+
+async function refreshGoogle() {
+  gAccount.value = await googleAccount()
+  gLast.value = await lastSync()
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+async function onGoogleSync() {
+  try {
+    const r = await deviceSync.run()
+    if (!r) return
+    const changes = r.applied.inserted + r.applied.updated + r.applied.deleted
+    toast.add({
+      title: changes ? `Synchronisé : ${changes} changement(s) reçu(s)` : 'Déjà à jour',
+      description: r.conflicts.length
+        ? `${r.conflicts.length} modification(s) faite(s) des deux côtés : la plus récente a été gardée.`
+        : undefined,
+      icon: 'i-lucide-check',
+      color: 'success',
+    })
+  } catch (e) {
+    toast.add({ title: syncErrorMessage(e), color: 'error' })
+  } finally {
+    await refreshGoogle()
+  }
+}
+
+async function onGoogleConnect() {
+  gBusy.value = true
+  try {
+    await connectGoogle()
+    await refreshGoogle()
+    await onGoogleSync()
+  } catch (e) {
+    if (!(e instanceof GoogleError && e.code === 'CANCELLED'))
+      toast.add({ title: syncErrorMessage(e), color: 'error' })
+  } finally {
+    gBusy.value = false
+  }
+}
+
+async function onGoogleDisconnect() {
+  await disconnectGoogle()
+  await forgetSyncBase() // reconnecté plus tard : on repart d'une union, rien n'est supprimé
+  await refreshGoogle()
+  toast.add({ title: 'Compte Google déconnecté', icon: 'i-lucide-check', color: 'success' })
+}
+
 onMounted(async () => {
+  refreshGoogle()
   ownerName.value = await getShareOwnerName()
   refreshCacheSize()
   refreshVersion()

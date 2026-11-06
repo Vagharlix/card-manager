@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "android",
-  "description": "Capabilities propres à Android (OCR du scan de cartes, marges système)",
+  "description": "Capabilities propres à Android (OCR du scan de cartes, marges système, connexion Google)",
   "platforms": ["android"],
   "windows": ["main"],
-  "permissions": ["card-scanner:default", "safe-area:default"]
+  "permissions": ["card-scanner:default", "safe-area:default", "google-auth:default"]
 }

@@ -1,7 +1,9 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 mod cache_store;
+mod google;
 mod image_cache;
+mod oauth_loopback;
 
 fn db_name(name: &str) -> String {
     // Test build: the frontend is generated with VITE_TEST_MODE=true and the
@@ -101,7 +103,8 @@ pub fn run() {
     #[cfg(target_os = "android")]
     let builder = builder
         .plugin(tauri_plugin_card_scanner::init())
-        .plugin(tauri_plugin_safe_area::init());
+        .plugin(tauri_plugin_safe_area::init())
+        .plugin(tauri_plugin_google_auth::init());
 
     builder
         .plugin(tauri_plugin_opener::init())
@@ -111,7 +114,11 @@ pub fn run() {
                 .add_migrations(&db_name("cards-ygo"), ygo_migrations)
                 .build(),
         )
+        .manage(google::Loopbacks::default())
         .invoke_handler(tauri::generate_handler![
+            google::google_request,
+            google::oauth_loopback_start,
+            google::oauth_loopback_wait,
             image_cache::cache_card_image,
             image_cache::image_cache_size,
             image_cache::clear_image_cache,

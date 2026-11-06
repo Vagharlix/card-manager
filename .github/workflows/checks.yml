@@ -51,3 +51,5 @@ jobs:
         run: |
           rustc --edition 2021 --test src-tauri/src/cache_store.rs -o "$RUNNER_TEMP/cache_store_test"
           "$RUNNER_TEMP/cache_store_test"
+          rustc --edition 2021 --test src-tauri/src/oauth_loopback.rs -o "$RUNNER_TEMP/oauth_loopback_test"
+          "$RUNNER_TEMP/oauth_loopback_test"

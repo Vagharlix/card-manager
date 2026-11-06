@@ -475,6 +475,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-barcode-scanner",
  "tauri-plugin-card-scanner",
+ "tauri-plugin-google-auth",
  "tauri-plugin-opener",
  "tauri-plugin-safe-area",
  "tauri-plugin-sql",
@@ -4458,6 +4459,14 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-card-scanner"
+version = "0.1.0"
+dependencies = [
+ "tauri",
+ "tauri-plugin",
+]
+
+[[package]]
+name = "tauri-plugin-google-auth"
 version = "0.1.0"
 dependencies = [
  "tauri",
