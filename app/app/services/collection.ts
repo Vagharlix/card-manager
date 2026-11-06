@@ -1,5 +1,6 @@
 import { useDatabase } from '~/composables/useDatabase'
 import { getDefaultCondition, getDefaultLanguage } from '~/services/settings'
+import { ASSIGNED_SUBQUERY } from '~/services/containers'
 
 // ============================================================
 // COLLECTION SERVICE
@@ -22,6 +23,7 @@ export interface CollectionEntry {
   altered: boolean
   signed: boolean
   notes: string | null
+  tradeQty: number // copies proposées à l'échange (0..quantity)
 }
 
 // what you pass to add a card; missing fields fall back to settings/defaults
@@ -36,6 +38,7 @@ export interface AddCardInput {
   altered?: boolean
   signed?: boolean
   notes?: string | null
+  tradeQty?: number
 }
 
 function uuid(): string {
@@ -51,23 +54,25 @@ export async function addCard(input: AddCardInput): Promise<string> {
   const id = uuid()
   const now = new Date().toISOString()
 
+  const quantity = input.quantity ?? 1
   await user.execute(
     `INSERT INTO collection
        (id, game, card_id, printing_id, quantity, condition, language,
-        foil, altered, signed, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        foil, altered, signed, notes, trade_qty, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.game,
       input.cardId,
       input.printingId ?? null,
-      input.quantity ?? 1,
+      quantity,
       condition,
       language,
       input.foil ? 1 : 0,
       input.altered ? 1 : 0,
       input.signed ? 1 : 0,
       input.notes ?? null,
+      Math.max(0, Math.min(input.tradeQty ?? 0, quantity)),
       now,
       now,
     ]
@@ -120,6 +125,7 @@ export async function updateCard(id: string, patch: Partial<AddCardInput>): Prom
     altered: patch.altered === undefined ? undefined : patch.altered ? 1 : 0,
     signed: patch.signed === undefined ? undefined : patch.signed ? 1 : 0,
     notes: patch.notes,
+    trade_qty: patch.tradeQty === undefined ? undefined : Math.max(0, patch.tradeQty),
   }
   for (const [col, val] of Object.entries(map)) {
     if (val !== undefined) {
@@ -134,6 +140,10 @@ export async function updateCard(id: string, patch: Partial<AddCardInput>): Prom
   params.push(id)
 
   await user.execute(`UPDATE collection SET ${fields.join(', ')} WHERE id = ?`, params)
+  // on ne peut pas proposer à l'échange plus que ce qu'on possède
+  await user.execute(`UPDATE collection SET trade_qty = MIN(trade_qty, quantity) WHERE id = ?`, [
+    id,
+  ])
 }
 
 // ── soft delete ───────────────────────────────────────────
@@ -169,13 +179,23 @@ export async function entriesForCard(game: string, cardId: string): Promise<Coll
   const { user } = await useDatabase()
   const rows = await user.select<any[]>(
     `SELECT id, game, card_id, printing_id, quantity, condition, language,
-            foil, altered, signed, notes
+            foil, altered, signed, notes, trade_qty
      FROM collection
      WHERE deleted_at IS NULL AND game = ? AND card_id = ?
      ORDER BY created_at DESC`,
     [game, cardId]
   )
   return rows.map(rowToEntry)
+}
+
+// ── total copies owned for a game (sidebar « toute ma collection ») ──
+export async function collectionTotal(game: string): Promise<number> {
+  const { user } = await useDatabase()
+  const rows = await user.select<{ n: number }[]>(
+    `SELECT COALESCE(SUM(quantity), 0) AS n FROM collection WHERE deleted_at IS NULL AND game = ?`,
+    [game]
+  )
+  return rows[0]?.n ?? 0
 }
 
 // ── all owned passcodes for a game (for grid "owned" pills) ──
@@ -203,5 +223,110 @@ function rowToEntry(r: any): CollectionEntry {
     altered: !!r.altered,
     signed: !!r.signed,
     notes: r.notes,
+    tradeQty: r.trade_qty ?? 0,
   }
+}
+
+// ============================================================
+// TOUTE LA COLLECTION — une ligne par carte logique (artworks
+// regroupés via alias), avec quantités possédée / à l'échange /
+// non rangée. Recherche par nom, filtre « à l'échange », tri.
+// ============================================================
+
+export interface CollectionCard {
+  game: string
+  rootId: string // alias root = carte logique
+  displayId: string // passcode le plus possédé, pour la vignette
+  name: string
+  type: string | null
+  totalQty: number
+  tradeQty: number
+  unrangedQty: number
+  addedAt: string // ajout le plus récent (ISO)
+}
+
+export type CollectionSort = 'name' | 'quantity' | 'recent'
+
+export interface CollectionQuery {
+  search?: string
+  onlyTrade?: boolean
+  sort?: CollectionSort
+}
+
+export async function listCollectionCards(
+  game = 'ygo',
+  q: CollectionQuery = {}
+): Promise<CollectionCard[]> {
+  const { user, ygo } = await useDatabase()
+
+  const entries = await user.select<
+    { card_id: string; quantity: number; trade_qty: number; assigned: number; created_at: string }[]
+  >(
+    `SELECT c.card_id, c.quantity, c.trade_qty, COALESCE(a.qty, 0) AS assigned, c.created_at
+     FROM collection c
+     LEFT JOIN (${ASSIGNED_SUBQUERY}) a ON a.collection_id = c.id
+     WHERE c.deleted_at IS NULL AND c.game = ?`,
+    [game]
+  )
+  if (!entries.length) return []
+
+  const ids = [...new Set(entries.map((e) => e.card_id))]
+  const ph = ids.map(() => '?').join(', ')
+  const meta = await ygo.select<{ id: string; root: string; name: string; type: string | null }[]>(
+    `SELECT c.id, COALESCE(d.alias, c.id) AS root, c.name, d.type
+     FROM cards c JOIN ygo_details d ON d.card_id = c.id
+     WHERE c.id IN (${ph})`,
+    ids
+  )
+  const metaById = new Map(meta.map((m) => [m.id, m]))
+
+  // regroupement par carte logique ; qtyByPasscode sert à choisir la vignette
+  const groups = new Map<string, CollectionCard & { qtyByPasscode: Map<string, number> }>()
+  for (const e of entries) {
+    const m = metaById.get(e.card_id)
+    const root = m?.root ?? e.card_id
+    let g = groups.get(root)
+    if (!g) {
+      g = {
+        game,
+        rootId: root,
+        displayId: e.card_id,
+        name: m?.name ?? e.card_id,
+        type: m?.type ?? null,
+        totalQty: 0,
+        tradeQty: 0,
+        unrangedQty: 0,
+        addedAt: e.created_at,
+        qtyByPasscode: new Map(),
+      }
+      groups.set(root, g)
+    }
+    g.totalQty += e.quantity
+    g.tradeQty += e.trade_qty
+    g.unrangedQty += Math.max(0, e.quantity - e.assigned)
+    if (e.created_at > g.addedAt) g.addedAt = e.created_at
+    g.qtyByPasscode.set(e.card_id, (g.qtyByPasscode.get(e.card_id) ?? 0) + e.quantity)
+  }
+
+  const search = q.search?.trim().toLowerCase()
+  const cards: CollectionCard[] = []
+  for (const { qtyByPasscode, ...card } of groups.values()) {
+    if (search && !card.name.toLowerCase().includes(search)) continue
+    if (q.onlyTrade && card.tradeQty === 0) continue
+    let best = 0
+    for (const [passcode, qty] of qtyByPasscode) {
+      if (qty > best) {
+        best = qty
+        card.displayId = passcode
+      }
+    }
+    cards.push(card)
+  }
+
+  const byName = (a: CollectionCard, b: CollectionCard) => a.name.localeCompare(b.name)
+  if (q.sort === 'quantity') cards.sort((a, b) => b.totalQty - a.totalQty || byName(a, b))
+  else if (q.sort === 'recent')
+    cards.sort((a, b) => b.addedAt.localeCompare(a.addedAt) || byName(a, b))
+  else cards.sort(byName)
+  return cards
 }

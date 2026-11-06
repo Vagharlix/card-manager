@@ -37,7 +37,7 @@ function now(): string {
 // Assigned quantity per collection entry, counting ONLY active
 // (non-deleted) containers. Used everywhere we compute "unranged".
 // Each assignment table is joined to containers to skip soft-deleted ones.
-const ASSIGNED_SUBQUERY = `
+export const ASSIGNED_SUBQUERY = `
   SELECT collection_id, SUM(qty) AS qty FROM (
       SELECT dc.collection_id, dc.quantity AS qty
         FROM deckbox_cards dc

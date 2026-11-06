@@ -167,11 +167,21 @@
                 <span class="text-sm">{{ entry.condition }}</span>
                 <span class="text-sm text-muted uppercase">{{ entry.language }}</span>
                 <UBadge v-if="entry.foil" color="warning" variant="soft" size="xs">Foil</UBadge>
+                <UBadge
+                  v-if="entry.tradeQty"
+                  :data-entry-trade-qty="entry.tradeQty"
+                  icon="i-lucide-repeat"
+                  color="primary"
+                  variant="soft"
+                  size="xs"
+                  :label="`${entry.tradeQty} à l'échange`"
+                />
                 <span v-if="entry.printingId" class="text-xs text-muted truncate">{{
                   entry.printingId
                 }}</span>
                 <div class="flex-1" />
                 <UButton
+                  :data-entry-edit="entry.id"
                   icon="i-lucide-pencil"
                   color="neutral"
                   variant="ghost"
@@ -210,6 +220,17 @@
                       size="sm"
                     />
                   </div>
+                  <div>
+                    <p class="text-xs text-muted mb-1">À l'échange</p>
+                    <UInput
+                      id="entry-trade-qty-input"
+                      v-model.number="editForm.tradeQty"
+                      type="number"
+                      min="0"
+                      :max="editForm.quantity"
+                      size="sm"
+                    />
+                  </div>
                 </div>
                 <div class="flex gap-4">
                   <UCheckbox v-model="editForm.foil" label="Foil" size="sm" />
@@ -218,6 +239,7 @@
                 </div>
                 <div class="flex gap-2">
                   <UButton
+                    id="entry-save-btn"
                     size="sm"
                     label="Enregistrer"
                     icon="i-lucide-check"
@@ -417,6 +439,7 @@ const editForm = reactive({
   foil: false,
   altered: false,
   signed: false,
+  tradeQty: 0,
 })
 
 const printingItems = computed(() =>
@@ -562,6 +585,7 @@ function toggleEdit(id: string) {
   editForm.foil = e.foil
   editForm.altered = e.altered
   editForm.signed = e.signed
+  editForm.tradeQty = e.tradeQty
   editingId.value = id
 }
 
@@ -576,6 +600,7 @@ async function saveEdit(id: string) {
       foil: editForm.foil,
       altered: editForm.altered,
       signed: editForm.signed,
+      tradeQty: Math.min(editForm.tradeQty || 0, editForm.quantity),
     })
     await refreshOwned()
     editingId.value = null

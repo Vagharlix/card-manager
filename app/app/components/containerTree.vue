@@ -1,5 +1,20 @@
 <template>
   <div class="flex flex-col h-full">
+    <button
+      data-container-id="__all__"
+      class="mb-3 shrink-0 w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm text-left transition border"
+      :class="
+        selectedId === ALL_ID
+          ? 'bg-primary/10 border-primary/40 text-primary'
+          : 'border-default hover:bg-elevated'
+      "
+      @click="$emit('select', ALL_ID)"
+    >
+      <UIcon name="i-lucide-library" class="shrink-0" />
+      <span class="flex-1">Toute ma collection</span>
+      <span class="text-xs shrink-0">{{ totalCount }}</span>
+    </button>
+
     <div class="flex items-center justify-between mb-3 shrink-0">
       <p class="text-xs text-muted uppercase tracking-wide">Conteneurs</p>
       <UButton
@@ -144,6 +159,7 @@ import {
 const props = defineProps<{
   containers: ContainerListItem[]
   unrangedCount: number
+  totalCount: number
   selectedId: string | null
 }>()
 

@@ -12,7 +12,7 @@
 - **Dépôt** : branche d'intégration `dev`, commits conventionnels. Claude travaille sur des branches `claude/*`, committe et pousse lui-même, ouvre une PR vers `dev` ; **Félix relit et merge**. Jamais de push direct sur `dev`.
 - **Langue** : répondre **en français**.
 - **OS dev** : CachyOS (Arch). Bases dans `~/.config/com.card-manager.app/`.
-- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (10 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
+- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (11 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
 
 ---
 
@@ -75,7 +75,8 @@ card-manager/
 │   ├── build.rs              # rerun-if-env-changed=VITE_TEST_MODE
 │   └── migrations/
 │       ├── user/001_initial.sql, 002_settings.sql, 003_collection_printing.sql,
-│       │        004_detach_deleted_collection.sql, 005_binder_slots_multi_copy.sql
+│       │        004_detach_deleted_collection.sql, 005_binder_slots_multi_copy.sql,
+│       │        006_collection_trade_qty.sql
 │       └── ygo/001_initial.sql
 ├── app/                      # racine de config Nuxt (package.json "app", scripts generate/dev/build)
 │   ├── pnpm-lock.yaml
@@ -110,7 +111,7 @@ card-manager/
   - Conteneurs/cartes = **camelCase** : `cardDetail.vue`, `cardThumb.vue`, `artThumb.vue`, `containerTree.vue`, `containerCreateModal.vue`, `containerPicker.vue`, `containerEditModal.vue`, `binderView.vue`, `unrangedCardPicker.vue`.
   - Decks = **PascalCase** : `DeckCard.vue`, `DeckBoard.vue`, `DeckboxRangeModal.vue`.
 - **Trois `package.json`** (racine / `app/` / `e2e/`), trois installs distincts.
-- La gestion des conteneurs (ContainerTree, BinderView, deckbox/binder/bulk + « non rangées ») vit **dans `collection.vue`**, route `/collection` — il n'y a pas de page dédiée.
+- La gestion des conteneurs (ContainerTree, BinderView, deckbox/binder/bulk + « non rangées ») vit **dans `collection.vue`**, route `/collection` — il n'y a pas de page dédiée. Vue par défaut : **« Toute ma collection »** (`ALL_ID = '__all__'`, à côté de `UNRANGED_ID` dans `utils/container.ts`). L'accueil `/` redirige vers `/collection`.
 
 ---
 
@@ -136,7 +137,7 @@ Deux bases, nom suffixé selon le mode.
   - `ygo_details.alias` → passcode « principal » d'une carte à artworks multiples.
   - `ygo_details.banlist_tcg/ocg/md` ∈ {`Forbidden`,`Limited`,`Semi-Limited`,NULL}.
   - Peuplée par une vraie **sync réseau YGOPRODeck** déclenchée dans l'app.
-- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection), `004` (nettoyage des assignations d'entrées soft-deleted), `005` (`binder_slots` reconstruite sans `UNIQUE(collection_id)` : plusieurs cases par pile ; vue `card_locations` recréée).
+- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection), `004` (nettoyage des assignations d'entrées soft-deleted), `005` (`binder_slots` reconstruite sans `UNIQUE(collection_id)` : plusieurs cases par pile ; vue `card_locations` recréée), `006` (`collection.trade_qty` : copies proposées à l'échange, 0..quantity borné par l'app).
 
 **Choix du nom** (`app/app/utils/db-names.ts`, `dbName(base)`) : `.test.db` si `VITE_TEST_MODE==='true'`, `.dev.db` si `import.meta.env.DEV`, sinon `.db`. Exporte `DB_NAMES = {user, ygo}`.
 **Côté Rust** (`src-tauri/src/lib.rs`, `db_name()`) : `option_env!("VITE_TEST_MODE")==Some("true")` → `.test.db` ; `cfg!(debug_assertions)` → `.dev.db` ; sinon `.db`.
@@ -159,6 +160,10 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 - **Synchronisation** : version locale affichée, « Vérifier les mises à jour » et « Forcer la resynchronisation » (`syncYgo({ force: true })`, progression dans l'overlay d'`app.vue`).
 - **Reste** : `favoriteGame` / `showGamePicker` sont stockés et éditables mais rien ne les consomme encore (pas de sélecteur de jeu tant qu'il n'y a qu'un jeu).
 
+### Collection (Phase 4)
+- **Toute ma collection** : `listCollectionCards(game, { search, onlyTrade, sort })` (`services/collection.ts`) — une ligne par carte logique (artworks regroupés, vignette = artwork le plus possédé), quantités possédée / à l'échange / non rangée ; tri nom / quantité / ajout récent. Barre de filtres dans `collection.vue` (recherche debounced 250 ms).
+- **À l'échange** : `trade_qty` par pile, édité dans la fiche carte (`#entry-trade-qty-input`), borné à la quantité (à l'ajout, à la modification, et quand la quantité baisse). Prérequis du partage (Phase 8). La vente n'est pas modélisée (pas de prix) : à ajouter le jour où on en a besoin.
+
 ### Mode test (committé)
 - `src-tauri/src/lib.rs` : `db_name()` gère le mode test (a corrigé au passage un bug prod : migrations enregistrées pour le mauvais nom de base en build test → table settings manquante).
 - `src-tauri/build.rs` : rerun si `VITE_TEST_MODE` change.
@@ -177,6 +182,7 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 7. `deck-build` — `#deck-search-input` (watchDebounced 300 ms) → `.deck-search-result` → board Main `data-quantity=1` → menu `add`→2 → `remove`×2 → disparu.
 8. `deck-range` — créer deck → ajouter 1er résultat → lire son `data-deck-card-id` → `__seedOwned(thatId)` → deckbox → ranger (combobox USelect) → `data-plan-total >= 1` → confirmer → carte physiquement dans la deckbox.
 9. `deck-banlist` — alerte banlist via passage du format casual → tcg (`#deck-format-select`, `data-flagged` sur `.deck-board-card`, `data-banlist-alert`).
+11. `collection-all` — `__seedOwned` → `/search` puis `/collection` (vue « toute ma collection » ; passer par une autre route car l'app démarre déjà sur `/collection`) → fiche → `[data-entry-edit]` → `#entry-trade-qty-input` → `#entry-save-btn` → badge `[data-trade-qty]` → `#collection-only-trade` → `#collection-search`.
 10. `settings-storage` — `/settings` → `[data-section=storage]` → `#image-cache-size[data-cache-bytes]` numérique → `#image-cache-clear` → `0` (vérifie que les commandes Rust sont enregistrées).
 
 **Leçon deck-range** (⚠️ réutilisable) : « Dark Magician » a plusieurs artworks ; l'ordre des résultats diffère entre `/search` et la sidebar du deck → la carte possédée ≠ la carte du deck → `owned=0`. Résolu en possédant **le `card_id` exact** de la carte du deck via `__seedOwned`. Tout test qui a besoin d'un état de collection précis doit faire pareil, ne pas dépendre de l'ordre de recherche.
@@ -190,13 +196,13 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 `elementSendKeys` KO → `typeInto` (setter prototype + dispatch input/change). Actions API KO → pas de scroll/clic natif. Clics natifs interceptés → `click` dispatche une séquence pointer/mouse. `free(): corrupted unsorted chunks` à la fermeture = inoffensif. Éléments `opacity-0 group-hover` → le clic JS marche quand même.
 
 ### `data-*` / `id` posés (committés)
-`cardDetail.vue` (#card-detail, #card-detail-owned[data-owned-count], #btn-quick-add, #btn-range-card) · `cardThumb.vue` (.card-thumb[data-card-id]) · `search.vue` (#search-card-input, #search-results) · `containerCreateModal.vue` (data-type, .container-type-btn, #container-name-input, #container-{pages,rows,cols,capacity}-input, #container-create-confirm) · `containerTree.vue` (#container-create-btn, .container-item[data-container-id/name], data-menu-trigger, #item data-menu-action rename/edit/delete, #container-rename-input/confirm, #container-delete-confirm ; non rangées = data-container-id="__unranged__") · `containerPicker.vue` (.picker-container[data-picker-container-id], #picker-qty-input, #picker-confirm) · `collection.vue` (#container-content, .container-card[data-content-card-id], [data-unassign], #unassign-confirm) · `binderView.vue` (.binder-slot[data-slot-page/row/col/filled/card-id], [data-slot-clear], #binder-prev/next-page, data-binder-page) · `unrangedCardPicker.vue` (.unranged-picker-card[data-picker-card-id], #unranged-picker-search) · `decks/index.vue` (#deck-create-btn, #deck-create-empty, #deck-name-input, #deck-create-confirm, #deck-rename-input/confirm, #deck-delete-confirm) · `DeckCard.vue` (.deck-card[data-deck-id/name], data-menu-trigger, #item data-menu-action rename/range/delete) · `DeckBoard.vue` (prop board → :data-board, .deck-board-card[data-deck-card-id/data-quantity], data-board-count, #item data-menu-action info/add/remove/move, data-menu-trigger, [data-move]) · `decks/[id].vue` (#deck-search-input, .deck-search-result[data-search-card-id], data-total-cards, boards main/extra/side, #deck-range-btn, **data-banlist-alert**) · `DeckboxRangeModal.vue` (#deck-range-select, #item data-select-value, #deck-range-confirm, data-range-modal-body, data-range-plan, data-plan-total) · `settings.vue` (nav [data-section], #image-cache-size[data-cache-bytes], #image-cache-clear, #sync-check-btn, #sync-force-btn, [data-sync-version]).
+`cardDetail.vue` (#card-detail, #card-detail-owned[data-owned-count], #btn-quick-add, #btn-range-card) · `cardThumb.vue` (.card-thumb[data-card-id]) · `search.vue` (#search-card-input, #search-results) · `containerCreateModal.vue` (data-type, .container-type-btn, #container-name-input, #container-{pages,rows,cols,capacity}-input, #container-create-confirm) · `containerTree.vue` (#container-create-btn, .container-item[data-container-id/name], data-menu-trigger, #item data-menu-action rename/edit/delete, #container-rename-input/confirm, #container-delete-confirm ; non rangées = data-container-id="__unranged__") · `containerPicker.vue` (.picker-container[data-picker-container-id], #picker-qty-input, #picker-confirm) · `collection.vue` (#container-content, .container-card[data-content-card-id], [data-unassign], #unassign-confirm) · `binderView.vue` (.binder-slot[data-slot-page/row/col/filled/card-id], [data-slot-clear], #binder-prev/next-page, data-binder-page) · `unrangedCardPicker.vue` (.unranged-picker-card[data-picker-card-id], #unranged-picker-search) · `decks/index.vue` (#deck-create-btn, #deck-create-empty, #deck-name-input, #deck-create-confirm, #deck-rename-input/confirm, #deck-delete-confirm) · `DeckCard.vue` (.deck-card[data-deck-id/name], data-menu-trigger, #item data-menu-action rename/range/delete) · `DeckBoard.vue` (prop board → :data-board, .deck-board-card[data-deck-card-id/data-quantity], data-board-count, #item data-menu-action info/add/remove/move, data-menu-trigger, [data-move]) · `decks/[id].vue` (#deck-search-input, .deck-search-result[data-search-card-id], data-total-cards, boards main/extra/side, #deck-range-btn, **data-banlist-alert**) · `DeckboxRangeModal.vue` (#deck-range-select, #item data-select-value, #deck-range-confirm, data-range-modal-body, data-range-plan, data-plan-total) · `collection.vue` (vue complète : `[data-container-id=__all__]`, #collection-search, #collection-sort + #item data-select-value, #collection-only-trade, [data-trade-qty]) · `cardDetail.vue` édition d'exemplaire ([data-entry-edit], #entry-trade-qty-input, #entry-save-btn, [data-entry-trade-qty]) · `settings.vue` (nav [data-section], #image-cache-size[data-cache-bytes], #image-cache-clear, #sync-check-btn, #sync-force-btn, [data-sync-version]).
 
 ### Tests unitaires Vitest (`app/test/unit/`)
 - **Approche** : vrai SQLite en mémoire via `node:sqlite` (intégré à Node 22, pas de module natif), schéma = **les vraies migrations** `src-tauri/migrations/{user,ygo}` appliquées dans l'ordre → aucune dérive possible avec la prod. `useDatabase` est remplacé par `vi.mock('~/composables/useDatabase')` → **aucun refactor des services nécessaire**.
 - `helpers/testDb.ts` : `TestDatabase` imite `select`/`execute` de plugin-sql (params `?`), active `foreign_keys`. `helpers/seed.ts` : builders (`card`, `owned`, `deck`, `deckCard`, `deckbox`, `binder`, `bulkBox`, `inDeckbox/inBinder/inBulk`, `softDelete*`, `linkDeck`) + lectures (`contentsOf`, `deckboxesOfDeck`, `capacityOf`).
 - `helpers/testDb.ts` accepte `{ upTo: n }` + `applyMigration(n)` pour tester une migration sur des données existantes.
-- `collection.test.ts` : défauts par jeu à l'ajout, `removeCard` détache des conteneurs, compteurs de conteneurs, `updateCard` refuse une quantité < copies rangées, migration 004.
+- `collection.test.ts` : vue complète (regroupement, recherche, filtre échange, tris, supprimées ignorées), `trade_qty` borné, migration 006, défauts par jeu à l'ajout, `removeCard` détache des conteneurs, compteurs de conteneurs, `updateCard` refuse une quantité < copies rangées, migration 004.
 - `decks.test.ts` : placement auto (dont « XYZ Monster » → extra), limites alias/banlist par format, move, validation, possédées par carte logique, filtres de recherche.
 - `containers.test.ts` : classeur multi-copies, classeur plein, capacité deckbox, non rangées, retrait, regroupement artworks, migration 005 (orphelines écartées, vue OK).
 - `deckLink.test.ts` : 26 cas (plan + apply) : alias/boards fusionnés, déjà là, partiel, non rangées prioritaires, multi-sources ordonnées par nom, conteneur supprimé, isolation par jeu, purge (alt art conservée), capacité (NULL / purge déduite / dépassement + relève), relink unique, idempotence, pas de sur-assignation, entrées de collection soft-deleted.
