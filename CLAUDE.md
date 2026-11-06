@@ -103,7 +103,7 @@ card-manager/
 │   ├── specs/*.spec.ts
 │   ├── specs/helpers.ts
 │   └── fixtures/             # cards-ygo.test.db (committée), build-fixture.sh, passcodes.txt
-├── .github/release/android-test.keystore   # clé de signature APK de TEST (cf. §5 Release)
+├── scripts/android-keystore.sh   # génère la clé de signature APK + affiche les secrets GitHub (cf. §5 Release)
 └── .github/workflows/checks.yml, e2e.yml, release.yml
 ```
 
@@ -241,7 +241,10 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à 
 ### Release de test (`.github/workflows/release.yml`)
 - Push sur `dev` (ou lancement manuel) → jobs `linux` (AppImage, ubuntu-22.04) + `android` (APK arm64) → job `publish` recrée la pré-release **`dev-latest`** avec `card-manager-linux-x86_64.AppImage` et `card-manager-android-arm64.apk`. Sur une PR qui touche le workflow : build sans publication.
 - Version = `0.1.<run_number>` (passée via `--config`) → chaque build met à jour le précédent.
-- Android : `src-tauri/gen/` n'est pas versionné → `tauri android init --ci` + `tauri icon` en CI, build `--target aarch64`, puis `zipalign` + `apksigner` avec `.github/release/android-test.keystore` (mdp `card-manager-test`, alias `card-manager`). **Clé de test** : un APK construit en local (autre clé) doit être désinstallé avant d'installer celui de la CI. Pour une diffusion publique → vraie clé en secret GitHub.
+- Android : `src-tauri/gen/` n'est pas versionné → `tauri android init --ci` + `tauri icon` en CI, build `--target aarch64`, puis `zipalign` + `apksigner`.
+- **Signature (dépôt public)** : la clé n'est **jamais** dans git (`*.keystore`/`*.jks` ignorés). Elle vit dans les secrets du dépôt `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, générés par `scripts/android-keystore.sh` sur la machine de Félix (clé dans `~/.card-manager/release.keystore`, à sauvegarder : la perdre = plus de mise à jour des APK installés). Sans secret (ex. PR de fork), la CI signe avec une **clé jetable** + warning. L'ancienne clé de test (`.github/release/android-test.keystore`, publique via l'historique) est **abandonnée** : un APK signé avec doit être désinstallé avant d'installer un APK signé avec la nouvelle clé.
+- **GitHub Actions bloqué** (nov. 2026) : le budget Actions du compte est à 0 $ avec blocage, ce qui empêche même l'usage inclus et les dépôts publics ; le lever demande un moyen de paiement (refusé) ou le support GitHub. En attendant, tout est vérifié en local (env cloud `card-manager`) et les builds se font en local.
+- **Build APK local (session cloud)** : SDK Android dans `/opt/android-sdk` (cmdline-tools → `platforms;android-34`, `build-tools;34.0.0`, `ndk;27.2.12479018`, `rustup target add aarch64-linux-android`), `ANDROID_HOME` + `NDK_HOME`, puis les mêmes commandes que le job `android`. Maven Central peut répondre **429** depuis l'IP partagée du conteneur → script d'init Gradle `~/.gradle/init.d/maven-central-mirror.gradle` qui interroge d'abord le miroir `https://maven-central.storage-download.googleapis.com/maven2/`. AppImage local : il faut `xdg-utils` (`xdg-open`).
 - Builds release = bases `.db` (pas `.dev.db`) → n'interfèrent pas avec les données de dev.
 
 ### CI E2E (`.github/workflows/e2e.yml`) — verte

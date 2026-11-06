@@ -12,7 +12,6 @@ on:
   pull_request:
     paths:
       - .github/workflows/release.yml
-      - .github/release/**
 
 concurrency:
   group: release-${{ github.ref }}
@@ -131,21 +130,37 @@ jobs:
       - name: Build APK (arm64)
         run: pnpm tauri android build --apk --target aarch64 --ci --config "{\"version\":\"$APP_VERSION\"}"
 
-      # Signature avec une clé de TEST versionnée (dépôt privé, builds perso).
-      # Pour une diffusion publique : clé en secret GitHub, jamais dans le dépôt.
+      # Signature : la clé vit dans les secrets du dépôt (jamais dans git, le
+      # dépôt est public). Générer la clé et les secrets : scripts/android-keystore.sh.
+      # Sans secret (ex. PR de fork) : clé jetable, l'APK s'installe mais ne
+      # pourra pas se mettre à jour par-dessus un APK signé autrement.
       - name: Sign APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           apk=$(find src-tauri/gen/android/app/build/outputs/apk -name '*release*.apk' | head -n 1)
           echo "APK non signé : $apk"
           bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          ks="$RUNNER_TEMP/release.keystore"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$ks"
+          else
+            echo "::warning::Secret ANDROID_KEYSTORE_BASE64 absent : APK signé avec une clé jetable (pas de mise à jour par-dessus un APK précédent)."
+            KEYSTORE_PASSWORD=$(openssl rand -hex 16)
+            KEY_ALIAS=ephemeral
+            keytool -genkeypair -storetype PKCS12 -keystore "$ks" -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 30 -storepass "$KEYSTORE_PASSWORD" \
+              -dname "CN=card-manager ephemeral" > /dev/null
+          fi
+          export KEYSTORE_PASSWORD
           mkdir out
           "$bt/zipalign" -p -f 4 "$apk" aligned.apk
-          "$bt/apksigner" sign \
-            --ks .github/release/android-test.keystore \
-            --ks-pass pass:card-manager-test \
-            --ks-key-alias card-manager \
+          "$bt/apksigner" sign --ks "$ks" --ks-pass env:KEYSTORE_PASSWORD --ks-key-alias "$KEY_ALIAS" \
             --out out/card-manager-android-arm64.apk aligned.apk
           "$bt/apksigner" verify out/card-manager-android-arm64.apk
+          rm -f "$ks"
 
       - uses: actions/upload-artifact@v4
         with:
