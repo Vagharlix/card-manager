@@ -22,15 +22,28 @@ export interface QueryResult {
 export class TestDatabase {
   readonly raw: DatabaseSync
 
-  constructor(migrationSet: 'user' | 'ygo') {
+  private readonly files: string[]
+  private readonly dir: string
+
+  /** `upTo` : n'applique que les migrations <= ce numéro (tester une migration sur données). */
+  constructor(migrationSet: 'user' | 'ygo', opts: { upTo?: number } = {}) {
     this.raw = new DatabaseSync(':memory:')
     this.raw.exec('PRAGMA foreign_keys = ON')
-    const dir = join(MIGRATIONS_DIR, migrationSet)
-    for (const file of readdirSync(dir)
+    this.dir = join(MIGRATIONS_DIR, migrationSet)
+    this.files = readdirSync(this.dir)
       .filter((f) => f.endsWith('.sql'))
-      .sort()) {
-      this.raw.exec(readFileSync(join(dir, file), 'utf8'))
+      .sort()
+    for (const file of this.files) {
+      if (opts.upTo !== undefined && parseInt(file, 10) > opts.upTo) break
+      this.raw.exec(readFileSync(join(this.dir, file), 'utf8'))
     }
+  }
+
+  /** Applique la migration numéro `n` (ex. 4 → 004_*.sql). */
+  applyMigration(n: number): void {
+    const file = this.files.find((f) => parseInt(f, 10) === n)
+    if (!file) throw new Error(`migration ${n} introuvable`)
+    this.raw.exec(readFileSync(join(this.dir, file), 'utf8'))
   }
 
   async select<T>(sql: string, params: unknown[] = []): Promise<T> {

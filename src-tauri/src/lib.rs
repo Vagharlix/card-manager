@@ -37,6 +37,12 @@ pub fn run() {
             sql: include_str!("../migrations/user/003_collection_printing.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "detach deleted collection entries",
+            sql: include_str!("../migrations/user/004_detach_deleted_collection.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ygo_migrations = vec![Migration {

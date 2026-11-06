@@ -75,9 +75,38 @@ export async function addCard(input: AddCardInput): Promise<string> {
   return id
 }
 
+// copies of an entry currently placed in a (non-deleted) container
+async function assignedQuantity(id: string): Promise<number> {
+  const { user } = await useDatabase()
+  const rows = await user.select<{ n: number }[]>(
+    `SELECT COALESCE(SUM(qty), 0) AS n FROM (
+        SELECT dc.quantity AS qty FROM deckbox_cards dc
+          JOIN containers ct ON ct.id = dc.deckbox_id AND ct.deleted_at IS NULL
+          WHERE dc.collection_id = ?
+        UNION ALL
+        SELECT 1 FROM binder_slots bs
+          JOIN containers ct ON ct.id = bs.container_id AND ct.deleted_at IS NULL
+          WHERE bs.collection_id = ?
+        UNION ALL
+        SELECT bb.quantity FROM bulk_box_contents bb
+          JOIN containers ct ON ct.id = bb.container_id AND ct.deleted_at IS NULL
+          WHERE bb.collection_id = ?
+     )`,
+    [id, id, id]
+  )
+  return rows[0]?.n ?? 0
+}
+
 // ── update an entry ───────────────────────────────────────
+// Lowering the quantity below the copies placed in containers would
+// leave containers holding cards the user no longer owns: refused with
+// QUANTITY_BELOW_ASSIGNED (the user unassigns first, choosing which).
 export async function updateCard(id: string, patch: Partial<AddCardInput>): Promise<void> {
   const { user } = await useDatabase()
+
+  if (patch.quantity !== undefined && patch.quantity < (await assignedQuantity(id))) {
+    throw new Error('QUANTITY_BELOW_ASSIGNED')
+  }
 
   const fields: string[] = []
   const params: unknown[] = []
@@ -108,8 +137,14 @@ export async function updateCard(id: string, patch: Partial<AddCardInput>): Prom
 }
 
 // ── soft delete ───────────────────────────────────────────
+// The copies leave the collection, so they leave their containers too:
+// assignment rows are deleted (the collection row itself is only
+// soft-deleted, for sync).
 export async function removeCard(id: string): Promise<void> {
   const { user } = await useDatabase()
+  await user.execute(`DELETE FROM deckbox_cards WHERE collection_id = ?`, [id])
+  await user.execute(`DELETE FROM binder_slots WHERE collection_id = ?`, [id])
+  await user.execute(`DELETE FROM bulk_box_contents WHERE collection_id = ?`, [id])
   await user.execute(`UPDATE collection SET deleted_at = ?, updated_at = ? WHERE id = ?`, [
     new Date().toISOString(),
     new Date().toISOString(),

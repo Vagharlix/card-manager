@@ -581,8 +581,15 @@ async function saveEdit(id: string) {
     editingId.value = null
     toast.add({ title: 'Exemplaire modifié', icon: 'i-lucide-check', color: 'success' })
     emit('added')
-  } catch {
-    toast.add({ title: 'Échec de la modification', color: 'error' })
+  } catch (e) {
+    const belowAssigned = e instanceof Error && e.message === 'QUANTITY_BELOW_ASSIGNED'
+    toast.add({
+      title: belowAssigned ? 'Des copies sont encore rangées' : 'Échec de la modification',
+      description: belowAssigned
+        ? "Retirez d'abord les copies en trop de leurs conteneurs."
+        : undefined,
+      color: 'error',
+    })
   } finally {
     savingEdit.value = false
   }
