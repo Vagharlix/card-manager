@@ -5,6 +5,11 @@ type CardImageSize = 'full' | 'small' | 'cropped'
 const resolved = new Map<string, string>()
 const inflight = new Map<string, Promise<string>>()
 
+// à appeler quand des fichiers du cache disque ont été supprimés
+export function forgetCachedImages(): void {
+  resolved.clear()
+}
+
 async function resolveImage(passcode: string, size: CardImageSize): Promise<string> {
   const path = await invoke<string>('cache_card_image', { passcode, size })
   return convertFileSrc(path)

@@ -1,5 +1,6 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod cache_store;
 mod image_cache;
 
 fn db_name(name: &str) -> String {
@@ -60,7 +61,12 @@ pub fn run() {
                 .add_migrations(&db_name("cards-ygo"), ygo_migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![image_cache::cache_card_image])
+        .invoke_handler(tauri::generate_handler![
+            image_cache::cache_card_image,
+            image_cache::image_cache_size,
+            image_cache::clear_image_cache,
+            image_cache::prune_image_cache
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
