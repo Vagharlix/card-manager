@@ -84,10 +84,16 @@ export async function getYgoFilterOptions(): Promise<YgoFilterOptions> {
 
   // derive which atomic subtypes actually appear in the type column
   const allTypes = await ygo.select<{ value: string }[]>(`SELECT value FROM card_types`)
-  const typeBlob = allTypes.map((t) => t.value).join(' | ')
+  // insensible à la casse : la donnée écrit « XYZ Monster » (le filtre SQL
+  // LIKE l'est aussi pour l'ASCII)
+  const typeBlob = allTypes
+    .map((t) => t.value)
+    .join(' | ')
+    .toLowerCase()
+  const present = (kw: string) => typeBlob.includes(kw.toLowerCase())
 
-  const monsterTypes = MONSTER_SUBTYPE_KEYWORDS.filter((kw) => typeBlob.includes(kw))
-  const spellTrapTypes = SPELLTRAP_SUBTYPE_KEYWORDS.filter((kw) => typeBlob.includes(kw))
+  const monsterTypes = MONSTER_SUBTYPE_KEYWORDS.filter(present)
+  const spellTrapTypes = SPELLTRAP_SUBTYPE_KEYWORDS.filter(present)
 
   return {
     attributes: attributes.map((r) => r.value),

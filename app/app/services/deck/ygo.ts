@@ -19,8 +19,9 @@ const YGO_RULES: DeckRules = {
   defaultMaxCopies: 3,
 }
 
-// Monster types that belong to the Extra Deck.
-const EXTRA_DECK_TOKENS = ['Fusion', 'Synchro', 'Xyz', 'Link']
+// Monster types that belong to the Extra Deck. Matched case-insensitively:
+// YGOPRODeck spells it "XYZ Monster", not "Xyz".
+const EXTRA_DECK_TOKENS = ['fusion', 'synchro', 'xyz', 'link']
 
 // banlist status → allowed copies
 function copiesFromStatus(status: string | null | undefined): number {
@@ -40,7 +41,7 @@ export const ygoDeckEngine: DeckEngine = {
   rules: YGO_RULES,
 
   boardForCard(card: CardForPlacement): Board {
-    const type = card.type ?? ''
+    const type = (card.type ?? '').toLowerCase()
     if (EXTRA_DECK_TOKENS.some((tok) => type.includes(tok))) return 'extra'
     return 'main'
   },
