@@ -329,7 +329,7 @@ async function copyCode() {
 const importText = ref('')
 const importing = ref(false)
 // le scan QR (caméra) n'existe que dans l'app mobile ; sur PC on colle le code
-const canScan = /android/i.test(navigator.userAgent)
+const canScan = isAndroid()
 const scannerOpen = ref(false)
 function openScanner() {
   scannerOpen.value = true

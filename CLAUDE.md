@@ -12,7 +12,7 @@
 - **Dépôt** : branche d'intégration `dev`, commits conventionnels. Claude travaille sur des branches `claude/*`, committe et pousse lui-même, ouvre une PR vers `dev` ; **Félix relit et merge**. Jamais de push direct sur `dev`.
 - **Langue** : répondre **en français**.
 - **OS dev** : CachyOS (Arch). Bases dans `~/.config/com.card-manager.app/`.
-- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (12 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
+- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (13 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
 
 ---
 
@@ -72,6 +72,8 @@ card-manager/
 │   ├── src/lib.rs            # db_name() (test/dev/prod) + enregistrement migrations + commandes
 │   ├── src/image_cache.rs    # commandes cache d'images (télécharger, taille, vider, élaguer)
 │   ├── src/cache_store.rs    # logique disque du cache (std seul, testée par rustc --test)
+│   ├── plugins/card-scanner/ # plugin LOCAL Android : OCR ML Kit (commande `recognize`), Kotlin dans android/
+│   ├── capabilities/         # default.json, mobile.json (barcode-scanner), android.json (card-scanner)
 │   ├── build.rs              # rerun-if-env-changed=VITE_TEST_MODE
 │   └── migrations/
 │       ├── user/001_initial.sql, 002_settings.sql, 003_collection_printing.sql,
@@ -82,7 +84,7 @@ card-manager/
 │   ├── pnpm-lock.yaml
 │   ├── vitest.config.ts      # alias ~ -> app/app, env node, include test/unit/**
 │   ├── test/unit/            # tests Vitest (HORS de app/app, donc pas vus par Nuxt)
-│   │   ├── deckLink, collection, decks, containers, share (.test.ts)
+│   │   ├── deckLink, collection, decks, containers, share, scan (.test.ts)
 │   │   └── helpers/testDb.ts, seed.ts
 │   └── app/                  # ⚠️ DOUBLE app/ : LE CODE SOURCE RÉEL est ici
 │       ├── pages/            # decks/[id].vue, decks/index.vue, collection.vue, index.vue,
@@ -95,6 +97,9 @@ card-manager/
 │       ├── services/imageCache.ts      # wrappers des commandes Rust du cache d'images
 │       ├── services/share/             # partage : codec.ts (format CMSHARE1), frames.ts (QR animé), index.ts (service)
 │       ├── pages/share.vue + components/QrScanner.vue   # écran de partage + scanner caméra continu (mobile)
+│       ├── services/scan/              # OCR : text.ts (codes d'impression, noms, stabilisation), index.ts (identification)
+│       ├── pages/scan.vue              # scan de cartes en session (Android)
+│       ├── composables/useRearCamera.ts, utils/platform.ts (isAndroid)
 │       ├── utils/db-names.ts
 │       ├── plugins/test-reset.client.ts # helpers de test (VITE_TEST_MODE)
 │       └── app.vue
@@ -152,7 +157,7 @@ Deux bases, nom suffixé selon le mode.
 ## 5. CE QUI EST FAIT
 
 ### Phases
-Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à valider sur téléphone pour le scan) · **Phase 10 (Testing) ✅** (E2E + unitaires, détail ci-dessous) · **Phase 9 (Settings) en cours** · Phase 2 partielle.
+Phases 1–4 ✅ · **Phase 5 (OCR) ✅ code** (à valider sur téléphone) · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à valider sur téléphone pour le scan) · **Phase 10 (Testing) ✅** (E2E + unitaires, détail ci-dessous) · **Phase 9 (Settings) en cours** · Phase 2 partielle.
 
 ### Phase 9 — Settings (en cours)
 - `services/game/` : registre par jeu (`GameDefinition` : conditions, langues, défauts). Les couches génériques interrogent le registre, jamais de valeurs YGO en dur.
@@ -175,6 +180,13 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à 
 - **Service** (`share/index.ts`) : `buildMyShare` / `shareCode` (option « à l'échange uniquement », nom mémorisé dans le setting `share_owner_name`), `resolveShare` (noms, artworks regroupés, croisement par carte logique), `saveShare` (remplace pour le même joueur), `listSavedShares` / `loadSavedShare` / `deleteSavedShare`.
 - **Versions plugin** : le CLI Tauri refuse un écart majeur/mineur entre crate et paquet npm d'un même plugin → `tauri-plugin-barcode-scanner = "~2.4"` (Cargo) et `@tauri-apps/plugin-barcode-scanner ~2.4.6` (npm), à monter ensemble.
 
+### Scan de cartes OCR (Phase 5) — Android uniquement
+- **Chaîne** : caméra arrière dans la WebView (`useRearCamera`, même permission que le scan QR) → image JPEG base64 toutes les ~250 ms → `invoke('plugin:card-scanner|recognize', { image })` → lignes de texte + positions (ML Kit) → `identifyCard(game, lignes)` → `ScanStabilizer` (2 images identiques de suite) → `addCard` avec les défauts du jeu → liste de session avec annulation (`removeCard`).
+- **Plugin local** `src-tauri/plugins/card-scanner` : crate Rust minimale (enregistre `app.cardmanager.cardscanner.CardScannerPlugin`), Kotlin avec **ML Kit text-recognition 16.0.1 embarqué** (hors ligne, ~11 Mo de modèle dans l'APK). Dépendance de l'app **Android seulement** (`[target.'cfg(target_os = "android")'.dependencies]`, `#[cfg(target_os = "android")]` dans `lib.rs`), capability `capabilities/android.json`. Les commandes non définies en Rust sont routées vers le Kotlin par Tauri. Le build Android local a vérifié que le Kotlin compile et que la classe + le modèle sont dans l'APK ; **comportement réel à valider sur téléphone**.
+- **Identification YGO** (`services/scan`) : 1) **code d'impression** extrait par regex tolérante (régions EN/FR/F/…/absente, confusions OCR O→0, I/L→1, S→5, B→8 dans les chiffres) puis cherché dans `printings` par clé sans région (préférence à l'impression `-EN`) → carte **et** impression ; 2) sinon le **nom** (lignes du haut, surtout des lettres) → FTS puis similarité de Levenshtein ≥ 0,8, ramené à l'artwork principal (alias). Moteur par jeu (`canScan(game)`).
+- **Stabilisation** : une carte n'est ajoutée qu'après 2 images identiques, et ne l'est à nouveau qu'après avoir quitté l'image 3 images (pour scanner plusieurs exemplaires à la suite). Mode manuel : `#scan-auto-add` désactivé → bouton `#scan-add-btn`.
+- **Test** : en `VITE_TEST_MODE`, la page expose `window.__scanFeed(lignes)` qui alimente la vraie chaîne (sans caméra ni ML Kit) → E2E `scan`. Accès : bouton `#scan-open-btn` dans `/collection` (Android seulement), route `/scan`.
+
 ### Mode test (committé)
 - `src-tauri/src/lib.rs` : `db_name()` gère le mode test (a corrigé au passage un bug prod : migrations enregistrées pour le mauvais nom de base en build test → table settings manquante).
 - `src-tauri/build.rs` : rerun si `VITE_TEST_MODE` change.
@@ -195,6 +207,7 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à 
 9. `deck-banlist` — alerte banlist via passage du format casual → tcg (`#deck-format-select`, `data-flagged` sur `.deck-board-card`, `data-banlist-alert`).
 11. `collection-all` — `__seedOwned` → `/search` puis `/collection` (vue « toute ma collection » ; passer par une autre route car l'app démarre déjà sur `/collection`) → fiche → `[data-entry-edit]` → `#entry-trade-qty-input` → `#entry-save-btn` → badge `[data-trade-qty]` → `#collection-only-trade` → `#collection-search`.
 12. `share` — `__seedOwned` → `/share` → `#share-owner-input` → `#share-generate-btn` → `[data-share-code]` (CMSHARE1) + `#share-qr[data-qr-frames]` → `[data-share-section=receive]` → `#share-import-input` → `#share-import-btn` → `#shared-view` `.shared-card[data-shared-qty/mine]` → `#shared-only-missing` → `#shared-delete-btn`.
+13. `scan` — `/scan` → `window.__scanFeed` (lignes OCR simulées : `LOB-EN005`, `MP25-EN050`) ×2 → `[data-scan-count]` / `[data-scan-entry]` ; pas de doublon tant que la carte reste ; 2e exemplaire après 3 images vides ; `[data-scan-undo]` ; mode manuel `#scan-auto-add` + `#scan-add-btn`.
 10. `settings-storage` — `/settings` → `[data-section=storage]` → `#image-cache-size[data-cache-bytes]` numérique → `#image-cache-clear` → `0` (vérifie que les commandes Rust sont enregistrées).
 
 **Leçon deck-range** (⚠️ réutilisable) : « Dark Magician » a plusieurs artworks ; l'ordre des résultats diffère entre `/search` et la sidebar du deck → la carte possédée ≠ la carte du deck → `owned=0`. Résolu en possédant **le `card_id` exact** de la carte du deck via `__seedOwned`. Tout test qui a besoin d'un état de collection précis doit faire pareil, ne pas dépendre de l'ordre de recherche.
@@ -208,7 +221,7 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à 
 `elementSendKeys` KO → `typeInto` (setter du prototype `HTMLInputElement` **ou** `HTMLTextAreaElement` selon l'élément, descend dans le wrapper Nuxt UI si besoin, + dispatch input/change). Actions API KO → pas de scroll/clic natif. Clics natifs interceptés → `click` dispatche une séquence pointer/mouse. `free(): corrupted unsorted chunks` à la fermeture = inoffensif. Éléments `opacity-0 group-hover` → le clic JS marche quand même.
 
 ### `data-*` / `id` posés (committés)
-`cardDetail.vue` (#card-detail, #card-detail-owned[data-owned-count], #btn-quick-add, #btn-range-card) · `cardThumb.vue` (.card-thumb[data-card-id]) · `search.vue` (#search-card-input, #search-results) · `containerCreateModal.vue` (data-type, .container-type-btn, #container-name-input, #container-{pages,rows,cols,capacity}-input, #container-create-confirm) · `containerTree.vue` (#container-create-btn, .container-item[data-container-id/name], data-menu-trigger, #item data-menu-action rename/edit/delete, #container-rename-input/confirm, #container-delete-confirm ; non rangées = data-container-id="__unranged__") · `containerPicker.vue` (.picker-container[data-picker-container-id], #picker-qty-input, #picker-confirm) · `collection.vue` (#container-content, .container-card[data-content-card-id], [data-unassign], #unassign-confirm) · `binderView.vue` (.binder-slot[data-slot-page/row/col/filled/card-id], [data-slot-clear], #binder-prev/next-page, data-binder-page) · `unrangedCardPicker.vue` (.unranged-picker-card[data-picker-card-id], #unranged-picker-search) · `decks/index.vue` (#deck-create-btn, #deck-create-empty, #deck-name-input, #deck-create-confirm, #deck-rename-input/confirm, #deck-delete-confirm) · `DeckCard.vue` (.deck-card[data-deck-id/name], data-menu-trigger, #item data-menu-action rename/range/delete) · `DeckBoard.vue` (prop board → :data-board, .deck-board-card[data-deck-card-id/data-quantity], data-board-count, #item data-menu-action info/add/remove/move, data-menu-trigger, [data-move]) · `decks/[id].vue` (#deck-search-input, .deck-search-result[data-search-card-id], data-total-cards, boards main/extra/side, #deck-range-btn, **data-banlist-alert**) · `DeckboxRangeModal.vue` (#deck-range-select, #item data-select-value, #deck-range-confirm, data-range-modal-body, data-range-plan, data-plan-total) · `collection.vue` (vue complète : `[data-container-id=__all__]`, #collection-search, #collection-sort + #item data-select-value, #collection-only-trade, [data-trade-qty]) · `cardDetail.vue` édition d'exemplaire ([data-entry-edit], #entry-trade-qty-input, #entry-save-btn, [data-entry-trade-qty]) · `share.vue` ([data-share-section=mine|receive], #share-owner-input, #share-only-trade, #share-generate-btn, #share-qr[data-qr-frames], [data-share-code], #share-copy-btn, #share-scan-btn, #share-import-input, #share-import-btn, [data-saved-share-id], #shared-view, #shared-search, #shared-only-trade, #shared-only-missing, #shared-delete-btn, .shared-card[data-shared-card-id/qty/trade/mine]) · `QrScanner.vue` ([data-scan-progress]) · `settings.vue` (nav [data-section], #image-cache-size[data-cache-bytes], #image-cache-clear, #sync-check-btn, #sync-force-btn, [data-sync-version]).
+`cardDetail.vue` (#card-detail, #card-detail-owned[data-owned-count], #btn-quick-add, #btn-range-card) · `cardThumb.vue` (.card-thumb[data-card-id]) · `search.vue` (#search-card-input, #search-results) · `containerCreateModal.vue` (data-type, .container-type-btn, #container-name-input, #container-{pages,rows,cols,capacity}-input, #container-create-confirm) · `containerTree.vue` (#container-create-btn, .container-item[data-container-id/name], data-menu-trigger, #item data-menu-action rename/edit/delete, #container-rename-input/confirm, #container-delete-confirm ; non rangées = data-container-id="__unranged__") · `containerPicker.vue` (.picker-container[data-picker-container-id], #picker-qty-input, #picker-confirm) · `collection.vue` (#container-content, .container-card[data-content-card-id], [data-unassign], #unassign-confirm) · `binderView.vue` (.binder-slot[data-slot-page/row/col/filled/card-id], [data-slot-clear], #binder-prev/next-page, data-binder-page) · `unrangedCardPicker.vue` (.unranged-picker-card[data-picker-card-id], #unranged-picker-search) · `decks/index.vue` (#deck-create-btn, #deck-create-empty, #deck-name-input, #deck-create-confirm, #deck-rename-input/confirm, #deck-delete-confirm) · `DeckCard.vue` (.deck-card[data-deck-id/name], data-menu-trigger, #item data-menu-action rename/range/delete) · `DeckBoard.vue` (prop board → :data-board, .deck-board-card[data-deck-card-id/data-quantity], data-board-count, #item data-menu-action info/add/remove/move, data-menu-trigger, [data-move]) · `decks/[id].vue` (#deck-search-input, .deck-search-result[data-search-card-id], data-total-cards, boards main/extra/side, #deck-range-btn, **data-banlist-alert**) · `DeckboxRangeModal.vue` (#deck-range-select, #item data-select-value, #deck-range-confirm, data-range-modal-body, data-range-plan, data-plan-total) · `collection.vue` (vue complète : `[data-container-id=__all__]`, #collection-search, #collection-sort + #item data-select-value, #collection-only-trade, [data-trade-qty]) · `cardDetail.vue` édition d'exemplaire ([data-entry-edit], #entry-trade-qty-input, #entry-save-btn, [data-entry-trade-qty]) · `share.vue` ([data-share-section=mine|receive], #share-owner-input, #share-only-trade, #share-generate-btn, #share-qr[data-qr-frames], [data-share-code], #share-copy-btn, #share-scan-btn, #share-import-input, #share-import-btn, [data-saved-share-id], #shared-view, #shared-search, #shared-only-trade, #shared-only-missing, #shared-delete-btn, .shared-card[data-shared-card-id/qty/trade/mine]) · `QrScanner.vue` ([data-scan-progress]) · `scan.vue` (#scan-view, [data-scan-current], #scan-auto-add, #scan-add-btn, [data-scan-count], [data-scan-entry], [data-scan-undo]) · `collection.vue` #scan-open-btn · `settings.vue` (nav [data-section], #image-cache-size[data-cache-bytes], #image-cache-clear, #sync-check-btn, #sync-force-btn, [data-sync-version]).
 
 ### Tests unitaires Vitest (`app/test/unit/`)
 - **Approche** : vrai SQLite en mémoire via `node:sqlite` (intégré à Node 22, pas de module natif), schéma = **les vraies migrations** `src-tauri/migrations/{user,ygo}` appliquées dans l'ordre → aucune dérive possible avec la prod. `useDatabase` est remplacé par `vi.mock('~/composables/useDatabase')` → **aucun refactor des services nécessaire**.
@@ -218,6 +231,7 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à 
 - `decks.test.ts` : placement auto (dont « XYZ Monster » → extra), limites alias/banlist par format, move, validation, possédées par carte logique, filtres de recherche.
 - `containers.test.ts` : classeur multi-copies, classeur plein, capacité deckbox, non rangées, retrait, regroupement artworks, migration 005 (orphelines écartées, vue OK).
 - `share.test.ts` : codec (aller-retour, fusion des piles, copier-coller abîmé, erreurs, version future, ids refusés, 650 cartes dans un QR), QR animé (5000 cartes en désordre + images d'un autre partage, **vraie chaîne qrcode → pixels → jsQR** sur 1000 cartes), service (construction, résolution croisée, enregistrement/remplacement/suppression).
+- `scan.test.ts` : codes d'impression (variantes régionales, confusions OCR, faux positifs), extraction dans du bruit, similarité de noms, candidats « nom », stabilisation (confirmation, doublons, ré-ajout après retrait, enchaînement), identification sur base (code → carte + impression, code non anglais → impression EN, nom abîmé → artwork principal, nom proche distingué, rien → null).
 - `deckLink.test.ts` : 26 cas (plan + apply) : alias/boards fusionnés, déjà là, partiel, non rangées prioritaires, multi-sources ordonnées par nom, conteneur supprimé, isolation par jeu, purge (alt art conservée), capacité (NULL / purge déduite / dépassement + relève), relink unique, idempotence, pas de sur-assignation, entrées de collection soft-deleted.
 - **Bug corrigé grâce à ces tests** : `removeCard` (soft delete) laisse les lignes d'assignation ; `deckLink` les comptait (alreadyHere/currentInBox/purge) et pouvait déplacer ces copies fantômes. Toutes les requêtes d'assignation joignent maintenant `collection ... AND c.deleted_at IS NULL`. Résolution alias/nom factorisée dans `rootsOf()`.
 - Pour tester un autre service : même schéma `vi.hoisted` + `vi.mock` + `createTestDatabases()` / `createSeeder()` (cf. en-tête de `deckLink.test.ts`).
@@ -243,7 +257,7 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 8 (Partage) ✅** (à 
 - Version = `0.1.<run_number>` (passée via `--config`) → chaque build met à jour le précédent.
 - Android : `src-tauri/gen/` n'est pas versionné → `tauri android init --ci` + `tauri icon` en CI, build `--target aarch64`, puis `zipalign` + `apksigner`.
 - **Signature (dépôt public)** : la clé n'est **jamais** dans git (`*.keystore`/`*.jks` ignorés). Elle vit dans les secrets du dépôt `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, générés par `scripts/android-keystore.sh` sur la machine de Félix (clé dans `~/.card-manager/release.keystore`, à sauvegarder : la perdre = plus de mise à jour des APK installés). Sans secret (ex. PR de fork), la CI signe avec une **clé jetable** + warning. L'ancienne clé de test (`.github/release/android-test.keystore`, publique via l'historique) est **abandonnée** : un APK signé avec doit être désinstallé avant d'installer un APK signé avec la nouvelle clé.
-- **GitHub Actions bloqué** (nov. 2026) : le budget Actions du compte est à 0 $ avec blocage, ce qui empêche même l'usage inclus et les dépôts publics ; le lever demande un moyen de paiement (refusé) ou le support GitHub. En attendant, tout est vérifié en local (env cloud `card-manager`) et les builds se font en local.
+- **Incident GitHub Actions** (6 nov. 2026) : jobs refusés sans runner (« account locked due to billing issue ») à cause d'un budget Actions à 0 $ « Usage blocked ». Résolu (dépôt passé public + déblocage côté compte). Si ça revient : Settings → Billing → Budgets.
 - **Build APK local (session cloud)** : SDK Android dans `/opt/android-sdk` (cmdline-tools → `platforms;android-34`, `build-tools;34.0.0`, `ndk;27.2.12479018`, `rustup target add aarch64-linux-android`), `ANDROID_HOME` + `NDK_HOME`, puis les mêmes commandes que le job `android`. Maven Central peut répondre **429** depuis l'IP partagée du conteneur → script d'init Gradle `~/.gradle/init.d/maven-central-mirror.gradle` qui interroge d'abord le miroir `https://maven-central.storage-download.googleapis.com/maven2/`. AppImage local : il faut `xdg-utils` (`xdg-open`).
 - Builds release = bases `.db` (pas `.dev.db`) → n'interfèrent pas avec les données de dev.
 
@@ -275,7 +289,7 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 Bloquer le merge des PR vers `dev` tant que les checks `e2e` et `checks` ne sont pas verts : Settings → Branches → Require status checks → cocher `e2e` et `checks` (n'apparaissent qu'après un 1er run). Réserve : build Tauri ~5-10 min/PR.
 
 ### Phases futures (hors testing)
-- **Phase 5 — OCR** (reconnaissance de cartes).
+- **Phase 5 — OCR** : valider sur téléphone (vitesse, taux de reconnaissance) ; pistes : recadrer sur la zone du code d'impression, lire aussi le passcode (8 chiffres en bas à gauche).
 - **Phase 9 — Settings** : terminer (base en place, cf. §5).
 - **Compléter Phase 2** (partielle).
 

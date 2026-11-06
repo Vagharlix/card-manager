@@ -46,6 +46,15 @@
           </template>
         </template>
 
+        <UButton
+          v-if="android && !selectMode"
+          id="scan-open-btn"
+          icon="i-lucide-scan-line"
+          label="Scanner"
+          to="/scan"
+          variant="soft"
+        />
+
         <UButtonGroup v-if="!selectMode && !isBinder">
           <UButton
             :variant="view === 'grid' ? 'solid' : 'soft'"
@@ -265,6 +274,7 @@ import {
 import { listCollectionCards, collectionTotal, type CollectionSort } from '~/services/collection'
 
 const toast = useToast()
+const android = isAndroid() // scan de cartes : app mobile seulement
 
 const view = ref<'grid' | 'list'>('grid')
 function setView(v: 'grid' | 'list') {

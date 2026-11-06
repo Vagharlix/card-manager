@@ -77,6 +77,10 @@ pub fn run() {
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
 
+    // scan de cartes (OCR ML Kit) : plugin local, Android uniquement
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_card_scanner::init());
+
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(

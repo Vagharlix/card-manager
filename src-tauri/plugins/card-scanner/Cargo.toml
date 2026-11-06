@@ -1,0 +1,12 @@
+[package]
+name = "tauri-plugin-card-scanner"
+version = "0.1.0"
+description = "Reconnaissance de texte (ML Kit) pour le scan de cartes — Android uniquement"
+edition = "2021"
+links = "tauri-plugin-card-scanner"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = "2"

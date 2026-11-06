@@ -40,71 +40,38 @@ import jsQR from 'jsqr'
 import { FrameAssembler } from '~/services/share'
 
 // ============================================================
-// Scanner QR continu dans la WebView (caméra arrière) : décode les
+// Scanner QR continu (caméra arrière, useRearCamera) : décode les
 // images en boucle et réassemble un QR animé (FrameAssembler).
-// Sur Android, la permission caméra passe par le plugin
-// barcode-scanner (il déclare CAMERA dans le manifeste).
 // ============================================================
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean]; code: [code: string] }>()
 
 const videoEl = ref<HTMLVideoElement | null>(null)
-const error = ref('')
+const camera = useRearCamera(videoEl)
+const error = camera.error
 const got = ref(0)
 const total = ref(0)
 
-let stream: MediaStream | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
 let assembler = new FrameAssembler()
 const canvas = document.createElement('canvas')
 
 type Detector = { detect(source: CanvasImageSource): Promise<{ rawValue: string }[]> }
 
-async function ensurePermission(): Promise<boolean> {
-  try {
-    const { checkPermissions, requestPermissions } =
-      await import('@tauri-apps/plugin-barcode-scanner')
-    if ((await checkPermissions()) === 'granted') return true
-    return (await requestPermissions()) === 'granted'
-  } catch {
-    return true // plateforme sans le plugin : getUserMedia demandera lui-même
-  }
-}
-
-function decodeFrame(video: HTMLVideoElement): string | null {
-  const scale = Math.min(1, 800 / Math.max(video.videoWidth, video.videoHeight))
-  canvas.width = Math.round(video.videoWidth * scale)
-  canvas.height = Math.round(video.videoHeight * scale)
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+function decodeFrame(): string | null {
+  const ctx = camera.grab(canvas, 800)
   if (!ctx || !canvas.width) return null
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
   const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
   return jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })?.data ?? null
 }
 
 async function start() {
-  error.value = ''
   got.value = 0
   total.value = 0
   assembler = new FrameAssembler()
-  if (!(await ensurePermission())) {
-    error.value = 'Accès à la caméra refusé'
-    return
-  }
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
-      audio: false,
-    })
-  } catch {
-    error.value = 'Caméra indisponible'
-    return
-  }
-  const video = videoEl.value
-  if (!video) return stop()
-  video.srcObject = stream
-  await video.play().catch(() => {})
+  if (!(await camera.start())) return
+  const video = videoEl.value!
 
   // BarcodeDetector (natif, rapide) si dispo, sinon jsQR
   const BD = (window as unknown as { BarcodeDetector?: new (o: object) => Detector })
@@ -112,11 +79,11 @@ async function start() {
   const detector = BD ? new BD({ formats: ['qr_code'] }) : null
 
   const tick = async () => {
-    if (!stream) return
+    if (!camera.active()) return
     let text: string | null = null
     try {
       if (detector) text = (await detector.detect(video))[0]?.rawValue ?? null
-      else text = decodeFrame(video)
+      else text = decodeFrame()
     } catch {
       text = null
     }
@@ -140,8 +107,7 @@ async function start() {
 function stop() {
   if (timer) clearTimeout(timer)
   timer = null
-  stream?.getTracks().forEach((t) => t.stop())
-  stream = null
+  camera.stop()
 }
 
 function close() {
