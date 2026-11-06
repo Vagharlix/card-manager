@@ -50,6 +50,12 @@ pub fn run() {
             sql: include_str!("../migrations/user/005_binder_slots_multi_copy.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 6,
+            description: "collection trade quantity",
+            sql: include_str!("../migrations/user/006_collection_trade_qty.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ygo_migrations = vec![Migration {

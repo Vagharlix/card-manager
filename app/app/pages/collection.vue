@@ -4,6 +4,7 @@
       <ContainerTree
         :containers="containers"
         :unranged-count="unrangedCount"
+        :total-count="collectionCount"
         :selected-id="selectedId"
         @select="selectContainer"
         @create="openCreate"
@@ -61,6 +62,33 @@
         </UButtonGroup>
       </div>
 
+      <!-- filtres de « toute ma collection » -->
+      <div v-if="isAll" class="flex flex-wrap items-center gap-2 mb-4 shrink-0">
+        <UInput
+          id="collection-search"
+          v-model="filters.search"
+          icon="i-lucide-search"
+          placeholder="Rechercher par nom"
+          size="sm"
+          class="w-56"
+        />
+        <USelect
+          id="collection-sort"
+          v-model="filters.sort"
+          :items="sortItems"
+          size="sm"
+          class="w-44"
+        >
+          <template #item="{ item }">
+            <span :data-select-value="item.value">{{ item.label }}</span>
+          </template>
+        </USelect>
+        <label class="flex items-center gap-2 text-sm">
+          <USwitch id="collection-only-trade" v-model="filters.onlyTrade" size="sm" />
+          À l'échange uniquement
+        </label>
+      </div>
+
       <!-- contenu -->
       <div id="container-content" class="flex-1 min-h-0 overflow-hidden">
         <!-- vue binder positionnelle -->
@@ -103,8 +131,18 @@
                 @select="openCard(c)"
                 @toggle="toggleCard(c)"
               />
+              <UBadge
+                v-if="c.tradeQty"
+                :data-trade-qty="c.tradeQty"
+                icon="i-lucide-repeat"
+                color="primary"
+                variant="solid"
+                size="sm"
+                class="absolute bottom-1.5 left-1.5 z-20"
+                :label="String(c.tradeQty)"
+              />
               <UButton
-                v-if="!isUnranged && !selectMode"
+                v-if="!isVirtual && !selectMode"
                 :data-unassign="c.displayId"
                 icon="i-lucide-folder-minus"
                 color="error"
@@ -129,9 +167,17 @@
                 </div>
                 <span class="flex-1 truncate">{{ c.name }}</span>
               </button>
+              <UBadge
+                v-if="c.tradeQty"
+                :data-trade-qty="c.tradeQty"
+                icon="i-lucide-repeat"
+                color="primary"
+                variant="soft"
+                :label="`${c.tradeQty} à l'échange`"
+              />
               <UBadge color="neutral" variant="soft">×{{ c.totalQty }}</UBadge>
               <UButton
-                v-if="!isUnranged"
+                v-if="!isVirtual"
                 :data-unassign="c.displayId"
                 icon="i-lucide-folder-minus"
                 color="error"
@@ -216,6 +262,7 @@ import {
   type ContainerType,
   type BinderSlotCard,
 } from '~/services/containers'
+import { listCollectionCards, collectionTotal, type CollectionSort } from '~/services/collection'
 
 const toast = useToast()
 
@@ -227,9 +274,19 @@ const loading = ref(false)
 
 const containers = ref<ContainerListItem[]>([])
 const unrangedCount = ref(0)
-const selectedId = ref<string>(UNRANGED_ID)
+const collectionCount = ref(0)
+const selectedId = ref<string>(ALL_ID)
 
-const cards = ref<ContainerCard[]>([])
+// tradeQty n'est renseigné que dans la vue « toute ma collection »
+const cards = ref<(ContainerCard & { tradeQty?: number })[]>([])
+
+// filtres de la vue « toute ma collection »
+const filters = reactive({ search: '', sort: 'name' as CollectionSort, onlyTrade: false })
+const sortItems = [
+  { label: 'Nom', value: 'name' },
+  { label: 'Quantité', value: 'quantity' },
+  { label: 'Ajout récent', value: 'recent' },
+]
 const binderSlots = ref<BinderSlotCard[]>([])
 
 const detailOpen = ref(false)
@@ -254,6 +311,8 @@ const binderPickerOpen = ref(false)
 const pendingSlot = ref<{ page: number; row: number; col: number } | null>(null)
 
 const isUnranged = computed(() => selectedId.value === UNRANGED_ID)
+const isAll = computed(() => selectedId.value === ALL_ID)
+const isVirtual = computed(() => isUnranged.value || isAll.value) // pas un vrai conteneur
 const currentContainer = computed(
   () => containers.value.find((c) => c.id === selectedId.value) ?? null
 )
@@ -269,24 +328,38 @@ const binderLayout = computed(() => ({
 const totalQty = computed(() => cards.value.reduce((s, c) => s + c.totalQty, 0))
 
 const currentTitle = computed(() => {
+  if (isAll.value) return 'Toute ma collection'
   if (isUnranged.value) return 'Non rangées'
   return currentContainer.value?.name ?? 'Conteneur'
 })
 
-const emptyMessage = computed(() =>
-  isUnranged.value ? 'Toutes tes cartes sont rangées' : 'Ce conteneur est vide'
-)
+const emptyMessage = computed(() => {
+  if (isAll.value) {
+    return filters.search || filters.onlyTrade
+      ? 'Aucune carte ne correspond'
+      : 'Ta collection est vide : ajoute des cartes depuis la recherche'
+  }
+  return isUnranged.value ? 'Toutes tes cartes sont rangées' : 'Ce conteneur est vide'
+})
 
 async function loadSidebar() {
-  const [list, unranged] = await Promise.all([listContainers(), fetchUnranged('ygo')])
+  const [list, unranged, total] = await Promise.all([
+    listContainers(),
+    fetchUnranged('ygo'),
+    collectionTotal('ygo'),
+  ])
   containers.value = list
   unrangedCount.value = unranged
+  collectionCount.value = total
 }
 
 async function loadContent() {
   loading.value = true
   try {
-    if (isUnranged.value) {
+    if (isAll.value) {
+      cards.value = await listCollectionCards('ygo', { ...filters })
+      binderSlots.value = []
+    } else if (isUnranged.value) {
       cards.value = await listUnrangedCards('ygo')
       binderSlots.value = []
     } else if (isBinder.value) {
@@ -335,11 +408,8 @@ async function onContainerCreated(id: string) {
 
 async function onContainerChanged() {
   await loadSidebar()
-  if (
-    selectedId.value !== UNRANGED_ID &&
-    !containers.value.find((c) => c.id === selectedId.value)
-  ) {
-    selectedId.value = UNRANGED_ID
+  if (!isVirtual.value && !containers.value.find((c) => c.id === selectedId.value)) {
+    selectedId.value = ALL_ID
   }
   await loadContent()
 }
@@ -486,6 +556,15 @@ async function onBinderCardPick(card: ContainerCard) {
     pendingSlot.value = null
   }
 }
+
+// recherche tapée : debounce ; tri / filtre : immédiat (même watcher, 250 ms)
+watchDebounced(
+  () => [filters.search, filters.sort, filters.onlyTrade],
+  () => {
+    if (isAll.value) loadContent()
+  },
+  { debounce: 250 }
+)
 
 onMounted(reload)
 </script>
