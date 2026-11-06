@@ -59,6 +59,7 @@ function openMenu() {
 const navItems = [
   { label: 'Collection', to: '/collection' },
   { label: 'Decks', to: '/decks' },
+  { label: 'Partage', to: '/share' },
   { label: 'Search', to: '/search' },
   { label: 'Settings', to: '/settings' },
 ]

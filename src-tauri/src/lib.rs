@@ -56,6 +56,12 @@ pub fn run() {
             sql: include_str!("../migrations/user/006_collection_trade_qty.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "shared collections",
+            sql: include_str!("../migrations/user/007_shared_collections.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ygo_migrations = vec![Migration {
@@ -65,7 +71,13 @@ pub fn run() {
         kind: MigrationKind::Up,
     }];
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // scan de QR codes (partage de collection) : caméra, mobile uniquement
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
