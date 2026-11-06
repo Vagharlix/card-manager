@@ -1,16 +1,36 @@
-# Tauri + Vue + TypeScript
+# card-manager
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Gestionnaire de collection de cartes TCG (Yu-Gi-Oh d'abord, multi-TCG par conception) :
+collection, conteneurs physiques (deckbox, classeur, bulk box), decks et banlist.
 
-## Recommended IDE Setup
+**Stack** : Tauri v2 (Rust) · Nuxt 4 en SPA · Nuxt UI v4 · Tailwind v4 · SQLite (`tauri-plugin-sql`).
 
-- [VS Code](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Démarrer
 
-## Type Support For `.vue` Imports in TS
+```bash
+pnpm install --ignore-workspace                 # racine : CLI Tauri
+cd app && pnpm install --ignore-workspace       # front Nuxt
+cd .. && pnpm dev                               # app desktop (Nuxt + tauri dev)
+```
 
-Since TypeScript cannot handle type information for `.vue` imports, they are shimmed to be a generic Vue component type by default. In most cases this is fine if you don't really care about component prop types outside of templates. However, if you wish to get actual prop types in `.vue` imports (for example to get props validation when using manual `h(...)` calls), you can enable Volar's Take Over mode by following these steps:
+## Tester sans environnement de dev
 
-1. Run `Extensions: Show Built-in Extensions` from VS Code's command palette, look for `TypeScript and JavaScript Language Features`, then right click and select `Disable (Workspace)`. By default, Take Over mode will enable itself if the default TypeScript extension is disabled.
-2. Reload the VS Code window by running `Developer: Reload Window` from the command palette.
+Chaque push sur `dev` publie la pré-release **`dev-latest`** (onglet *Releases*) :
 
-You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/volar/discussions/471).
+- **PC Linux** : `card-manager-linux-x86_64.AppImage` → `chmod +x` puis lancer.
+- **Android** : `card-manager-android-arm64.apk` → ouvrir depuis le téléphone et installer.
+
+La signature des APK utilise une clé stockée dans les secrets du dépôt (jamais dans git) :
+lancer `scripts/android-keystore.sh` une fois, puis créer les trois secrets qu'il affiche.
+
+## Vérifier
+
+```bash
+cd app && pnpm --ignore-workspace typecheck     # vue-tsc
+cd app && pnpm --ignore-workspace test:unit     # Vitest (Node >= 22)
+cd e2e && npm ci && npm test                    # E2E WebdriverIO sur la vraie app
+```
+
+La CI (`.github/workflows/`) lance `checks` (typecheck + unitaires) et `e2e` sur chaque PR et push sur `dev`.
+
+Architecture, conventions et pièges : voir [`CLAUDE.md`](./CLAUDE.md).

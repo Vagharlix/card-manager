@@ -1,0 +1,53 @@
+name: Checks
+
+# Vérifications rapides : typecheck (vue-tsc), tests unitaires Vitest (services,
+# SQLite en mémoire) et tests Rust des modules std-only. Pas de build Tauri.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      # Node 22 : les tests utilisent node:sqlite (intégré, pas de module natif).
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Install app deps
+        working-directory: app
+        run: pnpm install --ignore-workspace --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: app
+        run: pnpm --ignore-workspace typecheck
+
+      - name: Unit tests
+        working-directory: app
+        run: pnpm --ignore-workspace test:unit
+
+      # Modules Rust sans dépendance Tauri (std seul) : testés sans les libs
+      # système ni la compilation de toute la crate.
+      - name: Rust unit tests (std-only modules)
+        run: |
+          rustc --edition 2021 --test src-tauri/src/cache_store.rs -o "$RUNNER_TEMP/cache_store_test"
+          "$RUNNER_TEMP/cache_store_test"

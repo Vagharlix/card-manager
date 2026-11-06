@@ -1,0 +1,170 @@
+// ============================================================
+// SCAN — analyse pure du texte reconnu par l'OCR (aucune base).
+//   - codes d'impression YGO (« LOB-EN005 ») tolérants aux variantes
+//     régionales (LOB-FR005, LOB-F005, LOB-005) et aux confusions
+//     classiques de l'OCR dans la partie numérique (O→0, I/l→1, S→5, B→8)
+//   - similarité de noms (Levenshtein normalisé)
+//   - stabilisation : une carte n'est retenue que vue sur plusieurs
+//     images de suite, et pas ré-ajoutée tant qu'elle reste à l'écran
+// ============================================================
+
+export interface OcrLine {
+  text: string
+  x?: number
+  y?: number
+  w?: number
+  h?: number
+}
+
+export interface SetCodeRef {
+  set: string // « LOB », « MP24 »…
+  number: string // 3 chiffres : « 005 »
+  key: string // clé indépendante de la région : « LOB-005 »
+}
+
+const DIGIT_FIX: Record<string, string> = {
+  O: '0',
+  Q: '0',
+  D: '0',
+  I: '1',
+  L: '1',
+  S: '5',
+  B: '8',
+  Z: '2',
+}
+
+// set (2-5 alphanum) - région optionnelle (0-2 lettres) + 3 « chiffres »
+const SET_CODE_RE = /\b([A-Z0-9]{2,5})\s?-\s?([A-Z]{0,2}?)([0-9OQDILSBZ]{3})\b/g
+
+export function parseSetCode(raw: string): SetCodeRef | null {
+  SET_CODE_RE.lastIndex = 0
+  const m = SET_CODE_RE.exec(raw.toUpperCase())
+  if (!m) return null
+  return toRef(m[1]!, m[3]!)
+}
+
+function toRef(set: string, digits: string): SetCodeRef | null {
+  const number = digits.replace(/[OQDILSBZ]/g, (c) => DIGIT_FIX[c]!)
+  // un set est fait de lettres (et parfois de chiffres) mais jamais uniquement de chiffres
+  if (!/[A-Z]/.test(set)) return null
+  return { set, number, key: `${set}-${number}` }
+}
+
+// tous les codes d'impression plausibles trouvés dans les lignes OCR
+export function extractSetCodes(lines: OcrLine[]): SetCodeRef[] {
+  const out = new Map<string, SetCodeRef>()
+  for (const line of lines) {
+    const text = line.text.toUpperCase()
+    SET_CODE_RE.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = SET_CODE_RE.exec(text))) {
+      const ref = toRef(m[1]!, m[3]!)
+      if (ref) out.set(ref.key, ref)
+    }
+  }
+  return [...out.values()]
+}
+
+// ── noms ──
+
+export function normalizeName(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(
+        prev[j]! + 1,
+        cur[j - 1]! + 1,
+        prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1)
+      )
+    }
+    prev = cur
+  }
+  return prev[b.length]!
+}
+
+// 1 = identique, 0 = rien à voir
+export function nameSimilarity(a: string, b: string): number {
+  const x = normalizeName(a)
+  const y = normalizeName(b)
+  if (!x || !y) return 0
+  return 1 - levenshtein(x, y) / Math.max(x.length, y.length)
+}
+
+// lignes susceptibles d'être le nom : en haut de l'image, surtout des lettres
+export function nameCandidates(lines: OcrLine[], max = 3): string[] {
+  return lines
+    .filter((l) => {
+      const t = l.text.trim()
+      const letters = (t.match(/[A-Za-zÀ-ÿ]/g) ?? []).length
+      return t.length >= 3 && letters / t.length >= 0.6 && !SET_CODE_LIKE.test(t)
+    })
+    .sort((a, b) => (a.y ?? 0) - (b.y ?? 0))
+    .slice(0, max)
+    .map((l) => l.text.trim())
+}
+const SET_CODE_LIKE = /\b[A-Z0-9]{2,5}-[A-Z]{0,2}\d{2,3}\b/i
+
+// ── stabilisation entre images ──
+
+export interface Detection {
+  cardId: string
+}
+
+// Retient une carte vue `confirmFrames` fois de suite ; ne la re-signale
+// qu'après qu'elle a quitté l'image pendant `clearFrames` images (pour
+// scanner plusieurs exemplaires : on retire la carte, on la remet).
+export class ScanStabilizer<T extends Detection> {
+  private candidate: string | null = null
+  private streak = 0
+  private lastAccepted: string | null = null
+  private absent = 0
+
+  constructor(
+    private readonly confirmFrames = 2,
+    private readonly clearFrames = 3
+  ) {}
+
+  push(detection: T | null): T | null {
+    const id = detection?.cardId ?? null
+
+    // la dernière carte ajoutée doit quitter l'image avant d'être ré-ajoutée
+    if (this.lastAccepted) {
+      if (id === this.lastAccepted) {
+        this.absent = 0
+        return null
+      }
+      if (++this.absent >= this.clearFrames) this.lastAccepted = null
+      if (id === null) return null
+    }
+
+    if (id === null) {
+      this.candidate = null
+      this.streak = 0
+      return null
+    }
+    if (id === this.candidate) this.streak++
+    else {
+      this.candidate = id
+      this.streak = 1
+    }
+    if (this.streak >= this.confirmFrames) {
+      this.lastAccepted = id
+      this.absent = 0
+      this.candidate = null
+      this.streak = 0
+      return detection
+    }
+    return null
+  }
+}

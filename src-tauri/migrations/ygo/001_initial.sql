@@ -5,9 +5,6 @@
 -- It is fully replaceable — never store user data here.
 -- ============================================================
  
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
- 
 -- ============================================================
 -- SYNC STATE
 -- ============================================================
@@ -151,4 +148,3 @@ CREATE TRIGGER IF NOT EXISTS cards_fts_after_delete
     INSERT INTO cards_fts(cards_fts, rowid, name, legal_text)
     VALUES ('delete', old.rowid, old.name, old.legal_text);
   END;
- 

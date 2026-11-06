@@ -1,52 +1,75 @@
 <template>
-  <div style="padding: 2rem; font-family: monospace;">
-    <h2>DB init test</h2>
-    <pre>{{ output }}</pre>
-  </div>
+  <UApp>
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
+    <Transition name="fade">
+      <div
+        v-if="isSyncing || syncError"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+      >
+        <UCard class="w-80 flex flex-col items-center gap-4 p-8">
+          <template v-if="syncError">
+            <UAlert
+              color="error"
+              variant="soft"
+              icon="i-lucide-circle-x"
+              title="Sync failed"
+              :description="syncError"
+            />
+            <UButton color="primary" label="Retry" icon="i-lucide-refresh-cw" @click="retry" />
+          </template>
+          <template v-else>
+            <p class="text-sm text-muted text-center">{{ syncStatus }}</p>
+            <UProgress :value="syncProgress" color="primary" size="sm" class="w-full" />
+            <p class="text-xs text-muted">{{ syncProgress }}%</p>
+          </template>
+        </UCard>
+      </div>
+    </Transition>
+  </UApp>
 </template>
- 
+
 <script setup lang="ts">
-import Database from '@tauri-apps/plugin-sql'
-import { appDataDir } from '@tauri-apps/api/path'
- 
-const output = ref('')
-const log = (msg: string) => {
-  console.log(msg)
-  output.value += msg + '\n'
+import { syncYgo, syncProgress, syncStatus, syncError, isSyncing } from '~/services/sync'
+import { getGlobalSettings } from '~/services/settings'
+import { pruneImageCache } from '~/services/imageCache'
+
+async function retry() {
+  syncError.value = null
+  await runSync()
 }
- 
-onMounted(async () => {
+
+async function runSync() {
+  // In E2E test mode the reference database is provided (copied from dev),
+  // so we never sync — tests must not depend on the network.
+  if (import.meta.env.VITE_TEST_MODE === 'true') return
   try {
-    // Show where the files will be created
-    const dir = await appDataDir()
-    log(`App data dir: ${dir}`)
- 
-    // Load (and migrate) both databases
-    log('\nOpening user.db...')
-    const userDb = await Database.load('sqlite:user.db')
-    log('user.db OK')
- 
-    log('\nOpening cards-ygo.db...')
-    const ygoDb = await Database.load('sqlite:cards-ygo.db')
-    log('cards-ygo.db OK')
- 
-    // Verify user.db tables exist
-    log('\n--- user.db tables ---')
-    const userTables = await userDb.select<{ name: string }[]>(
-      `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
-    )
-    userTables.forEach(t => log(`  ${t.name}`))
- 
-    // Verify cards-ygo.db tables exist
-    log('\n--- cards-ygo.db tables ---')
-    const ygoTables = await ygoDb.select<{ name: string }[]>(
-      `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
-    )
-    ygoTables.forEach(t => log(`  ${t.name}`))
- 
-    log('\nAll good.')
-  } catch (err) {
-    log(`\nERROR: ${err}`)
-  }
+    await syncYgo()
+  } catch {}
+}
+
+// applique la limite du cache d'images (réglage Stockage) à chaque lancement
+async function pruneCache() {
+  try {
+    const { imageCacheLimitMb } = await getGlobalSettings()
+    await pruneImageCache(imageCacheLimitMb)
+  } catch {}
+}
+
+onMounted(async () => {
+  await runSync()
+  await pruneCache()
 })
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

@@ -3,9 +3,6 @@
 -- Personal data: collection, containers, decks, assignments
 -- ============================================================
  
-PRAGMA journal_mode = WAL;   -- concurrent reads while writing
-PRAGMA foreign_keys = ON;    -- enforce FK constraints
- 
 -- ============================================================
 -- USER GAME PREFERENCES
 -- ============================================================

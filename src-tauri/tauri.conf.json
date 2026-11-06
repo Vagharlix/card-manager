@@ -4,21 +4,26 @@
   "version": "0.1.0",
   "identifier": "com.card-manager.app",
   "build": {
-    "beforeDevCommand": "pnpm --dir app dev",
-    "beforeBuildCommand": "pnpm generate",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../dist"
+    "frontendDist": "../app/.output/public"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "card-manager",
-        "width": 800,
-        "height": 600
+        "width": 1000,
+        "height": 700
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPCACHE/**"]
+      }
     }
   },
   "bundle": {
