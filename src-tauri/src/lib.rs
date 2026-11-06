@@ -68,6 +68,12 @@ pub fn run() {
             sql: include_str!("../migrations/user/008_collection_rarity_edition.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 9,
+            description: "sync state",
+            sql: include_str!("../migrations/user/009_sync_state.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ygo_migrations = vec![

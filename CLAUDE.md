@@ -80,14 +80,14 @@ card-manager/
 │       ├── user/001_initial.sql, 002_settings.sql, 003_collection_printing.sql,
 │       │        004_detach_deleted_collection.sql, 005_binder_slots_multi_copy.sql,
 │       │        006_collection_trade_qty.sql, 007_shared_collections.sql,
-│       │        008_collection_rarity_edition.sql
+│       │        008_collection_rarity_edition.sql, 009_sync_state.sql
 │       └── ygo/001_initial.sql, 002_printing_rarities.sql
 ├── app/                      # racine de config Nuxt (package.json "app", scripts generate/dev/build)
 │   ├── pnpm-lock.yaml
 │   ├── vitest.config.ts      # alias ~ -> app/app, env node, include test/unit/**
 │   ├── test/unit/            # tests Vitest (HORS de app/app, donc pas vus par Nuxt)
 │   │   ├── deckLink, collection, decks, containers, share, scan, settings,
-│   │   │   search, cardDetail (.test.ts)
+│   │   │   search, cardDetail, userSync (.test.ts)
 │   │   └── helpers/testDb.ts, seed.ts, ygoCards.ts
 │   └── app/                  # ⚠️ DOUBLE app/ : LE CODE SOURCE RÉEL est ici
 │       ├── pages/            # decks/[id].vue, decks/index.vue, collection.vue, index.vue,
@@ -100,6 +100,7 @@ card-manager/
 │       ├── services/imageCache.ts      # wrappers des commandes Rust du cache d'images
 │       ├── services/share/             # partage : codec.ts (format CMSHARE1), frames.ts (QR animé), index.ts (service)
 │       ├── pages/share.vue + components/QrScanner.vue   # écran de partage + scanner caméra continu (mobile)
+│       ├── services/userSync/          # synchro ENTRE APPAREILS (≠ services/sync.ts = base de cartes) : tables, snapshot, merge, index
 │       ├── services/scan/              # OCR : text.ts (codes d'impression, noms, stabilisation), index.ts (identification)
 │       ├── pages/scan.vue              # scan de cartes en session (Android)
 │       ├── composables/useRearCamera.ts, utils/platform.ts (isAndroid)
@@ -148,7 +149,7 @@ Deux bases, nom suffixé selon le mode.
   - `ygo_details.banlist_tcg/ocg/md` ∈ {`Forbidden`,`Limited`,`Semi-Limited`,NULL}.
   - Peuplée par une vraie **sync réseau YGOPRODeck** déclenchée dans l'app.
   - `printings.id` = code d'impression : quand un code existe en plusieurs raretés, `printings` n'en garde qu'une (la dernière écrite). **Toutes** les raretés sont dans `printing_rarities(set_code, rarity, rarity_code)` (migration `ygo/002`, remplie par la synchro ; vide sur une base synchronisée avant → la synchro relance **un** téléchargement complet). Lecture : `printingRarities()` / `CardPrinting.rarities` (`services/card/detail.ts`), repli sur `printings.rarity`.
-- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection), `004` (nettoyage des assignations d'entrées soft-deleted), `005` (`binder_slots` reconstruite sans `UNIQUE(collection_id)` : plusieurs cases par pile ; vue `card_locations` recréée), `006` (`collection.trade_qty` : copies proposées à l'échange, 0..quantity borné par l'app), `007` (`shared_collections` : collections reçues, une par (jeu, propriétaire), code stocké tel quel), `008` (`collection.rarity` TEXT NULL = non précisée, `collection.first_edition` 0/1).
+- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection), `004` (nettoyage des assignations d'entrées soft-deleted), `005` (`binder_slots` reconstruite sans `UNIQUE(collection_id)` : plusieurs cases par pile ; vue `card_locations` recréée), `006` (`collection.trade_qty` : copies proposées à l'échange, 0..quantity borné par l'app), `007` (`shared_collections` : collections reçues, une par (jeu, propriétaire), code stocké tel quel), `008` (`collection.rarity` TEXT NULL = non précisée, `collection.first_edition` 0/1), `009` (`sync_state` k/v : `device_id`, `base` = instantané de la dernière synchro, `backup` = état local avant la dernière fusion ; jamais synchronisée).
 
 **Choix du nom** (`app/app/utils/db-names.ts`, `dbName(base)`) : `.test.db` si `VITE_TEST_MODE==='true'`, `.dev.db` si `import.meta.env.DEV`, sinon `.db`. Exporte `DB_NAMES = {user, ygo}`.
 **Côté Rust** (`src-tauri/src/lib.rs`, `db_name()`) : `option_env!("VITE_TEST_MODE")==Some("true")` → `.test.db` ; `cfg!(debug_assertions)` → `.dev.db` ; sinon `.db`.
@@ -196,6 +197,16 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - **Stabilisation** : une carte n'est ajoutée qu'après 2 images identiques, et ne l'est à nouveau qu'après avoir quitté l'image 3 images (pour scanner plusieurs exemplaires à la suite). Mode manuel : `#scan-auto-add` désactivé → bouton `#scan-add-btn`.
 - **Test** : en `VITE_TEST_MODE`, la page expose `window.__scanFeed(lignes)` qui alimente la vraie chaîne (sans caméra ni ML Kit) → E2E `scan`. Accès : bouton central de la barre d'onglets (`[data-tab=scan]`, Android seulement) ou `#scan-open-btn` dans `/collection` (desktop), route `/scan`.
 - **Diagnostic** (bouton insecte en haut de l'écran de scan) : `#scan-debug` affiche caméra active, nombre d'images analysées, durée OCR, taille d'image, texte lu et résultat — pour comprendre un échec sur téléphone.
+
+### Synchro entre appareils (PC ↔ téléphone) — moteur local fait, transport Google Drive à venir
+- **Modèle repris de kechimochi** (github.com/Morgawr/kechimochi, `src-tauri/src/sync_*.rs`) : un état publié unique dans le dossier caché Drive (`appDataFolder`, scope `drive.appdata`), écriture conditionnelle (ETag), fusion à trois avec une base locale, sauvegarde avant fusion. Chez eux, un client OAuth « bureau » (loopback 127.0.0.1 + PKCE) et un client « Android » (Identity `AuthorizationClient`, paquet + SHA-1 de la clé de signature) du même projet Google Cloud voient le même `appDataFolder`.
+- **`services/userSync/`** :
+  - `tables.ts` : `SYNC_TABLES` (ordre parents → enfants, clé, colonne d'horodatage, filtre, `replaceOnUpdate` pour les unicités secondaires, clés étrangères). Réglages synchronisés : nom de partage, jeu favori, défauts d'ajout par jeu ; pas la limite du cache. **`USER_SCHEMA_VERSION` = nombre de migrations user/** (un test le vérifie : à incrémenter avec chaque migration).
+  - `merge.ts` (pur) : `mergeTables(base|null, local, remote)` ligne puis colonne ; changé d'un seul côté → repris ; absent d'un côté et présent dans la base → supprimé ; vrai conflit → horodatage le plus récent, sinon le distant ; modification > suppression ; sans base (1re synchro) → union. `repairTables` rétablit les règles : clés étrangères, rangements d'une carte retirée, une carte par case de classeur (la publiée gagne), une collection reçue par joueur, copies rangées ≤ quantité, `trade_qty` ≤ quantité.
+  - `snapshot.ts` : `takeSnapshot` / `applySnapshot` (une transaction ; colonnes inconnues localement ignorées ; colonnes absentes d'un instantané plus ancien = inchangées).
+  - `index.ts` : `syncNow(transport)` : instantané + base + état publié → fusion → sauvegarde → application → publication conditionnelle (refusée = on refusionne, 4 essais) → nouvelle base. `SyncTransport { pull, push(snapshot, expectedVersion) }` ; `MemoryTransport` pour les tests. État publié d'une appli plus récente → `SyncError('REMOTE_NEWER')`.
+- **Pas de tombstones** : la base de la fusion à trois suffit à détecter les suppressions (les tables principales ont déjà `deleted_at`, les liaisons sont supprimées en dur).
+- **Reste** : transport Google Drive (client bureau loopback + PKCE en Rust, plugin Kotlin `AuthorizationClient` pour Android, `appDataFolder`, ETag), secrets CI `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_ANDROID_CLIENT_ID`, écran Réglages → Synchronisation (connexion, « Synchroniser », dernière synchro, conflits résolus).
 
 ### Interface mobile (< 768 px) — maquettes : https://claude.ai/artifact/B4fH5zWqaexGgwwz4XYwNr
 - **Principe** : desktop inchangé ; tout ce qui est mobile passe par `useResponsive().isMobile` (`v-if` exclusifs → jamais deux fois le même `id`). L'E2E tourne en 1000×700 → il ne voit que le desktop.
@@ -254,6 +265,7 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - `settings.test.ts` : graines, types décodés, cache + invalidation, bornes (limite du cache), nom de partage, réglages par jeu (registre, isolation, jeu inconnu, ancienne clé globale ignorée).
 - `search.test.ts` : FTS nom / effet, catégories, sous-types en OU insensibles à la casse, égalités, numériques (opérateur inconnu ignoré), flèches Link, combinaisons, pagination, cohérence search/count, options de filtres. Cartes complètes via `helpers/ygoCards.ts`.
 - `cardDetail.test.ts` : stats, Link, impressions triées avec toutes leurs raretés (+ repli), artworks par alias, `printingRarities`.
+- `userSync.test.ts` : deux bases « PC » / « téléphone » + transport mémoire, données créées par les vrais services : 1re synchro, union sans base, idempotence, ajouts parallèles, champs différents, même champ (le plus récent gagne), retrait vs modification, suppression propagée, conteneur supprimé ailleurs, sur-rangement, case de classeur disputée, réglages partagés ou non, course entre appareils (refusion), état plus récent refusé, état plus ancien accepté, sauvegarde avant fusion ; `USER_SCHEMA_VERSION` = nombre de migrations.
 - `deckLink.test.ts` : 26 cas (plan + apply) : alias/boards fusionnés, déjà là, partiel, non rangées prioritaires, multi-sources ordonnées par nom, conteneur supprimé, isolation par jeu, purge (alt art conservée), capacité (NULL / purge déduite / dépassement + relève), relink unique, idempotence, pas de sur-assignation, entrées de collection soft-deleted.
 - **Bug corrigé grâce à ces tests** : `removeCard` (soft delete) laisse les lignes d'assignation ; `deckLink` les comptait (alreadyHere/currentInBox/purge) et pouvait déplacer ces copies fantômes. Toutes les requêtes d'assignation joignent maintenant `collection ... AND c.deleted_at IS NULL`. Résolution alias/nom factorisée dans `rootsOf()`.
 - Pour tester un autre service : même schéma `vi.hoisted` + `vi.mock` + `createTestDatabases()` / `createSeeder()` (cf. en-tête de `deckLink.test.ts`).
@@ -278,7 +290,7 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - Push sur `dev` (ou lancement manuel) → jobs `linux` (AppImage, ubuntu-22.04) + `android` (APK arm64) → job `publish` recrée la pré-release **`dev-latest`** avec `card-manager-linux-x86_64.AppImage` et `card-manager-android-arm64.apk`. Sur une PR qui touche le workflow : build sans publication.
 - Version = `0.1.<run_number>` (passée via `--config`) → chaque build met à jour le précédent.
 - Android : `src-tauri/gen/` n'est pas versionné → `tauri android init --ci` + `tauri icon` en CI, build `--target aarch64`, puis `zipalign` + `apksigner`.
-- **Signature (dépôt public)** : la clé n'est **jamais** dans git (`*.keystore`/`*.jks` ignorés). Elle vit dans les secrets du dépôt `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, générés par `scripts/android-keystore.sh` sur la machine de Félix (clé dans `~/.card-manager/release.keystore`, à sauvegarder : la perdre = plus de mise à jour des APK installés). Sans secret (ex. PR de fork), la CI signe avec une **clé jetable** + warning. L'ancienne clé de test (`.github/release/android-test.keystore`, publique via l'historique) est **abandonnée** : un APK signé avec doit être désinstallé avant d'installer un APK signé avec la nouvelle clé.
+- **Signature (dépôt public)** : la clé n'est **jamais** dans git (`*.keystore`/`*.jks` ignorés). Elle vit dans les secrets du dépôt `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, **configurés** (6 nov. 2026 : clé générée en session cloud et remise à Félix, qui la conserve ; `scripts/android-keystore.sh` reste l'outil pour en refaire une). La perdre = plus de mise à jour des APK installés. Empreinte SHA-1 du certificat (client OAuth Android de la synchro) : `41:26:48:4D:D2:52:D7:C7:45:74:9D:35:81:98:51:3C:7B:B1:D6:DA`. Paquet Android : `com.card_manager.app`. Sans secret (ex. PR de fork), la CI signe avec une **clé jetable** + warning. L'ancienne clé de test (`.github/release/android-test.keystore`, publique via l'historique) est **abandonnée** : un APK signé avec doit être désinstallé avant d'installer un APK signé avec la nouvelle clé.
 - **Incident GitHub Actions** (6 nov. 2026) : jobs refusés sans runner (« account locked due to billing issue ») à cause d'un budget Actions à 0 $ « Usage blocked ». Résolu (dépôt passé public + déblocage côté compte). Si ça revient : Settings → Billing → Budgets.
 - **Build APK local (session cloud)** : SDK Android dans `/opt/android-sdk` (cmdline-tools → `platforms;android-34`, `build-tools;34.0.0`, `ndk;27.2.12479018`, `rustup target add aarch64-linux-android`), `ANDROID_HOME` + `NDK_HOME`, puis les mêmes commandes que le job `android`. Maven Central peut répondre **429** depuis l'IP partagée du conteneur → script d'init Gradle `~/.gradle/init.d/maven-central-mirror.gradle` qui interroge d'abord le miroir `https://maven-central.storage-download.googleapis.com/maven2/`. AppImage local : il faut `xdg-utils` (`xdg-open`).
 - Builds release = bases `.db` (pas `.dev.db`) → n'interfèrent pas avec les données de dev.
@@ -304,16 +316,15 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 - Ranger 2 copies d'une même pile dans un classeur plantait (`UNIQUE(collection_id)`) → migration 005.
 - Vue deck : « possédées » compté par artwork exact → par carte logique (comme le rangement).
 
-### ✅ Tests unitaires settings / recherche / fiche carte : faits (183 Vitest).
+### ✅ Tests unitaires settings / recherche / fiche carte : faits. 205 Vitest au total (dont 22 synchro).
 
-### ▶ Tâche 3 — Protection de branche (ops, optionnel)
-Bloquer le merge des PR vers `dev` tant que les checks `e2e` et `checks` ne sont pas verts : Settings → Branches → Require status checks → cocher `e2e` et `checks` (n'apparaissent qu'après un 1er run). Réserve : build Tauri ~5-10 min/PR.
+### ✖ Protection de branche : abandonnée (choix de Félix) ; les merges se font après CI verte.
 
 ### Phases futures (hors testing)
 - **Phase 5 — OCR** : fonctionne sur téléphone (retour de Félix) ; rareté, 1re édition, langue et recadrage faits. Reste à valider sur téléphone la lecture de la 1re édition et le recadrage.
 - **Phase 9 — Settings** : terminer (base en place, cf. §5).
 - **Phase 2 (structure)** : terminée avec la refonte mobile.
-- **Synchro PC ↔ mobile** : à concevoir (cf. réponse de recherche : compte Google de l'utilisateur, Drive `appDataFolder`).
+- **Synchro PC ↔ mobile** : moteur local fait (`services/userSync`) ; reste le transport Google Drive + l'écran (cf. §5 « Synchro entre appareils »). Félix crée le projet Google Cloud (clients bureau + Android, paquet `com.card_manager.app`, SHA-1 de la clé de release).
 
 ---
 
