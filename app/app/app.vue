@@ -1,5 +1,6 @@
 <template>
-  <UApp>
+  <!-- mobile : notifications en haut, pour ne pas couvrir les onglets -->
+  <UApp :toaster="{ position: isMobile ? 'top-center' : 'bottom-right' }">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
@@ -34,6 +35,8 @@
 import { syncYgo, syncProgress, syncStatus, syncError, isSyncing } from '~/services/sync'
 import { getGlobalSettings } from '~/services/settings'
 import { pruneImageCache } from '~/services/imageCache'
+
+const { isMobile } = useResponsive()
 
 async function retry() {
   syncError.value = null

@@ -1,4 +1,4 @@
-import { resetDb, goTo, waitFor, click, waitForApp } from '../specs/helpers.js'
+import { resetDb, goTo, waitFor, click, waitForApp, typeInto, waitForPath } from '../specs/helpers.js'
 import { browser } from '@wdio/globals'
 
 // Captures d'écran en taille téléphone (pas un test : outil de revue UI).
@@ -39,27 +39,50 @@ describe('captures mobile', () => {
     await waitFor('#card-detail')
     await shot('02-card-detail')
 
+    // onglet « Rangements » (avec un deckbox pour avoir du contenu)
+    await click('[data-mobile-segment="containers"]')
+    await click('#container-create-btn')
+    await waitFor('[data-type="deckbox"]')
+    await click('[data-type="deckbox"]')
+    await typeInto('#container-name-input', 'Magiciens')
+    await click('#container-create-confirm')
+    await browser.pause(500)
+    await goTo('/search')
+    await goTo('/collection')
+    await click('[data-mobile-segment="containers"]')
+    await shot('03-containers')
+
     await goTo('/search')
     await waitFor('#search-card-input')
-    await shot('03-search')
+    await typeInto('#search-card-input', 'Dark')
+    await shot('04-search')
 
     await goTo('/decks')
     await waitFor('#deck-create-empty, #deck-create-btn')
-    await shot('04-decks')
+    await click('#deck-create-empty')
+    await waitFor('#deck-name-input')
+    await typeInto('#deck-name-input', 'Magiciens')
+    await click('#deck-create-confirm')
+    await waitForPath((p) => /^\/decks\/.+/.test(p))
+    await shot('05-deck')
+    await click('[data-mobile-deck-add]')
+    await waitFor('#deck-search-input')
+    await typeInto('#deck-search-input', 'Dark')
+    await browser.pause(600)
+    await shot('06-deck-add')
+
+    await goTo('/decks')
+    await shot('07-decks')
 
     await goTo('/share')
-    await shot('05-share')
+    await shot('08-share')
+    await click('[data-mobile-share-section="receive"]')
+    await shot('09-share-receive')
 
     await goTo('/settings')
-    await shot('06-settings')
+    await shot('10-settings')
 
     await goTo('/scan')
-    await shot('07-scan')
-
-    await goTo('/collection')
-    await browser.pause(400)
-    // menu de navigation mobile
-    await browser.execute(() => (document.querySelector('[aria-label="Menu"]') as HTMLElement)?.click())
-    await shot('08-menu')
+    await shot('11-scan')
   })
 })

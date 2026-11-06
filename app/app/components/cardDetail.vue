@@ -1,7 +1,9 @@
 <template>
-  <USlideover
+  <!-- mobile : panneau qui monte du bas (glisser pour fermer) ; desktop : panneau à droite -->
+  <component
+    :is="isMobile ? UDrawer : USlideover"
     :open="open"
-    :side="isMobile ? 'bottom' : 'right'"
+    v-bind="isMobile ? {} : { side: 'right' }"
     :title="detail?.name ?? 'Carte'"
     @update:open="$emit('update:open', $event)"
   >
@@ -14,7 +16,10 @@
 
       <div v-else-if="detail" id="card-detail" class="space-y-5">
         <!-- image en grand -->
-        <div class="rounded-lg overflow-hidden ring-1 ring-default max-w-xs mx-auto">
+        <div
+          class="rounded-lg overflow-hidden ring-1 ring-default mx-auto"
+          :class="isMobile ? 'max-w-[60%]' : 'max-w-xs'"
+        >
           <img
             v-if="bigImage.src.value"
             :src="bigImage.src.value"
@@ -62,6 +67,7 @@
               icon="i-lucide-plus"
               label="Ajouter"
               :loading="adding"
+              :size="isMobile ? 'xl' : 'md'"
               class="flex-1"
               @click="quickAdd"
             />
@@ -71,6 +77,7 @@
               color="neutral"
               variant="soft"
               aria-label="Ajout détaillé"
+              :size="isMobile ? 'xl' : 'md'"
               @click="toggleDetailedForm"
             />
           </div>
@@ -185,14 +192,14 @@
                   icon="i-lucide-pencil"
                   color="neutral"
                   variant="ghost"
-                  size="xs"
+                  :size="isMobile ? 'lg' : 'xs'"
                   @click="toggleEdit(entry.id)"
                 />
                 <UButton
                   icon="i-lucide-trash-2"
                   color="error"
                   variant="ghost"
-                  size="xs"
+                  :size="isMobile ? 'lg' : 'xs'"
                   @click="askRemove(entry.id)"
                 />
               </div>
@@ -318,7 +325,7 @@
         </div>
       </div>
     </template>
-  </USlideover>
+  </component>
 
   <!-- confirmation de suppression (hors slideover pour le z-index) -->
   <UModal v-model:open="confirmOpen" title="Supprimer cet exemplaire ?">
@@ -382,6 +389,8 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:open': [value: boolean]; added: [] }>()
 
 const { isMobile } = useResponsive()
+const UDrawer = resolveComponent('UDrawer')
+const USlideover = resolveComponent('USlideover')
 const toast = useToast()
 
 const detail = ref<YgoCardDetail | null>(null)
