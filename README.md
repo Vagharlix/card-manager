@@ -20,6 +20,9 @@ Chaque push sur `dev` publie la pré-release **`dev-latest`** (onglet *Releases*
 - **PC Linux** : `card-manager-linux-x86_64.AppImage` → `chmod +x` puis lancer.
 - **Android** : `card-manager-android-arm64.apk` → ouvrir depuis le téléphone et installer.
 
+La signature des APK utilise une clé stockée dans les secrets du dépôt (jamais dans git) :
+lancer `scripts/android-keystore.sh` une fois, puis créer les trois secrets qu'il affiche.
+
 ## Vérifier
 
 ```bash

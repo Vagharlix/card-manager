@@ -110,3 +110,7 @@ pnpm-debug.log*
 
 # Fixture E2E versionnée (cards de référence pour la CI) — on garde celle-ci
 !e2e/fixtures/cards-ygo.test.db
+
+# Clés de signature (jamais dans le dépôt, cf. scripts/android-keystore.sh)
+*.keystore
+*.jks
