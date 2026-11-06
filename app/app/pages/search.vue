@@ -1,5 +1,5 @@
 <template>
-  <AppPage sidebar-label="Filtres">
+  <AppPage sidebar-label="Filtres" title="Recherche">
     <template #sidebar>
       <SearchFilters v-model="filters" :options="filterOptions" />
     </template>
@@ -12,8 +12,9 @@
           placeholder="Nom de carte..."
           icon="i-lucide-search"
           class="flex-1"
+          :size="isMobile ? 'lg' : 'md'"
         />
-        <USelect v-model="field" :items="fieldItems" class="w-32" />
+        <USelect v-model="field" :items="fieldItems" class="w-32" :size="isMobile ? 'lg' : 'md'" />
       </div>
       <!-- grille : prend l'espace restant et scrolle dedans -->
       <div id="search-results" class="flex-1 min-h-0 overflow-y-auto">
@@ -24,9 +25,15 @@
         v-if="total > 0"
         class="flex items-center justify-between gap-4 pt-4 shrink-0 border-t border-default"
       >
-        <p class="text-sm text-muted">{{ total }} cartes</p>
-        <UPagination v-model:page="page" :total="total" :items-per-page="perPage" />
-        <USelect v-model="perPage" :items="perPageItems" class="w-28" size="sm" />
+        <p v-if="!isMobile" class="text-sm text-muted">{{ total }} cartes</p>
+        <UPagination
+          v-model:page="page"
+          :total="total"
+          :items-per-page="perPage"
+          :sibling-count="isMobile ? 0 : 2"
+          :show-edges="!isMobile"
+        />
+        <USelect v-if="!isMobile" v-model="perPage" :items="perPageItems" class="w-28" size="sm" />
       </div>
     </div>
     <CardDetail v-model:open="detailOpen" game="ygo" :card-id="selectedId" @added="refreshOwned" />
@@ -42,6 +49,8 @@ import {
   type YgoFilterOptions,
 } from '~/services/search'
 import { ownedCardIds } from '~/services/collection'
+
+const { isMobile } = useResponsive()
 const query = ref('')
 const field = ref<'name' | 'effect'>('name')
 const filters = ref<YgoFilters>({})

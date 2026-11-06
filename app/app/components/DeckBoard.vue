@@ -9,9 +9,8 @@
 
     <div
       v-if="cards.length"
-      class="grid gap-2 grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10"
+      class="grid gap-2 grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10"
     >
-      <
       <div
         v-for="c in cards"
         :key="c.cardId"

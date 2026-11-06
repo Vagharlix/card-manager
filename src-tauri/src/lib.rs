@@ -79,7 +79,9 @@ pub fn run() {
 
     // scan de cartes (OCR ML Kit) : plugin local, Android uniquement
     #[cfg(target_os = "android")]
-    let builder = builder.plugin(tauri_plugin_card_scanner::init());
+    let builder = builder
+        .plugin(tauri_plugin_card_scanner::init())
+        .plugin(tauri_plugin_safe_area::init());
 
     builder
         .plugin(tauri_plugin_opener::init())

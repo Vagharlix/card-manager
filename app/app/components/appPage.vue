@@ -8,30 +8,50 @@
       <slot name="sidebar" />
     </aside>
 
-    <!-- MOBILE : sidebar en slideover par la GAUCHE
-         (le menu de navigation s'ouvre par la droite — côtés distincts
-         pour éviter la confusion entre contexte de page et navigation) -->
-    <USlideover
-      v-if="isMobile && $slots.sidebar"
+    <!-- MOBILE : la sidebar devient un panneau qui monte du bas (sauf si la
+         page la remplace elle-même : mobile-sidebar=false) -->
+    <UDrawer
+      v-if="isMobile && $slots.sidebar && mobileSidebar"
       v-model:open="sidebarOpen"
-      side="left"
       :title="sidebarLabel"
     >
       <template #body>
-        <slot name="sidebar" />
+        <div class="pb-[var(--safe-bottom)]">
+          <slot name="sidebar" />
+        </div>
       </template>
-    </USlideover>
+    </UDrawer>
 
     <!-- contenu : hauteur contrainte, pas de scroll ici (la page gère son scroll interne) -->
-    <div class="flex-1 min-h-0 overflow-hidden p-4 flex flex-col">
-      <UButton
-        v-if="isMobile && $slots.sidebar"
-        icon="i-lucide-filter"
-        variant="soft"
-        :label="sidebarLabel"
-        class="mb-4 shrink-0 self-start"
-        @click="openSidebar"
-      />
+    <div
+      class="flex-1 min-h-0 overflow-hidden flex flex-col"
+      :class="isMobile ? 'px-4 pt-3' : 'p-4'"
+    >
+      <!-- MOBILE : grand titre de page + actions -->
+      <div
+        v-if="
+          isMobile &&
+          (title || $slots.actions || ($slots.sidebar && mobileSidebar && sidebarButton))
+        "
+        class="flex items-center gap-2 mb-3 shrink-0"
+      >
+        <slot name="leading" />
+        <div class="flex-1 min-w-0">
+          <h1 class="text-2xl font-bold tracking-tight truncate">{{ title }}</h1>
+          <p v-if="subtitle" class="text-xs text-muted truncate">{{ subtitle }}</p>
+        </div>
+        <UButton
+          v-if="$slots.sidebar && mobileSidebar && sidebarButton"
+          icon="i-lucide-sliders-horizontal"
+          color="neutral"
+          variant="soft"
+          size="lg"
+          :aria-label="sidebarLabel"
+          data-mobile-sidebar-btn
+          @click="openSidebar"
+        />
+        <slot name="actions" />
+      </div>
       <div class="flex-1 min-h-0">
         <slot />
       </div>
@@ -40,11 +60,27 @@
 </template>
 
 <script setup lang="ts">
-const props = withDefaults(defineProps<{ sidebarLabel?: string }>(), {
-  sidebarLabel: 'Filtres',
-})
+withDefaults(
+  defineProps<{
+    sidebarLabel?: string
+    /** titre affiché en haut de page sur mobile (sur desktop, la page gère le sien) */
+    title?: string
+    subtitle?: string
+    /** false : la page affiche elle-même le contenu de la sidebar sur mobile */
+    mobileSidebar?: boolean
+    /** false : la page ouvre elle-même le panneau (v-model:sidebar-open) */
+    sidebarButton?: boolean
+  }>(),
+  {
+    sidebarLabel: 'Filtres',
+    title: undefined,
+    subtitle: undefined,
+    mobileSidebar: true,
+    sidebarButton: true,
+  }
+)
+const sidebarOpen = defineModel<boolean>('sidebarOpen', { default: false })
 const { isMobile } = useResponsive()
-const sidebarOpen = ref(false)
 function openSidebar() {
   sidebarOpen.value = true
 }

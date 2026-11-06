@@ -65,6 +65,28 @@ export function extractSetCodes(lines: OcrLine[]): SetCodeRef[] {
   return [...out.values()]
 }
 
+// ── passcode (8 chiffres en bas à gauche de la carte) ──
+// Les zéros de tête imprimés (« 04031928 ») n'existent pas dans les ids de
+// la base : on renvoie la forme canonique (« 4031928 »).
+const PASSCODE_RE = /\b[0-9OQDILSBZ]{8}\b/g
+
+export function extractPasscodes(lines: OcrLine[]): string[] {
+  const out = new Set<string>()
+  for (const line of lines) {
+    const text = line.text.toUpperCase()
+    PASSCODE_RE.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = PASSCODE_RE.exec(text))) {
+      const raw = m[0]
+      // au moins 6 vrais chiffres : sinon c'est un mot, pas un passcode
+      if ((raw.match(/\d/g) ?? []).length < 6) continue
+      const digits = raw.replace(/[OQDILSBZ]/g, (c) => DIGIT_FIX[c]!)
+      out.add(String(Number(digits)))
+    }
+  }
+  return [...out]
+}
+
 // ── noms ──
 
 export function normalizeName(s: string): string {
@@ -121,18 +143,20 @@ export interface Detection {
   cardId: string
 }
 
-// Retient une carte vue `confirmFrames` fois de suite ; ne la re-signale
-// qu'après qu'elle a quitté l'image pendant `clearFrames` images (pour
-// scanner plusieurs exemplaires : on retire la carte, on la remet).
+// Vote sur les `windowSize` dernières images : une carte est retenue dès
+// qu'elle y apparaît `confirmFrames` fois (les images ratées, fréquentes en
+// direct, ne remettent pas le compteur à zéro). Elle n'est re-signalée
+// qu'après avoir quitté l'image `clearFrames` images de suite (pour scanner
+// plusieurs exemplaires : on retire la carte, on la remet).
 export class ScanStabilizer<T extends Detection> {
-  private candidate: string | null = null
-  private streak = 0
+  private window: (string | null)[] = []
   private lastAccepted: string | null = null
   private absent = 0
 
   constructor(
     private readonly confirmFrames = 2,
-    private readonly clearFrames = 3
+    private readonly clearFrames = 3,
+    private readonly windowSize = 4
   ) {}
 
   push(detection: T | null): T | null {
@@ -145,24 +169,16 @@ export class ScanStabilizer<T extends Detection> {
         return null
       }
       if (++this.absent >= this.clearFrames) this.lastAccepted = null
-      if (id === null) return null
     }
 
-    if (id === null) {
-      this.candidate = null
-      this.streak = 0
-      return null
-    }
-    if (id === this.candidate) this.streak++
-    else {
-      this.candidate = id
-      this.streak = 1
-    }
-    if (this.streak >= this.confirmFrames) {
+    this.window.push(id)
+    if (this.window.length > this.windowSize) this.window.shift()
+    if (id === null) return null
+
+    if (this.window.filter((x) => x === id).length >= this.confirmFrames) {
       this.lastAccepted = id
       this.absent = 0
-      this.candidate = null
-      this.streak = 0
+      this.window = []
       return detection
     }
     return null

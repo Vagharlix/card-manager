@@ -1,5 +1,5 @@
 <template>
-  <AppPage sidebar-label="Partage">
+  <AppPage sidebar-label="Partage" title="Partage" :mobile-sidebar="false">
     <template #sidebar>
       <nav class="flex flex-col gap-1">
         <button
@@ -33,11 +33,37 @@
       <p v-else class="text-xs text-dimmed italic px-3">Aucune pour l'instant</p>
     </template>
 
-    <div class="h-full overflow-y-auto">
+    <div class="h-full overflow-y-auto" :class="isMobile && 'pb-6'">
+      <!-- MOBILE : les deux sections en bascule (remplace la sidebar) -->
+      <div
+        v-if="isMobile && active !== 'view'"
+        class="grid grid-cols-2 p-1 mb-4 rounded-xl bg-elevated border border-default"
+      >
+        <button
+          v-for="s in mobileSections"
+          :key="s.id"
+          :data-mobile-share-section="s.id"
+          class="h-9 rounded-lg text-sm font-semibold transition"
+          :class="active === s.id ? 'bg-primary text-inverted' : 'text-muted'"
+          @click="openSection(s.id)"
+        >
+          {{ s.label }}
+        </button>
+      </div>
+      <UButton
+        v-if="isMobile && active === 'view'"
+        icon="i-lucide-arrow-left"
+        label="Collections reçues"
+        color="neutral"
+        variant="ghost"
+        class="mb-2 -ml-2"
+        @click="openSection('receive')"
+      />
+
       <!-- ── Partager ma collection ── -->
       <div v-if="active === 'mine'" class="space-y-5 max-w-md">
         <div>
-          <h2 class="text-lg font-medium">Partager ma collection</h2>
+          <h2 v-if="!isMobile" class="text-lg font-medium">Partager ma collection</h2>
           <p class="text-xs text-muted">
             L'autre joueur scanne le QR code (ou colle le code) pour voir tes cartes et celles que
             tu proposes à l'échange.
@@ -50,8 +76,8 @@
             id="share-owner-input"
             v-model="ownerName"
             placeholder="Affiché chez l'autre joueur"
-            size="sm"
-            class="w-64"
+            :class="isMobile ? 'w-full' : 'w-64'"
+            :size="isMobile ? 'lg' : 'sm'"
           />
         </div>
 
@@ -65,6 +91,8 @@
           label="Générer le partage"
           icon="i-lucide-qr-code"
           :loading="generating"
+          :block="isMobile"
+          :size="isMobile ? 'xl' : 'md'"
           @click="generate"
         />
 
@@ -77,11 +105,13 @@
             id="share-qr"
             :data-qr-frames="qrFrames.length"
             class="space-y-1"
+            :class="isMobile && 'flex flex-col items-center text-center'"
           >
             <img
               :src="qrFrames[qrIndex]"
               alt="QR code de partage"
-              class="w-72 max-w-full rounded-lg bg-white p-2"
+              class="max-w-full rounded-xl bg-white p-2"
+              :class="isMobile ? 'w-full' : 'w-72'"
             />
             <p v-if="qrFrames.length > 1" class="text-xs text-muted">
               QR animé : image {{ qrIndex + 1 }} / {{ qrFrames.length }}. L'autre appareil le scanne
@@ -103,7 +133,8 @@
             icon="i-lucide-copy"
             color="neutral"
             variant="soft"
-            size="sm"
+            :size="isMobile ? 'xl' : 'sm'"
+            :block="isMobile"
             @click="copyCode"
           />
         </div>
@@ -112,7 +143,7 @@
       <!-- ── Recevoir ── -->
       <div v-else-if="active === 'receive'" class="space-y-5 max-w-md">
         <div>
-          <h2 class="text-lg font-medium">Voir la collection d'un joueur</h2>
+          <h2 v-if="!isMobile" class="text-lg font-medium">Voir la collection d'un joueur</h2>
           <p class="text-xs text-muted">
             Scanne son QR code ou colle le code qu'il t'a envoyé. La collection est enregistrée pour
             pouvoir la revoir.
@@ -124,6 +155,8 @@
           id="share-scan-btn"
           label="Scanner un QR code"
           icon="i-lucide-scan-line"
+          :block="isMobile"
+          :size="isMobile ? 'xl' : 'md'"
           @click="openScanner"
         />
 
@@ -141,8 +174,32 @@
             icon="i-lucide-folder-open"
             :disabled="!importText.trim()"
             :loading="importing"
+            :block="isMobile"
+            :size="isMobile ? 'lg' : 'md'"
             @click="importCode(importText)"
           />
+        </div>
+
+        <!-- MOBILE : collections déjà reçues (dans la sidebar sur desktop) -->
+        <div v-if="isMobile" class="space-y-2">
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide">Collections reçues</p>
+          <p v-if="!saved.length" class="text-sm text-dimmed italic">Aucune pour l'instant</p>
+          <button
+            v-for="sv in saved"
+            :key="sv.id"
+            :data-saved-share-id="sv.id"
+            class="w-full flex items-center gap-3 p-3 rounded-xl bg-elevated border border-default text-left"
+            @click="openSaved(sv.id)"
+          >
+            <span
+              class="size-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0"
+            >
+              <UIcon name="i-lucide-user" class="size-5" />
+            </span>
+            <span class="flex-1 min-w-0 font-semibold truncate">{{ sv.owner || 'Sans nom' }}</span>
+            <span class="text-sm text-muted">{{ sv.cardCount }} cartes</span>
+            <UIcon name="i-lucide-chevron-right" class="text-muted" />
+          </button>
         </div>
       </div>
 
@@ -258,10 +315,15 @@ import { getShareOwnerName, setShareOwnerName } from '~/services/settings'
 
 const GAME = 'ygo'
 const toast = useToast()
+const { isMobile } = useResponsive()
 
 const sections = [
   { id: 'mine', label: 'Partager ma collection', icon: 'i-lucide-qr-code' },
   { id: 'receive', label: 'Voir une collection', icon: 'i-lucide-scan-line' },
+]
+const mobileSections = [
+  { id: 'mine', label: 'Montrer la mienne' },
+  { id: 'receive', label: 'Recevoir' },
 ]
 const active = ref<'mine' | 'receive' | 'view'>('mine')
 function openSection(id: string) {

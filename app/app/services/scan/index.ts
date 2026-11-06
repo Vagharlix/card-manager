@@ -1,23 +1,37 @@
 import { useDatabase } from '~/composables/useDatabase'
-import { extractSetCodes, nameCandidates, nameSimilarity, parseSetCode, type OcrLine } from './text'
+import {
+  extractPasscodes,
+  extractSetCodes,
+  nameCandidates,
+  nameSimilarity,
+  parseSetCode,
+  type OcrLine,
+} from './text'
 
 // ============================================================
 // SCAN — identification d'une carte à partir du texte OCR.
 // Moteur par jeu (règle multi-TCG) ; YGO :
 //   1. code d'impression (« LOB-EN005 ») → table printings : donne la
 //      carte ET l'impression exacte. Le plus fiable.
-//   2. sinon le nom (lignes du haut de l'image) → FTS puis similarité
+//   2. sinon le passcode (8 chiffres en bas à gauche) → l'artwork exact.
+//   3. sinon le nom (lignes du haut de l'image) → FTS puis similarité
 //      de Levenshtein ≥ NAME_THRESHOLD, artwork principal privilégié.
 // ============================================================
 
-export { ScanStabilizer, extractSetCodes, nameSimilarity, parseSetCode } from './text'
+export {
+  ScanStabilizer,
+  extractPasscodes,
+  extractSetCodes,
+  nameSimilarity,
+  parseSetCode,
+} from './text'
 export type { OcrLine, SetCodeRef } from './text'
 
 export interface Identified {
   cardId: string
   printingId: string | null
   name: string
-  via: 'setcode' | 'name'
+  via: 'setcode' | 'passcode' | 'name'
   score: number // 1 pour un code d'impression, similarité du nom sinon
 }
 
@@ -39,7 +53,7 @@ export async function identifyCard(game: string, lines: OcrLine[]): Promise<Iden
 }
 
 async function identifyYgo(lines: OcrLine[]): Promise<Identified | null> {
-  return (await bySetCode(lines)) ?? (await byName(lines))
+  return (await bySetCode(lines)) ?? (await byPasscode(lines)) ?? (await byName(lines))
 }
 
 async function bySetCode(lines: OcrLine[]): Promise<Identified | null> {
@@ -67,6 +81,21 @@ async function bySetCode(lines: OcrLine[]): Promise<Identified | null> {
     }
   }
   return null
+}
+
+async function byPasscode(lines: OcrLine[]): Promise<Identified | null> {
+  const codes = extractPasscodes(lines)
+  if (!codes.length) return null
+  const { ygo } = await useDatabase()
+  const ph = codes.map(() => '?').join(', ')
+  const rows = await ygo.select<{ id: string; name: string }[]>(
+    `SELECT id, name FROM cards WHERE id IN (${ph})`,
+    codes
+  )
+  const hit = rows[0]
+  return hit
+    ? { cardId: hit.id, printingId: null, name: hit.name, via: 'passcode', score: 1 }
+    : null
 }
 
 async function byName(lines: OcrLine[]): Promise<Identified | null> {

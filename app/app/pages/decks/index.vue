@@ -1,17 +1,19 @@
 <template>
-  <AppPage>
+  <AppPage title="Decks" :subtitle="`${decks.length} deck${decks.length > 1 ? 's' : ''}`">
     <div class="flex flex-col h-full">
       <!-- barre d'outils -->
       <div class="flex items-center gap-2 mb-4 shrink-0">
-        <div>
+        <div v-if="!isMobile">
           <h2 class="font-medium">Decks</h2>
           <p class="text-xs text-muted">{{ decks.length }} deck{{ decks.length > 1 ? 's' : '' }}</p>
         </div>
-        <div class="flex-1" />
+        <div v-if="!isMobile" class="flex-1" />
         <UButton
           id="deck-create-btn"
           icon="i-lucide-plus"
           label="Nouveau deck"
+          :block="isMobile"
+          :size="isMobile ? 'lg' : 'md'"
           @click="openCreate"
         />
       </div>
@@ -137,6 +139,8 @@
 <script setup lang="ts">
 import { listDecks, createDeck, renameDeck, deleteDeck, type DeckListItem } from '~/services/decks'
 import { applyDeckToDeckbox, type DeckLinkPlan } from '~/services/deckLink'
+
+const { isMobile } = useResponsive()
 
 const router = useRouter()
 const toast = useToast()

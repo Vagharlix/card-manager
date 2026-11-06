@@ -1,0 +1,12 @@
+[package]
+name = "tauri-plugin-safe-area"
+version = "0.1.0"
+description = "Marges système Android (barre d'état, barre de gestes, encoche) exposées à la page"
+edition = "2021"
+links = "tauri-plugin-safe-area"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = "2"

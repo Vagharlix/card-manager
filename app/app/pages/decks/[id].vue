@@ -1,5 +1,32 @@
 <template>
-  <AppPage sidebar-label="Ajouter des cartes">
+  <AppPage
+    v-model:sidebar-open="searchOpen"
+    sidebar-label="Ajouter des cartes"
+    :title="deck?.name ?? 'Deck'"
+    :subtitle="`${totalCards} cartes`"
+    :sidebar-button="false"
+  >
+    <template #leading>
+      <UButton
+        icon="i-lucide-arrow-left"
+        color="neutral"
+        variant="ghost"
+        size="lg"
+        to="/decks"
+        aria-label="Retour aux decks"
+      />
+    </template>
+    <template #actions>
+      <UButton
+        icon="i-lucide-package"
+        color="neutral"
+        variant="soft"
+        size="lg"
+        :aria-label="currentBox ? currentBox.name : 'Ranger'"
+        data-mobile-range-btn
+        @click="openRange"
+      />
+    </template>
     <!-- panneau de recherche dans la sidebar -->
     <template #sidebar>
       <div class="flex flex-col h-full">
@@ -48,15 +75,16 @@
     <!-- zones du deck + panneau d'aperçu -->
     <div class="flex h-full">
       <div class="flex-1 min-w-0 flex flex-col">
-        <div class="flex items-center gap-2 mb-4 shrink-0">
+        <div class="flex items-center gap-2 mb-4 shrink-0" :class="isMobile && 'flex-wrap'">
           <UButton
+            v-if="!isMobile"
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
             size="sm"
             to="/decks"
           />
-          <div class="flex-1">
+          <div v-if="!isMobile" class="flex-1">
             <h2 class="font-medium">{{ deck?.name ?? 'Deck' }}</h2>
             <p class="text-xs text-muted" :data-total-cards="totalCards">{{ totalCards }} cartes</p>
           </div>
@@ -65,8 +93,8 @@
             id="deck-format-select"
             v-model="format"
             :items="formatItems"
-            size="sm"
-            class="w-40"
+            :size="isMobile ? 'md' : 'sm'"
+            :class="isMobile ? 'flex-1' : 'w-40'"
             @update:model-value="onFormatChange"
           >
             <template #item="{ item }">
@@ -77,6 +105,7 @@
           </USelect>
           <!-- ranger dans un deckbox -->
           <UButton
+            v-if="!isMobile"
             id="deck-range-btn"
             icon="i-lucide-package"
             color="neutral"
@@ -94,6 +123,30 @@
             size="sm"
             @click="openPreview"
           />
+        </div>
+
+        <!-- MOBILE : une zone à la fois -->
+        <div
+          v-if="isMobile"
+          role="tablist"
+          class="grid grid-cols-3 mb-3 border-b border-default shrink-0"
+        >
+          <button
+            v-for="b in boardTabs"
+            :key="b.id"
+            role="tab"
+            :aria-selected="mobileBoard === b.id"
+            :data-mobile-board="b.id"
+            class="h-11 text-sm border-b-2 -mb-px transition"
+            :class="
+              mobileBoard === b.id
+                ? 'border-primary font-semibold'
+                : 'border-transparent text-muted'
+            "
+            @click="mobileBoard = b.id"
+          >
+            {{ b.label }} · {{ boardCount(b.id) }}
+          </button>
         </div>
 
         <div class="flex-1 min-h-0 overflow-y-auto space-y-5 pr-1">
@@ -116,6 +169,7 @@
           </UAlert>
 
           <DeckBoard
+            v-if="!isMobile || mobileBoard === 'main'"
             label="Main Deck"
             board="main"
             :cards="contents.main"
@@ -129,6 +183,7 @@
             @add="(c) => addExisting(c)"
           />
           <DeckBoard
+            v-if="!isMobile || mobileBoard === 'extra'"
             label="Extra Deck"
             board="extra"
             :cards="contents.extra"
@@ -142,6 +197,7 @@
             @add="(c) => addExisting(c)"
           />
           <DeckBoard
+            v-if="!isMobile || mobileBoard === 'side'"
             label="Side Deck"
             board="side"
             :cards="contents.side"
@@ -154,6 +210,18 @@
             @remove="(c) => removeCard(c, 'side')"
             @move="(c) => moveFromSide(c)"
             @add="(c) => addExisting(c, 'side')"
+          />
+        </div>
+
+        <!-- MOBILE : ajout de cartes à portée de pouce -->
+        <div v-if="isMobile" class="shrink-0 py-3">
+          <UButton
+            block
+            size="xl"
+            icon="i-lucide-plus"
+            label="Ajouter des cartes"
+            data-mobile-deck-add
+            @click="openSearch"
           />
         </div>
       </div>
@@ -214,6 +282,22 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { isMobile } = useResponsive()
+
+// mobile : recherche dans un panneau du bas, une zone du deck à la fois
+const searchOpen = ref(false)
+function openSearch() {
+  searchOpen.value = true
+}
+type MainBoard = keyof DeckContents
+const boardTabs: { id: MainBoard; label: string }[] = [
+  { id: 'main', label: 'Main' },
+  { id: 'extra', label: 'Extra' },
+  { id: 'side', label: 'Side' },
+]
+const mobileBoard = ref<MainBoard>('main')
+function boardCount(b: MainBoard) {
+  return contents.value[b].reduce((s, c) => s + c.quantity, 0)
+}
 
 const deckId = computed(() => route.params.id as string)
 

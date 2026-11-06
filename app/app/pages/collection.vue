@@ -1,5 +1,21 @@
 <template>
-  <AppPage sidebar-label="Conteneurs">
+  <AppPage
+    sidebar-label="Conteneurs"
+    title="Collection"
+    :subtitle="subtitle"
+    :mobile-sidebar="false"
+  >
+    <template #actions>
+      <UButton
+        id="mobile-settings-btn"
+        to="/settings"
+        icon="i-lucide-settings"
+        color="neutral"
+        variant="soft"
+        size="lg"
+        aria-label="Réglages"
+      />
+    </template>
     <template #sidebar>
       <ContainerTree
         :containers="containers"
@@ -13,192 +29,279 @@
     </template>
 
     <div class="flex flex-col h-full">
-      <!-- barre d'outils -->
-      <div class="flex items-center gap-2 mb-4 shrink-0">
-        <div>
-          <h2 class="font-medium">{{ currentTitle }}</h2>
-          <p class="text-xs text-muted">
-            <template v-if="isBinder">{{ binderSlots.length }} cartes placées</template>
-            <template v-else
-              >{{ cards.length }} cartes différentes · {{ totalQty }} au total</template
-            >
-          </p>
-        </div>
-        <div class="flex-1" />
+      <!-- MOBILE : bascule cartes / rangements (remplace la sidebar) -->
+      <div
+        v-if="isMobile"
+        class="grid grid-cols-2 p-1 mb-3 rounded-xl bg-elevated border border-default shrink-0"
+      >
+        <button
+          v-for="t in mobileTabs"
+          :key="t.id"
+          :data-mobile-segment="t.id"
+          class="h-9 rounded-lg text-sm font-semibold transition"
+          :class="mobileTab === t.id ? 'bg-primary text-inverted' : 'text-muted'"
+          @click="mobileTab = t.id"
+        >
+          {{ t.label }}
+        </button>
+      </div>
 
-        <template v-if="isUnranged && cards.length">
+      <div v-if="isMobile && mobileTab === 'containers'" class="flex-1 min-h-0 overflow-y-auto">
+        <ContainerTree
+          :containers="containers"
+          :unranged-count="unrangedCount"
+          :total-count="collectionCount"
+          :selected-id="selectedId"
+          @select="selectFromMobileList"
+          @create="openCreate"
+          @changed="onContainerChanged"
+        />
+      </div>
+
+      <template v-else>
+        <!-- MOBILE : rangement ouvert → retour à toute la collection -->
+        <div v-if="isMobile && !isAll" class="flex items-center gap-2 mb-3 shrink-0">
           <UButton
-            v-if="!selectMode"
-            icon="i-lucide-check-square"
+            icon="i-lucide-arrow-left"
             color="neutral"
             variant="soft"
-            label="Sélectionner"
-            @click="enterSelectMode"
+            :aria-label="'Toute ma collection'"
+            data-mobile-back-all
+            @click="selectContainer(ALL_ID)"
           />
-          <template v-else>
-            <UButton color="neutral" variant="ghost" label="Annuler" @click="exitSelectMode" />
-            <UButton
-              icon="i-lucide-folder-input"
-              :label="`Ranger (${selectedCards.size})`"
-              :disabled="selectedCards.size === 0"
-              @click="openBatchPicker"
-            />
-          </template>
-        </template>
+          <div class="min-w-0">
+            <p class="font-semibold truncate">{{ currentTitle }}</p>
+            <p class="text-xs text-muted">{{ countLabel }}</p>
+          </div>
+        </div>
 
-        <UButton
-          v-if="android && !selectMode"
-          id="scan-open-btn"
-          icon="i-lucide-scan-line"
-          label="Scanner"
-          to="/scan"
-          variant="soft"
-        />
-
-        <UButtonGroup v-if="!selectMode && !isBinder">
-          <UButton
-            :variant="view === 'grid' ? 'solid' : 'soft'"
-            color="neutral"
-            icon="i-lucide-layout-grid"
-            @click="setView('grid')"
-          />
-          <UButton
-            :variant="view === 'list' ? 'solid' : 'soft'"
-            color="neutral"
-            icon="i-lucide-list"
-            @click="setView('list')"
-          />
-        </UButtonGroup>
-      </div>
-
-      <!-- filtres de « toute ma collection » -->
-      <div v-if="isAll" class="flex flex-wrap items-center gap-2 mb-4 shrink-0">
-        <UInput
-          id="collection-search"
-          v-model="filters.search"
-          icon="i-lucide-search"
-          placeholder="Rechercher par nom"
-          size="sm"
-          class="w-56"
-        />
-        <USelect
-          id="collection-sort"
-          v-model="filters.sort"
-          :items="sortItems"
-          size="sm"
-          class="w-44"
+        <!-- barre d'outils -->
+        <div
+          v-if="!isMobile || (isUnranged && cards.length)"
+          class="flex items-center gap-2 mb-4 shrink-0"
         >
-          <template #item="{ item }">
-            <span :data-select-value="item.value">{{ item.label }}</span>
+          <div v-if="!isMobile">
+            <h2 class="font-medium">{{ currentTitle }}</h2>
+            <p class="text-xs text-muted">{{ countLabel }}</p>
+          </div>
+          <div class="flex-1" />
+
+          <template v-if="isUnranged && cards.length">
+            <UButton
+              v-if="!selectMode"
+              icon="i-lucide-check-square"
+              color="neutral"
+              variant="soft"
+              label="Sélectionner"
+              @click="enterSelectMode"
+            />
+            <template v-else>
+              <UButton color="neutral" variant="ghost" label="Annuler" @click="exitSelectMode" />
+              <UButton
+                icon="i-lucide-folder-input"
+                :label="`Ranger (${selectedCards.size})`"
+                :disabled="selectedCards.size === 0"
+                @click="openBatchPicker"
+              />
+            </template>
           </template>
-        </USelect>
-        <label class="flex items-center gap-2 text-sm">
-          <USwitch id="collection-only-trade" v-model="filters.onlyTrade" size="sm" />
-          À l'échange uniquement
-        </label>
-      </div>
 
-      <!-- contenu -->
-      <div id="container-content" class="flex-1 min-h-0 overflow-hidden">
-        <!-- vue binder positionnelle -->
-        <BinderView
-          v-if="isBinder"
-          :slots="binderSlots"
-          :page-count="binderLayout.pageCount"
-          :rows-per-page="binderLayout.rowsPerPage"
-          :cols-per-page="binderLayout.colsPerPage"
-          @open="openBinderCard"
-          @clear="clearBinderCard"
-          @add="onBinderSlotClick"
-        />
+          <UButton
+            v-if="android && !selectMode && !isMobile"
+            id="scan-open-btn"
+            icon="i-lucide-scan-line"
+            label="Scanner"
+            to="/scan"
+            variant="soft"
+          />
 
-        <!-- vue grille / liste (non rangées + deckbox + bulk box) -->
-        <div v-else class="h-full overflow-y-auto">
-          <div
-            v-if="!loading && !cards.length"
-            class="flex flex-col items-center justify-center text-center py-20 text-muted"
-          >
-            <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
-            <p>{{ emptyMessage }}</p>
+          <UButtonGroup v-if="!selectMode && !isBinder && !isMobile">
+            <UButton
+              :variant="view === 'grid' ? 'solid' : 'soft'"
+              color="neutral"
+              icon="i-lucide-layout-grid"
+              @click="setView('grid')"
+            />
+            <UButton
+              :variant="view === 'list' ? 'solid' : 'soft'"
+              color="neutral"
+              icon="i-lucide-list"
+              @click="setView('list')"
+            />
+          </UButtonGroup>
+        </div>
+
+        <!-- MOBILE : recherche + filtres en puces -->
+        <div v-if="isAll && isMobile" class="space-y-2 mb-3 shrink-0">
+          <UInput
+            v-model="filters.search"
+            icon="i-lucide-search"
+            placeholder="Rechercher dans ma collection"
+            size="lg"
+            class="w-full"
+            data-mobile-collection-search
+          />
+          <div class="flex gap-2 overflow-x-auto no-scrollbar">
+            <UButton
+              :variant="filters.onlyTrade ? 'solid' : 'outline'"
+              color="neutral"
+              icon="i-lucide-repeat"
+              label="À l'échange"
+              class="rounded-full shrink-0"
+              data-mobile-only-trade
+              @click="toggleOnlyTrade"
+            />
+            <UButton
+              variant="outline"
+              color="neutral"
+              icon="i-lucide-inbox"
+              :label="`Non rangées · ${unrangedCount}`"
+              class="rounded-full shrink-0"
+              @click="selectContainer(UNRANGED_ID)"
+            />
+            <USelect
+              v-model="filters.sort"
+              :items="sortItems"
+              icon="i-lucide-arrow-up-down"
+              variant="outline"
+              class="rounded-full shrink-0 w-40"
+            />
           </div>
+        </div>
 
-          <div
-            v-else-if="view === 'grid'"
-            class="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
+        <!-- filtres de « toute ma collection » -->
+        <div v-if="isAll && !isMobile" class="flex flex-wrap items-center gap-2 mb-4 shrink-0">
+          <UInput
+            id="collection-search"
+            v-model="filters.search"
+            icon="i-lucide-search"
+            placeholder="Rechercher par nom"
+            size="sm"
+            class="w-56"
+          />
+          <USelect
+            id="collection-sort"
+            v-model="filters.sort"
+            :items="sortItems"
+            size="sm"
+            class="w-44"
           >
+            <template #item="{ item }">
+              <span :data-select-value="item.value">{{ item.label }}</span>
+            </template>
+          </USelect>
+          <label class="flex items-center gap-2 text-sm">
+            <USwitch id="collection-only-trade" v-model="filters.onlyTrade" size="sm" />
+            À l'échange uniquement
+          </label>
+        </div>
+
+        <!-- contenu -->
+        <div id="container-content" class="flex-1 min-h-0 overflow-hidden">
+          <!-- vue binder positionnelle -->
+          <BinderView
+            v-if="isBinder"
+            :slots="binderSlots"
+            :page-count="binderLayout.pageCount"
+            :rows-per-page="binderLayout.rowsPerPage"
+            :cols-per-page="binderLayout.colsPerPage"
+            @open="openBinderCard"
+            @clear="clearBinderCard"
+            @add="onBinderSlotClick"
+          />
+
+          <!-- vue grille / liste (non rangées + deckbox + bulk box) -->
+          <div v-else class="h-full overflow-y-auto">
             <div
-              v-for="c in cards"
-              :key="c.rootId"
-              :data-content-card-id="c.displayId"
-              class="container-card group relative"
+              v-if="!loading && !cards.length"
+              class="flex flex-col items-center justify-center text-center py-20 text-muted"
             >
-              <CardThumb
-                :card="{ game: c.game, id: c.displayId, name: c.name, imageUrl: '' }"
-                :quantity="c.totalQty"
-                :selectable="selectMode"
-                :selected="selectedCards.has(c.displayId)"
-                @select="openCard(c)"
-                @toggle="toggleCard(c)"
-              />
-              <UBadge
-                v-if="c.tradeQty"
-                :data-trade-qty="c.tradeQty"
-                icon="i-lucide-repeat"
-                color="primary"
-                variant="solid"
-                size="sm"
-                class="absolute bottom-1.5 left-1.5 z-20"
-                :label="String(c.tradeQty)"
-              />
-              <UButton
-                v-if="!isVirtual && !selectMode"
-                :data-unassign="c.displayId"
-                icon="i-lucide-folder-minus"
-                color="error"
-                variant="solid"
-                size="xs"
-                class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition z-30"
-                @click="askUnassign(c)"
-              />
+              <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
+              <p>{{ emptyMessage }}</p>
             </div>
-          </div>
 
-          <div v-else class="space-y-1">
             <div
-              v-for="c in cards"
-              :key="c.rootId"
-              :data-content-card-id="c.displayId"
-              class="container-card group w-full flex items-center gap-3 p-2 rounded-lg hover:bg-elevated"
+              v-else-if="view === 'grid'"
+              class="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
             >
-              <button class="flex items-center gap-3 flex-1 text-left min-w-0" @click="openCard(c)">
-                <div class="w-10 shrink-0 rounded overflow-hidden">
-                  <ArtThumb :passcode="c.displayId" />
-                </div>
-                <span class="flex-1 truncate">{{ c.name }}</span>
-              </button>
-              <UBadge
-                v-if="c.tradeQty"
-                :data-trade-qty="c.tradeQty"
-                icon="i-lucide-repeat"
-                color="primary"
-                variant="soft"
-                :label="`${c.tradeQty} à l'échange`"
-              />
-              <UBadge color="neutral" variant="soft">×{{ c.totalQty }}</UBadge>
-              <UButton
-                v-if="!isVirtual"
-                :data-unassign="c.displayId"
-                icon="i-lucide-folder-minus"
-                color="error"
-                variant="ghost"
-                size="xs"
-                class="opacity-0 group-hover:opacity-100 transition"
-                @click="askUnassign(c)"
-              />
+              <div
+                v-for="c in cards"
+                :key="c.rootId"
+                :data-content-card-id="c.displayId"
+                class="container-card group relative"
+              >
+                <CardThumb
+                  :card="{ game: c.game, id: c.displayId, name: c.name, imageUrl: '' }"
+                  :quantity="c.totalQty"
+                  :selectable="selectMode"
+                  :selected="selectedCards.has(c.displayId)"
+                  @select="openCard(c)"
+                  @toggle="toggleCard(c)"
+                />
+                <UBadge
+                  v-if="c.tradeQty"
+                  :data-trade-qty="c.tradeQty"
+                  icon="i-lucide-repeat"
+                  color="primary"
+                  variant="solid"
+                  size="sm"
+                  class="absolute bottom-1.5 left-1.5 z-20"
+                  :label="String(c.tradeQty)"
+                />
+                <UButton
+                  v-if="!isVirtual && !selectMode"
+                  :data-unassign="c.displayId"
+                  icon="i-lucide-folder-minus"
+                  color="error"
+                  variant="solid"
+                  size="xs"
+                  class="absolute top-1.5 right-1.5 transition z-30"
+                  :class="isMobile ? '' : 'opacity-0 group-hover:opacity-100'"
+                  @click="askUnassign(c)"
+                />
+              </div>
+            </div>
+
+            <div v-else class="space-y-1">
+              <div
+                v-for="c in cards"
+                :key="c.rootId"
+                :data-content-card-id="c.displayId"
+                class="container-card group w-full flex items-center gap-3 p-2 rounded-lg hover:bg-elevated"
+              >
+                <button
+                  class="flex items-center gap-3 flex-1 text-left min-w-0"
+                  @click="openCard(c)"
+                >
+                  <div class="w-10 shrink-0 rounded overflow-hidden">
+                    <ArtThumb :passcode="c.displayId" />
+                  </div>
+                  <span class="flex-1 truncate">{{ c.name }}</span>
+                </button>
+                <UBadge
+                  v-if="c.tradeQty"
+                  :data-trade-qty="c.tradeQty"
+                  icon="i-lucide-repeat"
+                  color="primary"
+                  variant="soft"
+                  :label="`${c.tradeQty} à l'échange`"
+                />
+                <UBadge color="neutral" variant="soft">×{{ c.totalQty }}</UBadge>
+                <UButton
+                  v-if="!isVirtual"
+                  :data-unassign="c.displayId"
+                  icon="i-lucide-folder-minus"
+                  color="error"
+                  variant="ghost"
+                  size="xs"
+                  class="opacity-0 group-hover:opacity-100 transition"
+                  @click="askUnassign(c)"
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </template>
     </div>
 
     <CardDetail v-model:open="detailOpen" game="ygo" :card-id="selectedCardId" @added="reload" />
@@ -275,6 +378,22 @@ import { listCollectionCards, collectionTotal, type CollectionSort } from '~/ser
 
 const toast = useToast()
 const android = isAndroid() // scan de cartes : app mobile seulement
+const { isMobile } = useResponsive()
+
+// mobile : la sidebar des conteneurs devient un onglet « Rangements »
+type MobileTab = 'cards' | 'containers'
+const mobileTabs: { id: MobileTab; label: string }[] = [
+  { id: 'cards', label: 'Cartes' },
+  { id: 'containers', label: 'Rangements' },
+]
+const mobileTab = ref<MobileTab>('cards')
+function selectFromMobileList(id: string) {
+  mobileTab.value = 'cards'
+  selectContainer(id)
+}
+function toggleOnlyTrade() {
+  filters.onlyTrade = !filters.onlyTrade
+}
 
 const view = ref<'grid' | 'list'>('grid')
 function setView(v: 'grid' | 'list') {
@@ -336,6 +455,13 @@ const binderLayout = computed(() => ({
 }))
 
 const totalQty = computed(() => cards.value.reduce((s, c) => s + c.totalQty, 0))
+
+const countLabel = computed(() =>
+  isBinder.value
+    ? `${binderSlots.value.length} cartes placées`
+    : `${cards.value.length} cartes différentes · ${totalQty.value} au total`
+)
+const subtitle = computed(() => `${collectionCount.value} cartes au total`)
 
 const currentTitle = computed(() => {
   if (isAll.value) return 'Toute ma collection'

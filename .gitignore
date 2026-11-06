@@ -114,3 +114,6 @@ pnpm-debug.log*
 # Clés de signature (jamais dans le dépôt, cf. scripts/android-keystore.sh)
 *.keystore
 *.jks
+
+# Captures d’écran de revue UI (e2e/screens/mobile.spec.ts)
+e2e/screens/out*/
