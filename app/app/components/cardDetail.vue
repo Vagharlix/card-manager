@@ -105,8 +105,20 @@
                   size="sm"
                 />
               </div>
+              <div>
+                <p class="text-xs text-muted mb-1">Rareté</p>
+                <USelect
+                  id="add-rarity-select"
+                  v-model="form.rarity"
+                  :items="rarityItems(form.printingId)"
+                  :disabled="!rarityItems(form.printingId).length"
+                  placeholder="Non précisée"
+                  size="sm"
+                />
+              </div>
             </div>
             <div class="flex gap-4">
+              <UCheckbox v-model="form.firstEdition" label="1re édition" size="sm" />
               <UCheckbox v-model="form.foil" label="Foil" size="sm" />
               <UCheckbox v-model="form.altered" label="Altered" size="sm" />
               <UCheckbox v-model="form.signed" label="Signed" size="sm" />
@@ -173,6 +185,22 @@
                 <UBadge color="neutral" variant="soft">×{{ entry.quantity }}</UBadge>
                 <span class="text-sm">{{ entry.condition }}</span>
                 <span class="text-sm text-muted uppercase">{{ entry.language }}</span>
+                <UBadge
+                  v-if="entry.rarity"
+                  :data-entry-rarity="entry.rarity"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  >{{ entry.rarity }}</UBadge
+                >
+                <UBadge
+                  v-if="entry.firstEdition"
+                  data-entry-first-edition
+                  color="info"
+                  variant="soft"
+                  size="xs"
+                  >1re éd.</UBadge
+                >
                 <UBadge v-if="entry.foil" color="warning" variant="soft" size="xs">Foil</UBadge>
                 <UBadge
                   v-if="entry.tradeQty"
@@ -228,6 +256,17 @@
                     />
                   </div>
                   <div>
+                    <p class="text-xs text-muted mb-1">Rareté</p>
+                    <USelect
+                      id="entry-rarity-select"
+                      v-model="editForm.rarity"
+                      :items="rarityItems(editForm.printingId)"
+                      :disabled="!rarityItems(editForm.printingId).length"
+                      placeholder="Non précisée"
+                      size="sm"
+                    />
+                  </div>
+                  <div>
                     <p class="text-xs text-muted mb-1">À l'échange</p>
                     <UInput
                       id="entry-trade-qty-input"
@@ -240,6 +279,12 @@
                   </div>
                 </div>
                 <div class="flex gap-4">
+                  <UCheckbox
+                    id="entry-first-edition"
+                    v-model="editForm.firstEdition"
+                    label="1re édition"
+                    size="sm"
+                  />
                   <UCheckbox v-model="editForm.foil" label="Foil" size="sm" />
                   <UCheckbox v-model="editForm.altered" label="Altered" size="sm" />
                   <UCheckbox v-model="editForm.signed" label="Signed" size="sm" />
@@ -435,6 +480,8 @@ const form = reactive({
   condition: 'NM' as CardCondition,
   language: 'en',
   printingId: undefined as string | undefined,
+  rarity: undefined as string | undefined,
+  firstEdition: false,
   foil: false,
   altered: false,
   signed: false,
@@ -445,6 +492,8 @@ const editForm = reactive({
   condition: 'NM' as CardCondition,
   language: 'en',
   printingId: undefined as string | undefined,
+  rarity: undefined as string | undefined,
+  firstEdition: false,
   foil: false,
   altered: false,
   signed: false,
@@ -453,9 +502,30 @@ const editForm = reactive({
 
 const printingItems = computed(() =>
   (detail.value?.printings ?? []).map((p) => ({
-    label: `${p.setCode} · ${p.rarity ?? '?'}`,
+    label: `${p.setCode} · ${p.setName}`,
     value: p.id,
   }))
+)
+
+// raretés possibles de l'impression choisie (un code peut en avoir plusieurs)
+function rarityItems(printingId: string | undefined) {
+  const p = detail.value?.printings.find((x) => x.id === printingId)
+  return (p?.rarities ?? []).map((r) => ({ label: r, value: r }))
+}
+
+// changement d'impression : rareté remise d'accord (seule possible, sinon vide)
+function syncRarity(f: { printingId?: string; rarity?: string }) {
+  const items = rarityItems(f.printingId).map((i) => i.value)
+  if (f.rarity && items.includes(f.rarity)) return
+  f.rarity = items.length === 1 ? items[0] : undefined
+}
+watch(
+  () => form.printingId,
+  () => syncRarity(form)
+)
+watch(
+  () => editForm.printingId,
+  () => syncRarity(editForm)
 )
 
 function locationIcon(type: string): string {
@@ -568,6 +638,8 @@ async function detailedAdd() {
       foil: form.foil,
       altered: form.altered,
       signed: form.signed,
+      rarity: form.rarity ?? null,
+      firstEdition: form.firstEdition,
     })
     await refreshOwned()
     showDetailedForm.value = false
@@ -591,6 +663,8 @@ function toggleEdit(id: string) {
   editForm.condition = e.condition
   editForm.language = e.language
   editForm.printingId = e.printingId ?? undefined
+  editForm.rarity = e.rarity ?? undefined
+  editForm.firstEdition = e.firstEdition
   editForm.foil = e.foil
   editForm.altered = e.altered
   editForm.signed = e.signed
@@ -610,6 +684,8 @@ async function saveEdit(id: string) {
       altered: editForm.altered,
       signed: editForm.signed,
       tradeQty: Math.min(editForm.tradeQty || 0, editForm.quantity),
+      rarity: editForm.rarity ?? null,
+      firstEdition: editForm.firstEdition,
     })
     await refreshOwned()
     editingId.value = null

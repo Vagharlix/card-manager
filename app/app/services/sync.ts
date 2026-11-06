@@ -190,6 +190,14 @@ async function batchInsert(
   }
 }
 
+async function raritiesMissing(ygo: Awaited<ReturnType<typeof useDatabase>>['ygo']) {
+  const rows = await ygo.select<{ n: number }[]>(
+    `SELECT (SELECT COUNT(*) FROM printing_rarities) = 0
+        AND (SELECT COUNT(*) FROM printings) > 0 AS n`
+  )
+  return rows[0]?.n === 1
+}
+
 // version de la base de cartes locale (null = jamais synchronisée)
 export async function localSyncVersion(): Promise<string | null> {
   const { ygo } = await useDatabase()
@@ -212,7 +220,11 @@ export async function syncYgo(options: { force?: boolean } = {}): Promise<void> 
       fetchRemoteVersion(),
     ])
 
-    if (!options.force && localVersion === remoteVersion) {
+    // base synchronisée avant la table des raretés (migration ygo 002) :
+    // un téléchargement complet, une fois, pour la remplir
+    const missingRarities = localVersion !== null && (await raritiesMissing(ygo))
+
+    if (!options.force && !missingRarities && localVersion === remoteVersion) {
       setProgress(100, 'Already up to date')
       return
     }
@@ -332,6 +344,17 @@ export async function syncYgo(options: { force?: boolean } = {}): Promise<void> 
           const pct = 85 + Math.round((done / total) * 10)
           setProgress(pct, `Inserting printings... ${done}/${total}`)
         }
+      )
+
+      // toutes les raretés de chaque code (printings n'en garde qu'une par code)
+      setProgress(95, 'Inserting rarities...')
+      await ygo.execute('DELETE FROM printing_rarities')
+      await batchInsert(
+        ygo,
+        'printing_rarities',
+        ['set_code', 'rarity', 'rarity_code'],
+        printings.filter((p) => p.rarity).map((p) => [p.set_code, p.rarity, p.rarity_code]),
+        300
       )
 
       await ygo.execute('COMMIT')

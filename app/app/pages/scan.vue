@@ -3,8 +3,9 @@
   <div v-if="android" id="scan-view" class="relative h-full bg-black text-white overflow-hidden">
     <video ref="videoEl" class="absolute inset-0 w-full h-full object-cover" playsinline muted />
 
-    <!-- cadre de visée -->
+    <!-- cadre de visée (l'OCR ne lit que cette zone, avec une marge) -->
     <div
+      ref="frameEl"
       class="absolute left-1/2 -translate-x-1/2 w-[64%] aspect-[0.686] rounded-2xl border-[3px] pointer-events-none transition-colors shadow-[0_0_0_200vmax_rgba(0,0,0,0.35)]"
       :class="current ? 'border-success' : 'border-white/70'"
       :style="{ top: 'calc(var(--safe-top) + 5rem)' }"
@@ -55,7 +56,8 @@
       >
         <template v-if="current">
           {{ current.name }}<span v-if="current.printingId"> · {{ current.printingId }}</span
-          ><span v-if="current.language"> · {{ languageLabel(current.language) }}</span>
+          ><span v-if="current.language"> · {{ languageLabel(current.language) }}</span
+          ><span v-if="current.firstEdition"> · 1re éd.</span>
         </template>
         <template v-else>Place une carte dans le cadre</template>
       </div>
@@ -110,33 +112,16 @@
         <p v-if="!session.length" class="text-sm text-muted py-2">
           Les cartes reconnues s'ajoutent ici, et à ta collection.
         </p>
-        <div
+        <ScanSessionItem
           v-for="item in session"
           :key="item.entryId"
-          :data-scan-entry="item.cardId"
-          :data-scan-language="item.language ?? ''"
-          class="flex items-center gap-3 p-2 rounded-xl bg-elevated"
-        >
-          <div class="w-9 shrink-0 rounded overflow-hidden">
-            <ArtThumb :passcode="item.cardId" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold truncate">{{ item.name }}</p>
-            <p class="text-xs text-muted">
-              {{ item.printingId ?? 'impression non détectée'
-              }}<template v-if="item.language"> · {{ languageLabel(item.language) }}</template>
-            </p>
-          </div>
-          <UButton
-            :data-scan-undo="item.entryId"
-            icon="i-lucide-undo-2"
-            color="neutral"
-            variant="ghost"
-            size="lg"
-            aria-label="Annuler l'ajout"
-            @click="undo(item.entryId)"
-          />
-        </div>
+          :item="item"
+          :language-label="item.language ? languageLabel(item.language) : undefined"
+          large
+          @undo="undo(item.entryId)"
+          @rarity="(r) => setRarity(item, r)"
+          @first-edition="(v) => setFirstEdition(item, v)"
+        />
       </div>
     </section>
   </div>
@@ -176,33 +161,15 @@
           Ajoutées pendant ce scan : {{ session.length }}
         </p>
         <div class="space-y-1">
-          <div
+          <ScanSessionItem
             v-for="item in session"
             :key="item.entryId"
-            :data-scan-entry="item.cardId"
-            :data-scan-language="item.language ?? ''"
-            class="flex items-center gap-3 p-2 rounded-lg bg-elevated"
-          >
-            <div class="w-8 shrink-0 rounded overflow-hidden">
-              <ArtThumb :passcode="item.cardId" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm truncate">{{ item.name }}</p>
-              <p class="text-xs text-muted">
-                {{ item.printingId ?? 'impression non détectée'
-                }}<template v-if="item.language"> · {{ languageLabel(item.language) }}</template>
-              </p>
-            </div>
-            <UButton
-              :data-scan-undo="item.entryId"
-              icon="i-lucide-undo-2"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              aria-label="Annuler l'ajout"
-              @click="undo(item.entryId)"
-            />
-          </div>
+            :item="item"
+            :language-label="item.language ? languageLabel(item.language) : undefined"
+            @undo="undo(item.entryId)"
+            @rarity="(r) => setRarity(item, r)"
+            @first-edition="(v) => setFirstEdition(item, v)"
+          />
         </div>
       </div>
     </div>
@@ -211,7 +178,9 @@
 
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
-import { addCard, removeCard } from '~/services/collection'
+import { addCard, removeCard, updateCard } from '~/services/collection'
+import { printingRarities } from '~/services/card/detail'
+import type { ScanSessionEntry } from '~/components/ScanSessionItem.vue'
 import { gameDef } from '~/services/game'
 import { identifyCard, ScanStabilizer, type Identified, type OcrLine } from '~/services/scan'
 
@@ -239,6 +208,7 @@ function close() {
 const toast = useToast()
 
 const videoEl = ref<HTMLVideoElement | null>(null)
+const frameEl = ref<HTMLElement | null>(null)
 const camera = useRearCamera(videoEl)
 const ocrError = ref('')
 
@@ -246,30 +216,58 @@ const autoAdd = ref(true)
 const current = ref<Identified | null>(null) // lu sur l'image courante
 const pending = ref<Identified | null>(null) // stable, en attente (mode manuel)
 
-interface SessionItem {
-  entryId: string
-  cardId: string
-  printingId: string | null
-  name: string
-  language: string | null
-}
-const session = ref<SessionItem[]>([])
+const session = ref<ScanSessionEntry[]>([])
 let stabilizer = new ScanStabilizer<Identified>()
+
+// la mention « 1st Edition » est petite : elle n'est pas lue sur toutes les
+// images. Une carte vue avec la mention sur une des dernières images la garde.
+const RECENT = 4
+let recentFirstEdition: (string | null)[] = []
+function rememberFirstEdition(found: Identified | null) {
+  recentFirstEdition.push(found?.firstEdition ? found.cardId : null)
+  if (recentFirstEdition.length > RECENT) recentFirstEdition.shift()
+}
 
 async function add(card: Identified) {
   try {
+    // un code d'impression peut exister en plusieurs raretés : s'il n'y en a
+    // qu'une, elle est enregistrée ; sinon l'utilisateur choisit dans la liste
+    const rarities = card.printingId ? await printingRarities(GAME, card.printingId) : []
+    const rarity = rarities.length === 1 ? rarities[0]! : null
+    const firstEdition = card.firstEdition || recentFirstEdition.includes(card.cardId)
     const entryId = await addCard({
       game: GAME,
       cardId: card.cardId,
       printingId: card.printingId,
       // langue lue dans le code d'impression, sinon la langue par défaut du jeu
       language: card.language ?? undefined,
+      rarity,
+      firstEdition,
     })
-    session.value.unshift({ entryId, ...card })
+    session.value.unshift({
+      entryId,
+      cardId: card.cardId,
+      printingId: card.printingId,
+      name: card.name,
+      language: card.language,
+      firstEdition,
+      rarity,
+      rarities,
+    })
     vibrate()
   } catch {
     toast.add({ title: "Échec de l'ajout", color: 'error' })
   }
+}
+
+async function setRarity(item: ScanSessionEntry, rarity: string) {
+  await updateCard(item.entryId, { rarity })
+  item.rarity = rarity
+}
+
+async function setFirstEdition(item: ScanSessionEntry, value: boolean) {
+  await updateCard(item.entryId, { firstEdition: value })
+  item.firstEdition = value
 }
 
 async function addPending() {
@@ -288,6 +286,7 @@ async function undo(entryId: string) {
 async function processLines(lines: OcrLine[]) {
   const found = await identifyCard(GAME, lines)
   current.value = found
+  rememberFirstEdition(found)
   debug.lines = lines.slice(0, 12).map((l) => l.text)
   debug.result = found ? `${found.name} (${found.via}, ${found.score.toFixed(2)})` : ''
   const stable = stabilizer.push(found)
@@ -303,6 +302,29 @@ async function vibrate() {
   } catch {
     navigator.vibrate?.(50)
   }
+}
+
+// Zone du cadre de visée dans l'image de la caméra, en fractions. La vidéo
+// est affichée en object-cover (agrandie puis rognée) : on refait le calcul
+// inverse. Marge de 15 % : la carte n'est jamais parfaitement dans le cadre.
+function frameCrop() {
+  const v = videoEl.value
+  const f = frameEl.value
+  if (!v || !f || !v.videoWidth || !v.videoHeight) return undefined
+  const vr = v.getBoundingClientRect()
+  const fr = f.getBoundingClientRect()
+  const scale = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight)
+  const offX = (vr.width - v.videoWidth * scale) / 2
+  const offY = (vr.height - v.videoHeight * scale) / 2
+  const m = 0.15
+  const toX = (px: number) => (px - vr.left - offX) / scale / v.videoWidth
+  const toY = (py: number) => (py - vr.top - offY) / scale / v.videoHeight
+  const x0 = Math.max(0, toX(fr.left - fr.width * m))
+  const y0 = Math.max(0, toY(fr.top - fr.height * m))
+  const x1 = Math.min(1, toX(fr.right + fr.width * m))
+  const y1 = Math.min(1, toY(fr.bottom + fr.height * m))
+  if (x1 - x0 < 0.1 || y1 - y0 < 0.1) return undefined
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }
 
 // ── boucle caméra → OCR ──
@@ -325,8 +347,9 @@ let running = false
 async function tick() {
   if (!running) return
   try {
-    // haute résolution : le code d'impression est petit sur la carte
-    const ctx = camera.grab(canvas, 1600)
+    // haute résolution sur la seule zone du cadre : le code d'impression et
+    // la mention « 1st Edition » sont petits sur la carte
+    const ctx = camera.grab(canvas, 1600, frameCrop())
     if (ctx) {
       const image = canvas.toDataURL('image/jpeg', 0.9).split(',')[1] ?? ''
       const t0 = performance.now()
@@ -362,6 +385,7 @@ onBeforeUnmount(() => {
   if (timer) clearTimeout(timer)
   camera.stop()
   stabilizer = new ScanStabilizer<Identified>()
+  recentFirstEdition = []
   delete (window as unknown as { __scanFeed?: unknown }).__scanFeed
 })
 </script>
