@@ -17,6 +17,10 @@ const DM_FRAME = [
   { text: 'LOB-EN005', y: 300 },
 ]
 const POT_FRAME = [{ text: 'MP25-EN050', y: 300 }]
+const DM_FR_FRAME = [
+  { text: 'Magicien Sombre', y: 10 },
+  { text: 'LOB-FR005', y: 300 },
+]
 const EMPTY: { text: string }[] = []
 
 async function feed(lines: { text: string; y?: number }[]): Promise<void> {
@@ -81,5 +85,16 @@ describe('Scan de cartes', () => {
     await click('#scan-add-btn')
     await waitForAttr('[data-scan-count]', 'data-scan-count', (v) => v === '2')
     expect(await countOf(`[data-scan-entry="${POT}"]`)).toBe(1)
+    // code anglais → carte ajoutée en anglais
+    expect(await countOf(`[data-scan-entry="${POT}"][data-scan-language="en"]`)).toBe(1)
+  })
+
+  it('la langue vient de la région du code d’impression', async () => {
+    await click('#scan-auto-add') // retour en ajout automatique
+    for (let i = 0; i < 3; i++) await feed(EMPTY)
+    await feed(DM_FR_FRAME)
+    await feed(DM_FR_FRAME)
+    await waitForAttr('[data-scan-count]', 'data-scan-count', (v) => v === '3')
+    expect(await countOf(`[data-scan-entry="${DM_LOB}"][data-scan-language="fr"]`)).toBe(1)
   })
 })

@@ -20,6 +20,39 @@ export interface SetCodeRef {
   set: string // « LOB », « MP24 »…
   number: string // 3 chiffres : « 005 »
   key: string // clé indépendante de la région : « LOB-005 »
+  region: string // « EN », « FR », « F »… ; '' si absente
+  language: string | null // langue de la carte (ids du registre de jeux), null si inconnue
+}
+
+// La région du code d'impression dit dans quelle langue la carte est imprimée
+// (le passcode, lui, est le même dans toutes les langues). Codes actuels à
+// 2 lettres, anciens codes européens à 1 lettre, pas de région = premières
+// impressions nord-américaines (anglais). AE = anglais d'Asie. Les régions
+// sans langue gérée (chinois TC/SC…) renvoient null → langue par défaut.
+const REGION_LANGUAGE: Record<string, string> = {
+  '': 'en',
+  EN: 'en',
+  E: 'en',
+  AE: 'en',
+  FR: 'fr',
+  F: 'fr',
+  FC: 'fr', // français du Canada
+  DE: 'de',
+  G: 'de',
+  IT: 'it',
+  I: 'it',
+  SP: 'es',
+  S: 'es',
+  PT: 'pt',
+  P: 'pt',
+  JP: 'ja',
+  JA: 'ja',
+  KR: 'ko',
+  K: 'ko',
+}
+
+export function regionLanguage(region: string): string | null {
+  return REGION_LANGUAGE[region] ?? null
 }
 
 const DIGIT_FIX: Record<string, string> = {
@@ -40,14 +73,14 @@ export function parseSetCode(raw: string): SetCodeRef | null {
   SET_CODE_RE.lastIndex = 0
   const m = SET_CODE_RE.exec(raw.toUpperCase())
   if (!m) return null
-  return toRef(m[1]!, m[3]!)
+  return toRef(m[1]!, m[2]!, m[3]!)
 }
 
-function toRef(set: string, digits: string): SetCodeRef | null {
+function toRef(set: string, region: string, digits: string): SetCodeRef | null {
   const number = digits.replace(/[OQDILSBZ]/g, (c) => DIGIT_FIX[c]!)
   // un set est fait de lettres (et parfois de chiffres) mais jamais uniquement de chiffres
   if (!/[A-Z]/.test(set)) return null
-  return { set, number, key: `${set}-${number}` }
+  return { set, number, key: `${set}-${number}`, region, language: regionLanguage(region) }
 }
 
 // tous les codes d'impression plausibles trouvés dans les lignes OCR
@@ -58,7 +91,7 @@ export function extractSetCodes(lines: OcrLine[]): SetCodeRef[] {
     SET_CODE_RE.lastIndex = 0
     let m: RegExpExecArray | null
     while ((m = SET_CODE_RE.exec(text))) {
-      const ref = toRef(m[1]!, m[3]!)
+      const ref = toRef(m[1]!, m[2]!, m[3]!)
       if (ref) out.set(ref.key, ref)
     }
   }

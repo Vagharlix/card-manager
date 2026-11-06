@@ -17,6 +17,7 @@ const {
   parseSetCode,
   extractSetCodes,
   extractPasscodes,
+  regionLanguage,
   nameSimilarity,
   ScanStabilizer,
   identifyCard,
@@ -39,6 +40,31 @@ describe('codes d’impression', () => {
     ['LOB-S005', 'LOB-005'], // ancien code espagnol : la région S n'est pas un chiffre
   ])('%s → %s', (raw, key) => {
     expect(parseSetCode(raw)?.key).toBe(key)
+  })
+
+  it.each([
+    ['LOB-EN005', 'EN', 'en'],
+    ['LOB-005', '', 'en'], // premières impressions nord-américaines
+    ['LOB-FR005', 'FR', 'fr'],
+    ['LOB-F005', 'F', 'fr'],
+    ['LOB-DE005', 'DE', 'de'],
+    ['LOB-G005', 'G', 'de'],
+    ['LOB-IT005', 'IT', 'it'],
+    ['LOB-I005', 'I', 'it'], // I = Italie, pas un 1 mal lu
+    ['LOB-SP005', 'SP', 'es'],
+    ['LOB-S005', 'S', 'es'],
+    ['LOB-PT005', 'PT', 'pt'],
+    ['LOB-JP005', 'JP', 'ja'],
+    ['LOB-KR005', 'KR', 'ko'],
+    ['RA01-AE012', 'AE', 'en'],
+    ['LOB-ENOO5', 'EN', 'en'], // région intacte malgré les O de la partie numérique
+  ])('%s → région %s, langue %s', (raw, region, language) => {
+    expect(parseSetCode(raw)).toMatchObject({ region, language })
+  })
+
+  it('région sans langue gérée → null (langue par défaut à l’ajout)', () => {
+    expect(regionLanguage('TC')).toBeNull()
+    expect(parseSetCode('LOB-TC005')?.language).toBeNull()
   })
 
   it.each(['hello', '123-456', 'ATK/2500 DEF/2100', '4007'])('ignore « %s »', (raw) => {
@@ -178,12 +204,18 @@ describe('identification (YGO)', () => {
 
   it('par code d’impression : carte et impression exactes', async () => {
     const r = await identifyCard('ygo', [{ text: 'Pot of Gred' }, { text: 'LOB-EN119' }])
-    expect(r).toMatchObject({ cardId: POT, printingId: 'LOB-EN119', via: 'setcode', score: 1 })
+    expect(r).toMatchObject({
+      cardId: POT,
+      printingId: 'LOB-EN119',
+      via: 'setcode',
+      score: 1,
+      language: 'en',
+    })
   })
 
   it('code d’une édition non anglaise → impression anglaise correspondante', async () => {
     const r = await identifyCard('ygo', [{ text: 'LOB-FR005' }])
-    expect(r).toMatchObject({ cardId: DM, printingId: 'LOB-EN005' })
+    expect(r).toMatchObject({ cardId: DM, printingId: 'LOB-EN005', language: 'fr' })
   })
 
   it('sans code lisible : par le nom, même abîmé, vers l’artwork principal', async () => {
@@ -202,7 +234,14 @@ describe('identification (YGO)', () => {
 
   it('sans code d’impression : par le passcode imprimé → l’artwork exact', async () => {
     const r = await identifyCard('ygo', [{ text: 'Dark Magicien' }, { text: '36996508' }])
-    expect(r).toMatchObject({ cardId: DM_ALT, printingId: null, via: 'passcode', score: 1 })
+    // le passcode est le même dans toutes les langues : pas de langue déduite
+    expect(r).toMatchObject({
+      cardId: DM_ALT,
+      printingId: null,
+      via: 'passcode',
+      score: 1,
+      language: null,
+    })
   })
 
   it('rien de reconnaissable → null', async () => {
