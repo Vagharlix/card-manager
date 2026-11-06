@@ -7,7 +7,7 @@
           <h2 class="font-medium">Decks</h2>
           <p class="text-xs text-muted">{{ decks.length }} deck{{ decks.length > 1 ? 's' : '' }}</p>
         </div>
-        <div class="flex-1" />
+        <div v-if="!isMobile" class="flex-1" />
         <UButton
           id="deck-create-btn"
           icon="i-lucide-plus"
