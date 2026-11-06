@@ -54,7 +54,8 @@
         :data-scan-current="current?.cardId ?? ''"
       >
         <template v-if="current">
-          {{ current.name }}<span v-if="current.printingId"> · {{ current.printingId }}</span>
+          {{ current.name }}<span v-if="current.printingId"> · {{ current.printingId }}</span
+          ><span v-if="current.language"> · {{ languageLabel(current.language) }}</span>
         </template>
         <template v-else>Place une carte dans le cadre</template>
       </div>
@@ -113,6 +114,7 @@
           v-for="item in session"
           :key="item.entryId"
           :data-scan-entry="item.cardId"
+          :data-scan-language="item.language ?? ''"
           class="flex items-center gap-3 p-2 rounded-xl bg-elevated"
         >
           <div class="w-9 shrink-0 rounded overflow-hidden">
@@ -120,7 +122,10 @@
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold truncate">{{ item.name }}</p>
-            <p class="text-xs text-muted">{{ item.printingId ?? 'impression non détectée' }}</p>
+            <p class="text-xs text-muted">
+              {{ item.printingId ?? 'impression non détectée'
+              }}<template v-if="item.language"> · {{ languageLabel(item.language) }}</template>
+            </p>
           </div>
           <UButton
             :data-scan-undo="item.entryId"
@@ -175,6 +180,7 @@
             v-for="item in session"
             :key="item.entryId"
             :data-scan-entry="item.cardId"
+            :data-scan-language="item.language ?? ''"
             class="flex items-center gap-3 p-2 rounded-lg bg-elevated"
           >
             <div class="w-8 shrink-0 rounded overflow-hidden">
@@ -182,7 +188,10 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm truncate">{{ item.name }}</p>
-              <p class="text-xs text-muted">{{ item.printingId ?? 'impression non détectée' }}</p>
+              <p class="text-xs text-muted">
+                {{ item.printingId ?? 'impression non détectée'
+                }}<template v-if="item.language"> · {{ languageLabel(item.language) }}</template>
+              </p>
             </div>
             <UButton
               :data-scan-undo="item.entryId"
@@ -203,6 +212,7 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
 import { addCard, removeCard } from '~/services/collection'
+import { gameDef } from '~/services/game'
 import { identifyCard, ScanStabilizer, type Identified, type OcrLine } from '~/services/scan'
 
 // ============================================================
@@ -216,6 +226,10 @@ definePageMeta({ fullscreen: true }) // mobile : ni onglets ni marge du haut
 
 const GAME = 'ygo'
 const android = isAndroid()
+const languages = gameDef(GAME).languages
+function languageLabel(id: string) {
+  return languages.find((l) => l.id === id)?.label ?? id
+}
 const router = useRouter()
 
 function close() {
@@ -237,6 +251,7 @@ interface SessionItem {
   cardId: string
   printingId: string | null
   name: string
+  language: string | null
 }
 const session = ref<SessionItem[]>([])
 let stabilizer = new ScanStabilizer<Identified>()
@@ -247,6 +262,8 @@ async function add(card: Identified) {
       game: GAME,
       cardId: card.cardId,
       printingId: card.printingId,
+      // langue lue dans le code d'impression, sinon la langue par défaut du jeu
+      language: card.language ?? undefined,
     })
     session.value.unshift({ entryId, ...card })
     vibrate()

@@ -24,6 +24,7 @@ export {
   extractSetCodes,
   nameSimilarity,
   parseSetCode,
+  regionLanguage,
 } from './text'
 export type { OcrLine, SetCodeRef } from './text'
 
@@ -33,6 +34,9 @@ export interface Identified {
   name: string
   via: 'setcode' | 'passcode' | 'name'
   score: number // 1 pour un code d'impression, similarité du nom sinon
+  // langue lue dans la région du code d'impression (« LOB-FR005 » → fr) ;
+  // null si pas de code lu (passcode et nom sont les mêmes dans toutes les langues)
+  language: string | null
 }
 
 export const NAME_THRESHOLD = 0.8
@@ -77,6 +81,7 @@ async function bySetCode(lines: OcrLine[]): Promise<Identified | null> {
         name: best.name,
         via: 'setcode',
         score: 1,
+        language: code.language,
       }
     }
   }
@@ -94,7 +99,14 @@ async function byPasscode(lines: OcrLine[]): Promise<Identified | null> {
   )
   const hit = rows[0]
   return hit
-    ? { cardId: hit.id, printingId: null, name: hit.name, via: 'passcode', score: 1 }
+    ? {
+        cardId: hit.id,
+        printingId: null,
+        name: hit.name,
+        via: 'passcode',
+        score: 1,
+        language: null,
+      }
     : null
 }
 
@@ -122,7 +134,14 @@ async function byName(lines: OcrLine[]): Promise<Identified | null> {
       // à score égal, l'artwork principal (sans alias) l'emporte
       const better = !best || score > best.score || (score === best.score && r.alias === null)
       if (score >= NAME_THRESHOLD && better) {
-        best = { cardId: r.alias ?? r.id, printingId: null, name: r.name, via: 'name', score }
+        best = {
+          cardId: r.alias ?? r.id,
+          printingId: null,
+          name: r.name,
+          via: 'name',
+          score,
+          language: null,
+        }
       }
     }
   }
