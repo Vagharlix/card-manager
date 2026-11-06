@@ -23,6 +23,7 @@ const DEFAULTS = {
   default_condition: 'NM', // legacy GLOBAL key — superseded by per-game
   default_language: 'en', //  keys below; kept only for back-compat
   image_cache_limit_mb: '200',
+  share_owner_name: '', // nom affiché aux joueurs avec qui on partage sa collection
 } satisfies Record<string, string>
 
 let cache: Record<string, string> | null = null
@@ -81,6 +82,14 @@ export async function setFavoriteGame(game: string): Promise<void> {
 
 export async function setShowGamePicker(show: boolean): Promise<void> {
   await setSetting('show_game_picker', show ? 'true' : 'false')
+}
+
+export async function getShareOwnerName(): Promise<string> {
+  return (await loadAll())['share_owner_name'] ?? ''
+}
+
+export async function setShareOwnerName(name: string): Promise<void> {
+  await setSetting('share_owner_name', name.trim())
 }
 
 export async function setImageCacheLimitMb(mb: number): Promise<void> {
