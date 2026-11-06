@@ -34,4 +34,6 @@ tauri-plugin-barcode-scanner = "~2.4"
 tauri-plugin-card-scanner = { path = "plugins/card-scanner" }
 # marges système (bord à bord Android 15+) : plugin local
 tauri-plugin-safe-area = { path = "plugins/safe-area" }
+# connexion Google native (synchro Drive) : plugin local
+tauri-plugin-google-auth = { path = "plugins/google-auth" }
 

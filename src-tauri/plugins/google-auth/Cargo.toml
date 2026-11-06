@@ -1,0 +1,12 @@
+[package]
+name = "tauri-plugin-google-auth"
+version = "0.1.0"
+description = "Connexion Google native Android (Identity AuthorizationClient) pour la synchro Drive"
+edition = "2021"
+links = "tauri-plugin-google-auth"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = "2"

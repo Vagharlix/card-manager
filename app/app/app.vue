@@ -2,7 +2,8 @@
   <!-- mobile : notifications en haut, pour ne pas couvrir les onglets -->
   <UApp :toaster="toaster">
     <NuxtLayout>
-      <NuxtPage />
+      <!-- après une synchro qui a modifié la base, la page est remontée (relit ses données) -->
+      <NuxtPage :page-key="pageKey" />
     </NuxtLayout>
     <Transition name="fade">
       <div
@@ -37,6 +38,8 @@ import { getGlobalSettings } from '~/services/settings'
 import { pruneImageCache } from '~/services/imageCache'
 
 const { isMobile } = useResponsive()
+const deviceSync = useDeviceSync()
+const pageKey = (r: { fullPath: string }) => `${r.fullPath}#${deviceSync.epoch.value}`
 // mobile : notifications en haut et brèves (elles passent sur le titre de la page)
 const toaster = computed(() =>
   isMobile.value
@@ -69,6 +72,8 @@ async function pruneCache() {
 onMounted(async () => {
   await runSync()
   await pruneCache()
+  // synchro entre appareils (si un compte Google est connecté), sans bruit
+  if (import.meta.env.VITE_TEST_MODE !== 'true') await deviceSync.run(true)
 })
 </script>
 
