@@ -1,5 +1,6 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod cache_store;
 mod image_cache;
 
 fn db_name(name: &str) -> String {
@@ -37,6 +38,18 @@ pub fn run() {
             sql: include_str!("../migrations/user/003_collection_printing.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "detach deleted collection entries",
+            sql: include_str!("../migrations/user/004_detach_deleted_collection.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "binder slots: several copies of one entry",
+            sql: include_str!("../migrations/user/005_binder_slots_multi_copy.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ygo_migrations = vec![Migration {
@@ -54,7 +67,12 @@ pub fn run() {
                 .add_migrations(&db_name("cards-ygo"), ygo_migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![image_cache::cache_card_image])
+        .invoke_handler(tauri::generate_handler![
+            image_cache::cache_card_image,
+            image_cache::image_cache_size,
+            image_cache::clear_image_cache,
+            image_cache::prune_image_cache
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -240,14 +240,30 @@ export async function getDeckContents(deckId: string, game = 'ygo'): Promise<Dec
   )
   const metaById = new Map(meta.map((m) => [m.id, m]))
 
-  // owned quantity per card (sum across collection entries)
+  // owned quantity per LOGICAL card (all artworks sharing the alias root),
+  // like deck ↔ deckbox ranging: owning any artwork counts.
+  const variants = await ygo.select<{ id: string; root: string }[]>(
+    `SELECT c.id, COALESCE(d.alias, c.id) AS root
+     FROM cards c JOIN ygo_details d ON d.card_id = c.id
+     WHERE COALESCE(d.alias, c.id) IN (
+       SELECT COALESCE(d2.alias, d2.card_id) FROM ygo_details d2 WHERE d2.card_id IN (${ph})
+     )`,
+    ids
+  )
+  const rootById = new Map(variants.map((v) => [v.id, v.root]))
+  const variantIds = variants.length ? variants.map((v) => v.id) : ids
+  const vph = variantIds.map(() => '?').join(', ')
   const owned = await user.select<{ card_id: string; n: number }[]>(
     `SELECT card_id, SUM(quantity) AS n FROM collection
-     WHERE deleted_at IS NULL AND game = ? AND card_id IN (${ph})
+     WHERE deleted_at IS NULL AND game = ? AND card_id IN (${vph})
      GROUP BY card_id`,
-    [game, ...ids]
+    [game, ...variantIds]
   )
-  const ownedById = new Map(owned.map((o) => [o.card_id, o.n]))
+  const ownedByRoot = new Map<string, number>()
+  for (const o of owned) {
+    const root = rootById.get(o.card_id) ?? o.card_id
+    ownedByRoot.set(root, (ownedByRoot.get(root) ?? 0) + o.n)
+  }
 
   const result: DeckContents = { main: [], extra: [], side: [] }
   for (const r of rows) {
@@ -257,7 +273,7 @@ export async function getDeckContents(deckId: string, game = 'ygo'): Promise<Dec
       name: m?.name ?? r.card_id,
       type: m?.type ?? null,
       quantity: r.quantity,
-      owned: ownedById.get(r.card_id) ?? 0,
+      owned: ownedByRoot.get(rootById.get(r.card_id) ?? r.card_id) ?? 0,
     }
     if (r.board === 'main') result.main.push(card)
     else if (r.board === 'extra') result.extra.push(card)

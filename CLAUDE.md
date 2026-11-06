@@ -12,7 +12,7 @@
 - **Dépôt** : branche d'intégration `dev`, commits conventionnels. Claude travaille sur des branches `claude/*`, committe et pousse lui-même, ouvre une PR vers `dev` ; **Félix relit et merge**. Jamais de push direct sur `dev`.
 - **Langue** : répondre **en français**.
 - **OS dev** : CachyOS (Arch). Bases dans `~/.config/com.card-manager.app/`.
-- **CI** : GitHub Actions, `checks` (typecheck + Vitest, ~1 min) et `e2e` (9 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
+- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (10 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
 
 ---
 
@@ -37,6 +37,8 @@ cd app && pnpm --ignore-workspace typecheck
 cd app && pnpm --ignore-workspace test:unit
 # en mode watch
 cd app && npx vitest
+# Tests Rust des modules sans dépendance Tauri (pas besoin des libs système)
+rustc --edition 2021 --test src-tauri/src/cache_store.rs -o /tmp/cache_store_test && /tmp/cache_store_test
 
 # Lancer UN seul spec (utile en debug)
 cd e2e && npx wdio run ./wdio.conf.ts --spec ./specs/deck-range.spec.ts
@@ -67,16 +69,19 @@ card-manager/
 ├── CLAUDE.md                 # ce fichier
 ├── .claude/                  # settings.json + hooks/session-start.sh (sessions cloud : install deps app/)
 ├── src-tauri/
-│   ├── src/lib.rs            # db_name() (test/dev/prod) + enregistrement migrations
+│   ├── src/lib.rs            # db_name() (test/dev/prod) + enregistrement migrations + commandes
+│   ├── src/image_cache.rs    # commandes cache d'images (télécharger, taille, vider, élaguer)
+│   ├── src/cache_store.rs    # logique disque du cache (std seul, testée par rustc --test)
 │   ├── build.rs              # rerun-if-env-changed=VITE_TEST_MODE
 │   └── migrations/
-│       ├── user/001_initial.sql, 002_settings.sql, 003_collection_printing.sql
+│       ├── user/001_initial.sql, 002_settings.sql, 003_collection_printing.sql,
+│       │        004_detach_deleted_collection.sql, 005_binder_slots_multi_copy.sql
 │       └── ygo/001_initial.sql
 ├── app/                      # racine de config Nuxt (package.json "app", scripts generate/dev/build)
 │   ├── pnpm-lock.yaml
 │   ├── vitest.config.ts      # alias ~ -> app/app, env node, include test/unit/**
 │   ├── test/unit/            # tests Vitest (HORS de app/app, donc pas vus par Nuxt)
-│   │   ├── deckLink.test.ts
+│   │   ├── deckLink, collection, decks, containers (.test.ts)
 │   │   └── helpers/testDb.ts, seed.ts
 │   └── app/                  # ⚠️ DOUBLE app/ : LE CODE SOURCE RÉEL est ici
 │       ├── pages/            # decks/[id].vue, decks/index.vue, collection.vue, index.vue,
@@ -86,6 +91,7 @@ card-manager/
 │       ├── composables/useSettings.ts   # store réactif global des settings
 │       ├── services/deckLink.ts
 │       ├── services/settings.ts, services/game/ (registre par jeu : types/common/ygo/index)
+│       ├── services/imageCache.ts      # wrappers des commandes Rust du cache d'images
 │       ├── utils/db-names.ts
 │       ├── plugins/test-reset.client.ts # helpers de test (VITE_TEST_MODE)
 │       └── app.vue
@@ -130,7 +136,7 @@ Deux bases, nom suffixé selon le mode.
   - `ygo_details.alias` → passcode « principal » d'une carte à artworks multiples.
   - `ygo_details.banlist_tcg/ocg/md` ∈ {`Forbidden`,`Limited`,`Semi-Limited`,NULL}.
   - Peuplée par une vraie **sync réseau YGOPRODeck** déclenchée dans l'app.
-- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection).
+- **`user.db`** — collection, containers, decks, settings. Migrations `user/001` (collection, containers, decks, deck_cards, deckbox_cards, deckbox_decks, binder_slots, bulk_box_contents, *_details, vue `card_locations`), `002` (settings k/v + seed), `003` (`printing_id` sur collection), `004` (nettoyage des assignations d'entrées soft-deleted), `005` (`binder_slots` reconstruite sans `UNIQUE(collection_id)` : plusieurs cases par pile ; vue `card_locations` recréée).
 
 **Choix du nom** (`app/app/utils/db-names.ts`, `dbName(base)`) : `.test.db` si `VITE_TEST_MODE==='true'`, `.dev.db` si `import.meta.env.DEV`, sinon `.db`. Exporte `DB_NAMES = {user, ygo}`.
 **Côté Rust** (`src-tauri/src/lib.rs`, `db_name()`) : `option_env!("VITE_TEST_MODE")==Some("true")` → `.test.db` ; `cfg!(debug_assertions)` → `.dev.db` ; sinon `.db`.
@@ -149,6 +155,9 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 - `services/game/` : registre par jeu (`GameDefinition` : conditions, langues, défauts). Les couches génériques interrogent le registre, jamais de valeurs YGO en dur.
 - `services/settings.ts` (DB + cache) + `composables/useSettings.ts` (store réactif `createGlobalState`, écriture directe, `ensureLoaded()` au boot).
 - Défauts d'ajout en collection résolus par jeu (`services/collection.ts`) ; `settings.vue` branchée ; `cardDetail.vue` consomme le registre.
+- **Stockage** : taille du cache affichée, vidage, limite appliquée (LRU par mtime : un fichier relu est « touché ») à l'enregistrement et à chaque lancement (`app.vue` → `pruneImageCache`). Après suppression de fichiers, `forgetCachedImages()` vide les URLs résolues en mémoire (`useCardImage`).
+- **Synchronisation** : version locale affichée, « Vérifier les mises à jour » et « Forcer la resynchronisation » (`syncYgo({ force: true })`, progression dans l'overlay d'`app.vue`).
+- **Reste** : `favoriteGame` / `showGamePicker` sont stockés et éditables mais rien ne les consomme encore (pas de sélecteur de jeu tant qu'il n'y a qu'un jeu).
 
 ### Mode test (committé)
 - `src-tauri/src/lib.rs` : `db_name()` gère le mode test (a corrigé au passage un bug prod : migrations enregistrées pour le mauvais nom de base en build test → table settings manquante).
@@ -158,7 +167,7 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
   - `window.__seedOwned(cardId, qty)` — INSERT direct d'une ligne `collection` pour un `card_id` exact ; lit `PRAGMA table_info(collection)` pour s'adapter aux colonnes (condition/language/printing_id/timestamps si présents ; NOT NULL sans défaut → valeur de secours).
 - `app/app/app.vue` : `runSync()` retourne tôt si `VITE_TEST_MODE`.
 
-### E2E — 9 parcours (local + CI), dans `e2e/specs/`
+### E2E — 10 parcours (local + CI), dans `e2e/specs/`
 1. `smoke` — header, nav.
 2. `collection-add` — `/search` → Dark Magician → `#card-detail` → `#btn-quick-add` → `data-owned-count >= 1`.
 3. `container-crud` — créer deckbox → vérifier → renommer → supprimer.
@@ -168,6 +177,7 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 7. `deck-build` — `#deck-search-input` (watchDebounced 300 ms) → `.deck-search-result` → board Main `data-quantity=1` → menu `add`→2 → `remove`×2 → disparu.
 8. `deck-range` — créer deck → ajouter 1er résultat → lire son `data-deck-card-id` → `__seedOwned(thatId)` → deckbox → ranger (combobox USelect) → `data-plan-total >= 1` → confirmer → carte physiquement dans la deckbox.
 9. `deck-banlist` — alerte banlist via passage du format casual → tcg (`#deck-format-select`, `data-flagged` sur `.deck-board-card`, `data-banlist-alert`).
+10. `settings-storage` — `/settings` → `[data-section=storage]` → `#image-cache-size[data-cache-bytes]` numérique → `#image-cache-clear` → `0` (vérifie que les commandes Rust sont enregistrées).
 
 **Leçon deck-range** (⚠️ réutilisable) : « Dark Magician » a plusieurs artworks ; l'ordre des résultats diffère entre `/search` et la sidebar du deck → la carte possédée ≠ la carte du deck → `owned=0`. Résolu en possédant **le `card_id` exact** de la carte du deck via `__seedOwned`. Tout test qui a besoin d'un état de collection précis doit faire pareil, ne pas dépendre de l'ordre de recherche.
 
@@ -180,11 +190,15 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 `elementSendKeys` KO → `typeInto` (setter prototype + dispatch input/change). Actions API KO → pas de scroll/clic natif. Clics natifs interceptés → `click` dispatche une séquence pointer/mouse. `free(): corrupted unsorted chunks` à la fermeture = inoffensif. Éléments `opacity-0 group-hover` → le clic JS marche quand même.
 
 ### `data-*` / `id` posés (committés)
-`cardDetail.vue` (#card-detail, #card-detail-owned[data-owned-count], #btn-quick-add, #btn-range-card) · `cardThumb.vue` (.card-thumb[data-card-id]) · `search.vue` (#search-card-input, #search-results) · `containerCreateModal.vue` (data-type, .container-type-btn, #container-name-input, #container-{pages,rows,cols,capacity}-input, #container-create-confirm) · `containerTree.vue` (#container-create-btn, .container-item[data-container-id/name], data-menu-trigger, #item data-menu-action rename/edit/delete, #container-rename-input/confirm, #container-delete-confirm ; non rangées = data-container-id="__unranged__") · `containerPicker.vue` (.picker-container[data-picker-container-id], #picker-qty-input, #picker-confirm) · `collection.vue` (#container-content, .container-card[data-content-card-id], [data-unassign], #unassign-confirm) · `binderView.vue` (.binder-slot[data-slot-page/row/col/filled/card-id], [data-slot-clear], #binder-prev/next-page, data-binder-page) · `unrangedCardPicker.vue` (.unranged-picker-card[data-picker-card-id], #unranged-picker-search) · `decks/index.vue` (#deck-create-btn, #deck-create-empty, #deck-name-input, #deck-create-confirm, #deck-rename-input/confirm, #deck-delete-confirm) · `DeckCard.vue` (.deck-card[data-deck-id/name], data-menu-trigger, #item data-menu-action rename/range/delete) · `DeckBoard.vue` (prop board → :data-board, .deck-board-card[data-deck-card-id/data-quantity], data-board-count, #item data-menu-action info/add/remove/move, data-menu-trigger, [data-move]) · `decks/[id].vue` (#deck-search-input, .deck-search-result[data-search-card-id], data-total-cards, boards main/extra/side, #deck-range-btn, **data-banlist-alert**) · `DeckboxRangeModal.vue` (#deck-range-select, #item data-select-value, #deck-range-confirm, data-range-modal-body, data-range-plan, data-plan-total).
+`cardDetail.vue` (#card-detail, #card-detail-owned[data-owned-count], #btn-quick-add, #btn-range-card) · `cardThumb.vue` (.card-thumb[data-card-id]) · `search.vue` (#search-card-input, #search-results) · `containerCreateModal.vue` (data-type, .container-type-btn, #container-name-input, #container-{pages,rows,cols,capacity}-input, #container-create-confirm) · `containerTree.vue` (#container-create-btn, .container-item[data-container-id/name], data-menu-trigger, #item data-menu-action rename/edit/delete, #container-rename-input/confirm, #container-delete-confirm ; non rangées = data-container-id="__unranged__") · `containerPicker.vue` (.picker-container[data-picker-container-id], #picker-qty-input, #picker-confirm) · `collection.vue` (#container-content, .container-card[data-content-card-id], [data-unassign], #unassign-confirm) · `binderView.vue` (.binder-slot[data-slot-page/row/col/filled/card-id], [data-slot-clear], #binder-prev/next-page, data-binder-page) · `unrangedCardPicker.vue` (.unranged-picker-card[data-picker-card-id], #unranged-picker-search) · `decks/index.vue` (#deck-create-btn, #deck-create-empty, #deck-name-input, #deck-create-confirm, #deck-rename-input/confirm, #deck-delete-confirm) · `DeckCard.vue` (.deck-card[data-deck-id/name], data-menu-trigger, #item data-menu-action rename/range/delete) · `DeckBoard.vue` (prop board → :data-board, .deck-board-card[data-deck-card-id/data-quantity], data-board-count, #item data-menu-action info/add/remove/move, data-menu-trigger, [data-move]) · `decks/[id].vue` (#deck-search-input, .deck-search-result[data-search-card-id], data-total-cards, boards main/extra/side, #deck-range-btn, **data-banlist-alert**) · `DeckboxRangeModal.vue` (#deck-range-select, #item data-select-value, #deck-range-confirm, data-range-modal-body, data-range-plan, data-plan-total) · `settings.vue` (nav [data-section], #image-cache-size[data-cache-bytes], #image-cache-clear, #sync-check-btn, #sync-force-btn, [data-sync-version]).
 
 ### Tests unitaires Vitest (`app/test/unit/`)
 - **Approche** : vrai SQLite en mémoire via `node:sqlite` (intégré à Node 22, pas de module natif), schéma = **les vraies migrations** `src-tauri/migrations/{user,ygo}` appliquées dans l'ordre → aucune dérive possible avec la prod. `useDatabase` est remplacé par `vi.mock('~/composables/useDatabase')` → **aucun refactor des services nécessaire**.
 - `helpers/testDb.ts` : `TestDatabase` imite `select`/`execute` de plugin-sql (params `?`), active `foreign_keys`. `helpers/seed.ts` : builders (`card`, `owned`, `deck`, `deckCard`, `deckbox`, `binder`, `bulkBox`, `inDeckbox/inBinder/inBulk`, `softDelete*`, `linkDeck`) + lectures (`contentsOf`, `deckboxesOfDeck`, `capacityOf`).
+- `helpers/testDb.ts` accepte `{ upTo: n }` + `applyMigration(n)` pour tester une migration sur des données existantes.
+- `collection.test.ts` : défauts par jeu à l'ajout, `removeCard` détache des conteneurs, compteurs de conteneurs, `updateCard` refuse une quantité < copies rangées, migration 004.
+- `decks.test.ts` : placement auto (dont « XYZ Monster » → extra), limites alias/banlist par format, move, validation, possédées par carte logique, filtres de recherche.
+- `containers.test.ts` : classeur multi-copies, classeur plein, capacité deckbox, non rangées, retrait, regroupement artworks, migration 005 (orphelines écartées, vue OK).
 - `deckLink.test.ts` : 26 cas (plan + apply) : alias/boards fusionnés, déjà là, partiel, non rangées prioritaires, multi-sources ordonnées par nom, conteneur supprimé, isolation par jeu, purge (alt art conservée), capacité (NULL / purge déduite / dépassement + relève), relink unique, idempotence, pas de sur-assignation, entrées de collection soft-deleted.
 - **Bug corrigé grâce à ces tests** : `removeCard` (soft delete) laisse les lignes d'assignation ; `deckLink` les comptait (alreadyHere/currentInBox/purge) et pouvait déplacer ces copies fantômes. Toutes les requêtes d'assignation joignent maintenant `collection ... AND c.deleted_at IS NULL`. Résolution alias/nom factorisée dans `rootsOf()`.
 - Pour tester un autre service : même schéma `vi.hoisted` + `vi.mock` + `createTestDatabases()` / `createSeeder()` (cf. en-tête de `deckLink.test.ts`).
@@ -193,10 +207,11 @@ Phases 1–4 ✅ · Phase 6 ✅ · Phase 7 ✅ · **Phase 10 (Testing) ✅** (E2
 `e2e/fixtures/cards-ygo.test.db` (~244 Ko) : **54 cartes** (~20 noms classiques + artworks alt + alias), 663 printings, **1 Forbidden (Pot of Greed, passcode 55144522)**, FTS « Dark » = 20, zéro violation FK. Régénérable via `build-fixture.sh` (sélection par NOM, inclut alt arts + alias, lookups entières, rebuild FTS, check FK, aplatit le WAL). `.gitignore` a une exception `!e2e/fixtures/cards-ygo.test.db`.
 
 ### CI checks (`.github/workflows/checks.yml`)
-`ubuntu-22.04`, push `dev` + PR, **Node 22** (node:sqlite), pnpm v9, `pnpm install --ignore-workspace --frozen-lockfile` dans `app/` → `typecheck` → `test:unit`. Pas de build Tauri.
+`ubuntu-22.04`, push `dev` + PR, **Node 22** (node:sqlite), pnpm v9, `pnpm install --ignore-workspace --frozen-lockfile` dans `app/` → `typecheck` → `test:unit` → tests Rust std-only (`rustc --test src-tauri/src/cache_store.rs`). Pas de build Tauri.
 
 ### Sessions Claude Code cloud
-`.claude/hooks/session-start.sh` (uniquement si `CLAUDE_CODE_REMOTE=true`) installe les deps de `app/` ; ne réinstalle que si `package.json`/`pnpm-lock.yaml`/le script changent. Typecheck, test:unit et generate tournent dans le conteneur ; l'E2E non (pas de WebKit/tauri-driver) → s'appuyer sur la CI de la PR.
+- `.claude/hooks/session-start.sh` (uniquement si `CLAUDE_CODE_REMOTE=true`) installe les deps de `app/` ; ne réinstalle que si `package.json`/`pnpm-lock.yaml`/le script changent.
+- **Environnement cloud `card-manager`** (personnel, créé nov. 2026) : son script d'installation ajoute WebKitGTK, `webkit2gtk-driver`, `xvfb`, `tauri-driver` et les deps des trois `package.json`. Une session sur cet environnement peut lancer **tout** : `cargo check`, typecheck, Vitest, et l'E2E complet (`cd e2e && xvfb-run -a npm test`, ~4 min avec build). Sur l'environnement Default, l'E2E n'est pas disponible → s'appuyer sur la CI de la PR.
 
 ### Nettoyage (nov. 2026)
 - 59 erreurs vue-tsc corrigées, dont un vrai bug : `cardDetail.vue` référençait `CONDITIONS`/`LANGUAGES` supprimés (selects État/Langue vides) → `conditionItems`/`languageItems`.
@@ -223,9 +238,16 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 ### ✅ Tâche 1 — Spec E2E banlist : faite (`deck-banlist.spec.ts`).
 ### ✅ Tâche 2 — Vitest sur `deckLink.ts` : fait (cf. §5 « Tests unitaires »).
 
+### ✅ Soft delete de collection corrigé à la racine
+`removeCard` supprime les assignations de l'entrée (deckbox/binder/bulk) avant le soft delete ; `updateCard` refuse une quantité inférieure aux copies rangées (`QUANTITY_BELOW_ASSIGNED`, toast dédié dans `cardDetail.vue`) ; migration `004` nettoie les fantômes existants. Les filtres `deleted_at` de `deckLink` restent en défense.
+
+### ✅ Bugs corrigés en écrivant les tests (nov. 2026)
+- Monstres Xyz placés dans le Main Deck (YGOPRODeck écrit « XYZ Monster ») + filtre « Xyz » jamais proposé → comparaisons insensibles à la casse.
+- Ranger 2 copies d'une même pile dans un classeur plantait (`UNIQUE(collection_id)`) → migration 005.
+- Vue deck : « possédées » compté par artwork exact → par carte logique (comme le rangement).
+
 ### ▶ Prochaines pistes de tests unitaires
-`services/containers.ts` (assign/unassign, binder slots, compteurs), `services/decks.ts`, `services/collection.ts` (défauts par jeu via settings), `services/settings.ts`. Réutiliser `test/unit/helpers`.
-⚠️ Vérifier ailleurs le même piège soft delete que deckLink : toute requête sur `deckbox_cards`/`binder_slots`/`bulk_box_contents` doit ignorer les entrées `collection.deleted_at IS NOT NULL` (ou `removeCard` doit détacher les assignations).
+`services/settings.ts`, `services/search/ygo.ts` (requêtes FTS/filtres), `services/card/detail.ts`. Réutiliser `test/unit/helpers`.
 
 ### ▶ Tâche 3 — Protection de branche (ops, optionnel)
 Bloquer le merge des PR vers `dev` tant que les checks `e2e` et `checks` ne sont pas verts : Settings → Branches → Require status checks → cocher `e2e` et `checks` (n'apparaissent qu'après un 1er run). Réserve : build Tauri ~5-10 min/PR.
@@ -258,5 +280,7 @@ Bloquer le merge des PR vers `dev` tant que les checks `e2e` et `checks` ne sont
 - Asserter sur du texte d'UI → casse en multi-langue. (§3.2)
 - Multi-artwork : « 1er résultat » instable entre `/search` et sidebar deck. (§5 deck-range, §6 Tâche 1)
 - Double `app/` et casing des composants. (§2)
-- Soft delete de `collection` : les assignations restent → filtrer `c.deleted_at IS NULL` dans toute requête d'assignation. (§5 Tests unitaires)
+- Types YGOPRODeck en casse variable (« XYZ Monster ») : toujours comparer en minuscules.
+- Contrainte à retirer en SQLite = reconstruire la table dans une migration (et supprimer/recréer les vues qui en dépendent, sinon le RENAME échoue). Recopier en filtrant les orphelines (anciennes bases sans foreign_keys).
+- Soft delete de `collection` : passer par `removeCard` (qui détache des conteneurs), jamais un `UPDATE ... deleted_at` direct. (§6)
 - Tests unitaires : Node >= 22 obligatoire (`node:sqlite`) ; le warning « SQLite is an experimental feature » est normal.

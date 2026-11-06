@@ -190,7 +190,14 @@ async function batchInsert(
   }
 }
 
-export async function syncYgo(): Promise<void> {
+// version de la base de cartes locale (null = jamais synchronisée)
+export async function localSyncVersion(): Promise<string | null> {
+  const { ygo } = await useDatabase()
+  return getLocalVersion(ygo)
+}
+
+// force : retélécharge tout même si la version distante est identique
+export async function syncYgo(options: { force?: boolean } = {}): Promise<void> {
   if (isSyncing.value) return
 
   isSyncing.value = true
@@ -205,7 +212,7 @@ export async function syncYgo(): Promise<void> {
       fetchRemoteVersion(),
     ])
 
-    if (localVersion === remoteVersion) {
+    if (!options.force && localVersion === remoteVersion) {
       setProgress(100, 'Already up to date')
       return
     }

@@ -32,6 +32,8 @@
 
 <script setup lang="ts">
 import { syncYgo, syncProgress, syncStatus, syncError, isSyncing } from '~/services/sync'
+import { getGlobalSettings } from '~/services/settings'
+import { pruneImageCache } from '~/services/imageCache'
 
 async function retry() {
   syncError.value = null
@@ -47,7 +49,18 @@ async function runSync() {
   } catch {}
 }
 
-onMounted(runSync)
+// applique la limite du cache d'images (réglage Stockage) à chaque lancement
+async function pruneCache() {
+  try {
+    const { imageCacheLimitMb } = await getGlobalSettings()
+    await pruneImageCache(imageCacheLimitMb)
+  } catch {}
+}
+
+onMounted(async () => {
+  await runSync()
+  await pruneCache()
+})
 </script>
 
 <style scoped>

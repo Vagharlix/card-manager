@@ -19,9 +19,24 @@ export function createSeeder(dbs: TestDatabases) {
   return {
     // ── référence (cards-ygo.db) ──
     /** Une carte YGO ; `alias` = passcode principal si c'est un artwork alternatif. */
-    card(id: string, name: string, alias: string | null = null) {
+    card(
+      id: string,
+      name: string,
+      alias: string | null = null,
+      details: { type?: string; tcg?: string; ocg?: string } = {}
+    ) {
+      if (details.type) run('ygo', `INSERT OR IGNORE INTO card_types VALUES (?)`, details.type)
       run('ygo', `INSERT INTO cards (id, name) VALUES (?, ?)`, id, name)
-      run('ygo', `INSERT INTO ygo_details (card_id, alias) VALUES (?, ?)`, id, alias)
+      run(
+        'ygo',
+        `INSERT INTO ygo_details (card_id, alias, type, banlist_tcg, banlist_ocg)
+         VALUES (?, ?, ?, ?, ?)`,
+        id,
+        alias,
+        details.type ?? null,
+        details.tcg ?? null,
+        details.ocg ?? null
+      )
       return id
     },
 
@@ -47,14 +62,15 @@ export function createSeeder(dbs: TestDatabases) {
     },
 
     // ── decks ──
-    deck(name = 'Deck', game = 'ygo') {
+    deck(name = 'Deck', game = 'ygo', format: string | null = null) {
       const id = nextId('deck')
       const t = ts()
       run(
         'user',
-        `INSERT INTO decks (id, game, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO decks (id, game, format, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
         id,
         game,
+        format,
         name,
         t,
         t

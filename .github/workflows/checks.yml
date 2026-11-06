@@ -1,7 +1,7 @@
 name: Checks
 
-# Vérifications rapides du front : typecheck (vue-tsc) + tests unitaires Vitest
-# (services, SQLite en mémoire). Séparé du job e2e : pas de build Tauri.
+# Vérifications rapides : typecheck (vue-tsc), tests unitaires Vitest (services,
+# SQLite en mémoire) et tests Rust des modules std-only. Pas de build Tauri.
 on:
   push:
     branches: [dev]
@@ -44,3 +44,10 @@ jobs:
       - name: Unit tests
         working-directory: app
         run: pnpm --ignore-workspace test:unit
+
+      # Modules Rust sans dépendance Tauri (std seul) : testés sans les libs
+      # système ni la compilation de toute la crate.
+      - name: Rust unit tests (std-only modules)
+        run: |
+          rustc --edition 2021 --test src-tauri/src/cache_store.rs -o "$RUNNER_TEMP/cache_store_test"
+          "$RUNNER_TEMP/cache_store_test"
