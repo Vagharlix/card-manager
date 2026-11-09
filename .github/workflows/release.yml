@@ -2,8 +2,16 @@ name: Release
 
 # Builds de test installables, publiés sur la pré-release « dev-latest »
 # (page Releases du dépôt) à chaque push sur dev :
-#   - card-manager-linux-x86_64.AppImage  (toute distrib Linux)
+#   - card-manager-linux-x86_64          (exécutable seul : Arch, CachyOS, toute
+#                                         distrib avec webkit2gtk-4.1 installé)
+#   - card-manager-linux-amd64.deb        (Debian, Ubuntu, Mint, Pop!_OS…)
+#   - card-manager-linux-x86_64.rpm       (Fedora, openSUSE…)
+#   - card-manager-linux-x86_64.AppImage  (le reste ; embarque ses bibliothèques,
+#                                         ce qui casse sur certains systèmes
+#                                         récents : EGL_BAD_PARAMETER sur CachyOS)
 #   - card-manager-android-arm64.apk      (téléphones Android 64 bits)
+# L'exécutable, le .deb et le .rpm utilisent les bibliothèques du système
+# (WebKitGTK, pilotes graphiques) : c'est ce qui marche partout.
 # Sur une PR qui touche ce workflow : build seul, sans publication.
 on:
   push:
@@ -67,12 +75,15 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
-      - name: Build AppImage
-        run: pnpm tauri build --bundles appimage --config "{\"version\":\"$APP_VERSION\"}"
+      - name: Build Linux packages
+        run: pnpm tauri build --bundles appimage,deb,rpm --config "{\"version\":\"$APP_VERSION\"}"
 
       - name: Collect
         run: |
           mkdir out
+          cp src-tauri/target/release/card-manager out/card-manager-linux-x86_64
+          cp src-tauri/target/release/bundle/deb/*.deb out/card-manager-linux-amd64.deb
+          cp src-tauri/target/release/bundle/rpm/*.rpm out/card-manager-linux-x86_64.rpm
           cp src-tauri/target/release/bundle/appimage/*.AppImage out/card-manager-linux-x86_64.AppImage
 
       - uses: actions/upload-artifact@v4
@@ -206,5 +217,9 @@ jobs:
             --title "Build de test $APP_VERSION" \
             --notes "Build automatique de \`${GITHUB_SHA::7}\` (branche ${GITHUB_REF_NAME}).
 
-          **PC (Linux)** : télécharger l'AppImage, \`chmod +x card-manager-linux-x86_64.AppImage\`, puis le lancer.
+          **PC (Linux)**, au choix selon la distribution :
+          - Arch, CachyOS, Manjaro… : \`card-manager-linux-x86_64\` (nécessite le paquet \`webkit2gtk-4.1\`), puis \`chmod +x card-manager-linux-x86_64\` et le lancer.
+          - Debian, Ubuntu, Mint… : \`card-manager-linux-amd64.deb\` (\`sudo apt install ./card-manager-linux-amd64.deb\`).
+          - Fedora, openSUSE… : \`card-manager-linux-x86_64.rpm\` (\`sudo dnf install ./card-manager-linux-x86_64.rpm\`).
+          - Sinon : l'AppImage (\`chmod +x\` puis la lancer).
           **Android** : télécharger l'APK depuis le téléphone et l'installer (autoriser les sources inconnues)."
