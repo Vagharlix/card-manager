@@ -55,4 +55,18 @@ export const ygoDeckEngine: DeckEngine = {
     if (status === undefined) return YGO_RULES.defaultMaxCopies
     return copiesFromStatus(status)
   },
+
+  limitLabel(limit, status) {
+    if (status === 'Forbidden') return 'forbidden (0)'
+    if (status === 'Limited') return 'limited to 1'
+    if (status === 'Semi-Limited') return 'semi-limited (2)'
+    return `max ${limit}`
+  },
+
+  limitMessage(limit, status) {
+    if (status === 'Forbidden') return 'Card forbidden in this format'
+    if (status === 'Limited') return 'Card limited to 1 copy'
+    if (status === 'Semi-Limited') return 'Card semi-limited (2 max)'
+    return `${limit}-copy limit reached`
+  },
 }

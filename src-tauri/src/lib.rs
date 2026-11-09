@@ -1,6 +1,8 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 mod cache_store;
+mod card_data;
+mod card_sources;
 mod google;
 mod image_cache;
 mod oauth_loopback;
@@ -99,6 +101,13 @@ pub fn run() {
         },
     ];
 
+    let mtg_migrations = vec![Migration {
+        version: 1,
+        description: "initial mtg schema",
+        sql: include_str!("../migrations/mtg/001_initial.sql"),
+        kind: MigrationKind::Up,
+    }];
+
     let builder = tauri::Builder::default();
 
     // scan de QR codes (partage de collection) : caméra, mobile uniquement
@@ -121,9 +130,11 @@ pub fn run() {
             tauri_plugin_sql::Builder::new()
                 .add_migrations(&db_name("user"), user_migrations)
                 .add_migrations(&db_name("cards-ygo"), ygo_migrations)
+                .add_migrations(&db_name("cards-mtg"), mtg_migrations)
                 .build(),
         )
         .manage(google::Loopbacks::default())
+        .manage(card_data::Streams::default())
         .invoke_handler(tauri::generate_handler![
             google::google_request,
             google::oauth_loopback_start,
@@ -131,7 +142,11 @@ pub fn run() {
             image_cache::cache_card_image,
             image_cache::image_cache_size,
             image_cache::clear_image_cache,
-            image_cache::prune_image_cache
+            image_cache::prune_image_cache,
+            card_data::card_data_get,
+            card_data::jsonl_open,
+            card_data::jsonl_next,
+            card_data::jsonl_close
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

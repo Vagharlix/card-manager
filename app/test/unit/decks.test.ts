@@ -86,6 +86,7 @@ describe('addCardToDeck', () => {
       ok: false,
       reason: 'max',
       limit: 3,
+      formatStatus: null,
     })
   })
 
@@ -95,6 +96,7 @@ describe('addCardToDeck', () => {
       ok: false,
       reason: 'forbidden',
       limit: 0,
+      formatStatus: 'Forbidden',
     })
   })
 
@@ -139,7 +141,14 @@ describe('validateDeck', () => {
     const v = await validateDeck(deck)
     expect(v.valid).toBe(false)
     expect(v.violations).toEqual([
-      { rootId: POT, name: 'Pot of Greed', quantity: 1, limit: 0, status: 'Forbidden' },
+      {
+        rootId: POT,
+        name: 'Pot of Greed',
+        quantity: 1,
+        limit: 0,
+        status: 'Forbidden',
+        formatStatus: 'Forbidden',
+      },
     ])
     expect([...v.flagged]).toEqual([POT_ALT])
 

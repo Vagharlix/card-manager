@@ -16,4 +16,5 @@ export const ygoGame: GameDefinition = {
   defaultCondition: DEFAULT_CONDITION,
   languages: TCG_LANGUAGES,
   defaultLanguage: DEFAULT_LANGUAGE,
+  firstEdition: true,
 }

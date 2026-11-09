@@ -43,6 +43,8 @@ const deck: DeckEngine = {
     if (status === 'restricted') return 1
     return 4
   },
+  limitLabel: (limit) => `max ${limit}`,
+  limitMessage: (limit) => `${limit}-copy limit`,
 }
 
 const search: CardSearchEngine = {

@@ -22,8 +22,15 @@ export const useCurrentGame = createGlobalState(() => {
   const multiGame = computed(() => games.value.length > 1)
 
   // plusieurs jeux, sélecteur au lancement activé, pas de favori, rien choisi
+  // (jamais en E2E : les parcours démarrent sur le premier jeu et changent de
+  // jeu par le sélecteur)
   const askAtLaunch = computed(
-    () => multiGame.value && global.showGamePicker && !global.favoriteGame && chosen.value === null
+    () =>
+      import.meta.env.VITE_TEST_MODE !== 'true' &&
+      multiGame.value &&
+      global.showGamePicker &&
+      !global.favoriteGame &&
+      chosen.value === null
   )
 
   function setGame(id: string): void {

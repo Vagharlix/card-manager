@@ -22,7 +22,9 @@ export function deckEngine(game: string): DeckEngine {
 // jeu d'un deck (un deck appartient à un seul jeu)
 export async function deckGame(deckId: string): Promise<string> {
   const { user } = await useDatabase()
-  const rows = await user.select<{ game: string }[]>(`SELECT game FROM decks WHERE id = ?`, [deckId])
+  const rows = await user.select<{ game: string }[]>(`SELECT game FROM decks WHERE id = ?`, [
+    deckId,
+  ])
   if (!rows[0]) throw new Error(`Unknown deck "${deckId}"`)
   return rows[0].game
 }
@@ -243,7 +245,10 @@ export async function getDeckContents(deckId: string, game?: string): Promise<De
 
   // owned quantity per LOGICAL card (all artworks sharing the root),
   // like deck ↔ deckbox ranging: owning any artwork counts.
-  const variants = await variantsOfRoots(game, rows.map((r) => rootOfId(r.card_id)))
+  const variants = await variantsOfRoots(
+    game,
+    rows.map((r) => rootOfId(r.card_id))
+  )
   const rootById = new Map<string, string>()
   for (const [root, ids] of variants) for (const id of ids) rootById.set(id, root)
   const variantIds = [...rootById.keys()]
@@ -284,6 +289,7 @@ export interface AddResult {
   ok: boolean
   reason?: 'forbidden' | 'limited' | 'semi' | 'max' // why it was rejected
   limit?: number // allowed copies
+  formatStatus?: string | null // statut brut du jeu pour ce format (card_legality)
 }
 
 // add one copy of a card to a deck. The board is decided by the
@@ -328,7 +334,7 @@ export async function addCardToDeck(
     if (status === 'Forbidden') reason = 'forbidden'
     else if (status === 'Limited') reason = 'limited'
     else if (status === 'Semi-Limited') reason = 'semi'
-    return { ok: false, reason, limit: max }
+    return { ok: false, reason, limit: max, formatStatus: status ?? null }
   }
 
   // existing row for THIS exact artwork on this board?
@@ -442,6 +448,7 @@ export interface CardViolation {
   quantity: number // total copies across all boards
   limit: number // allowed in this format
   status: string // 'Forbidden' | 'Limited' | 'Semi-Limited' | 'Over'
+  formatStatus: string | null // statut brut du jeu pour ce format (card_legality)
 }
 
 export interface DeckValidation {
@@ -506,7 +513,14 @@ export async function validateDeck(deckId: string, game?: string): Promise<DeckV
     if (agg.qty > limit) {
       const status =
         limit === 0 ? 'Forbidden' : limit === 1 ? 'Limited' : limit === 2 ? 'Semi-Limited' : 'Over'
-      violations.push({ rootId: agg.root, name: agg.name, quantity: agg.qty, limit, status })
+      violations.push({
+        rootId: agg.root,
+        name: agg.name,
+        quantity: agg.qty,
+        limit,
+        status,
+        formatStatus: agg.banlist[format] ?? null,
+      })
       for (const p of agg.passcodes) flagged.add(p)
     }
   }

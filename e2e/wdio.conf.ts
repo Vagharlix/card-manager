@@ -82,11 +82,12 @@ export const config: WebdriverIO.Config = {
       )
     }
 
-    // 2. fresh user DB
-    for (const suffix of ['', '-shm', '-wal']) {
-      const f = join(DATA_DIR, `user.test.db${suffix}`)
-      if (existsSync(f)) rmSync(f)
-    }
+    // 2. fresh user DB + Magic card DB (le spec mtg y importe un échantillon)
+    for (const base of ['user.test.db', 'cards-mtg.test.db'])
+      for (const suffix of ['', '-shm', '-wal']) {
+        const f = join(DATA_DIR, `${base}${suffix}`)
+        if (existsSync(f)) rmSync(f)
+      }
 
     // 3. generate the static frontend in test mode
     console.log('Building test frontend (VITE_TEST_MODE=true)...')

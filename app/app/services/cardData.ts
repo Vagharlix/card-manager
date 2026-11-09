@@ -11,7 +11,10 @@ export function hasCardData(game: string): boolean {
   return !!gameModuleOrNull(game)?.cardData
 }
 
-export async function syncCardData(game: string, options: { force?: boolean } = {}): Promise<void> {
+export async function syncCardData(
+  game: string,
+  options: { force?: boolean; auto?: boolean } = {}
+): Promise<void> {
   await gameModuleOrNull(game)?.cardData?.sync(options)
 }
 

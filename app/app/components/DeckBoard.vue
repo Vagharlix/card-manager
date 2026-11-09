@@ -126,12 +126,15 @@ const props = defineProps<{
   showMax?: boolean
   flagged?: Set<string>
   isSide?: boolean
+  // autres zones où placer la carte à la main (Magic : commandant)
+  moveTargets?: { id: string; label: string }[]
 }>()
 
 const emit = defineEmits<{
   remove: [card: DeckCard]
   info: [card: DeckCard]
   move: [card: DeckCard]
+  moveTo: [card: DeckCard, board: string]
   add: [card: DeckCard]
 }>()
 
@@ -175,6 +178,12 @@ function menuItems(c: DeckCard) {
             action: 'move',
             onSelect: () => emit('move', c),
           },
+      ...(props.moveTargets ?? []).map((t) => ({
+        label: `Move to ${t.label}`,
+        icon: 'i-lucide-crown',
+        action: `move-to-${t.id}`,
+        onSelect: () => emit('moveTo', c, t.id),
+      })),
     ],
   ]
 }

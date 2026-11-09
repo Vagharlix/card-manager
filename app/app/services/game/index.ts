@@ -7,10 +7,12 @@
 
 import type { GameDefinition } from './types'
 import { ygoGame } from './ygo'
+import { mtgGame } from './mtg'
 import { DEFAULT_CONDITION, DEFAULT_LANGUAGE } from './common'
 
 const GAMES: Record<string, GameDefinition> = {
   ygo: ygoGame,
+  mtg: mtgGame,
 }
 
 // ajoute un jeu (appelé par registerGameModule ; tests : faux jeu)

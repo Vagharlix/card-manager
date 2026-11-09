@@ -15,6 +15,9 @@ export interface CardPrinting {
   // toutes les raretés connues pour ce code (un même code peut exister en
   // Super, Ultra, Secret…) ; à défaut, la rareté unique de `printings`
   rarities: string[]
+  // jeux où une impression EST une carte (Magic : uuid Scryfall) : la carte
+  // à afficher / ajouter quand on choisit cette impression
+  cardId?: string
 }
 
 export interface CardArtwork {

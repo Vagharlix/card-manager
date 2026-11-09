@@ -46,6 +46,22 @@
           </button>
         </div>
 
+        <!-- jeux où une impression est une carte (Magic) : choisir l'impression -->
+        <USelect
+          v-if="printingIsCard && detail.printings.length > 1"
+          id="card-printing-select"
+          :model-value="activeArtId"
+          :items="printingItems"
+          :size="isMobile ? 'lg' : 'sm'"
+          class="w-full"
+          aria-label="Printing"
+          @update:model-value="pickPrinting"
+        >
+          <template #item="{ item }">
+            <span :data-select-value="item.value">{{ item.label }}</span>
+          </template>
+        </USelect>
+
         <!-- statut possédée -->
         <div class="flex items-center gap-2 text-sm">
           <UIcon name="i-lucide-layers" class="text-muted" />
@@ -96,7 +112,7 @@
                 <p class="text-xs text-muted mb-1">Language</p>
                 <USelect v-model="form.language" :items="languageItems" size="sm" />
               </div>
-              <div>
+              <div v-if="!printingIsCard">
                 <p class="text-xs text-muted mb-1">Printing</p>
                 <USelect
                   v-model="form.printingId"
@@ -105,7 +121,7 @@
                   size="sm"
                 />
               </div>
-              <div>
+              <div v-if="!printingIsCard">
                 <p class="text-xs text-muted mb-1">Rarity</p>
                 <USelect
                   id="add-rarity-select"
@@ -118,7 +134,12 @@
               </div>
             </div>
             <div class="flex gap-4">
-              <UCheckbox v-model="form.firstEdition" label="1st edition" size="sm" />
+              <UCheckbox
+                v-if="firstEditionOn"
+                v-model="form.firstEdition"
+                label="1st edition"
+                size="sm"
+              />
               <UCheckbox v-model="form.foil" label="Foil" size="sm" />
               <UCheckbox v-model="form.altered" label="Altered" size="sm" />
               <UCheckbox v-model="form.signed" label="Signed" size="sm" />
@@ -211,9 +232,11 @@
                   size="xs"
                   :label="`${entry.tradeQty} for trade`"
                 />
-                <span v-if="entry.printingId" class="text-xs text-muted truncate">{{
-                  entry.printingId
-                }}</span>
+                <span
+                  v-if="entry.printingId && !printingIsCard"
+                  class="text-xs text-muted truncate"
+                  >{{ entry.printingId }}</span
+                >
                 <div class="flex-1" />
                 <UButton
                   :data-entry-edit="entry.id"
@@ -246,7 +269,7 @@
                     <p class="text-xs text-muted mb-1">Language</p>
                     <USelect v-model="editForm.language" :items="languageItems" size="sm" />
                   </div>
-                  <div>
+                  <div v-if="!printingIsCard">
                     <p class="text-xs text-muted mb-1">Printing</p>
                     <USelect
                       v-model="editForm.printingId"
@@ -280,6 +303,7 @@
                 </div>
                 <div class="flex gap-4">
                   <UCheckbox
+                    v-if="firstEditionOn"
                     id="entry-first-edition"
                     v-model="editForm.firstEdition"
                     label="1st edition"
@@ -319,7 +343,8 @@
             class="flex justify-between gap-4"
             :data-card-fact="f.label"
           >
-            <span class="text-muted">{{ f.label }}</span><span class="text-right">{{ f.value }}</span>
+            <span class="text-muted">{{ f.label }}</span
+            ><span class="text-right">{{ f.value }}</span>
           </div>
         </div>
 
@@ -480,6 +505,23 @@ const editForm = reactive({
   tradeQty: 0,
 })
 
+// Magic : une impression est une carte (CardPrinting.cardId) → le choix de
+// l'impression change la carte affichée, ajoutée et comptée
+const printingIsCard = computed(() => !!detail.value?.printings.some((p) => p.cardId))
+const firstEditionOn = computed(() => !!gameDef(props.game).firstEdition)
+
+function pickPrinting(id: string) {
+  const p = detail.value?.printings.find((x) => x.id === id)
+  if (p) activeArtId.value = p.cardId ?? p.id
+}
+
+// impression enregistrée avec un exemplaire (et sa rareté si elle est unique)
+function printingFor(f: { printingId?: string; rarity?: string }) {
+  if (!printingIsCard.value) return { printingId: f.printingId ?? null, rarity: f.rarity ?? null }
+  const p = detail.value?.printings.find((x) => x.cardId === activeArtId.value)
+  return { printingId: p?.id ?? null, rarity: p?.rarities.length === 1 ? p.rarities[0]! : null }
+}
+
 const printingItems = computed(() =>
   (detail.value?.printings ?? []).map((p) => ({
     label: `${p.setCode} · ${p.setName}`,
@@ -594,7 +636,7 @@ const bigImage = useCardImage(() => activeArtId.value, 'full')
 async function quickAdd() {
   adding.value = true
   try {
-    await addCard({ game: props.game, cardId: activeArtId.value })
+    await addCard({ game: props.game, cardId: activeArtId.value, ...printingFor({}) })
     await refreshOwned()
     toast.add({ title: 'Card added', icon: 'i-lucide-check', color: 'success' })
     emit('added')
@@ -611,14 +653,13 @@ async function detailedAdd() {
     await addCard({
       game: props.game,
       cardId: activeArtId.value,
-      printingId: form.printingId ?? null,
+      ...printingFor(form),
       quantity: form.quantity,
       condition: form.condition,
       language: form.language,
       foil: form.foil,
       altered: form.altered,
       signed: form.signed,
-      rarity: form.rarity ?? null,
       firstEdition: form.firstEdition,
     })
     await refreshOwned()

@@ -66,7 +66,7 @@ afterEach(async () => {
 
 describe('registre', () => {
   it('le faux jeu est un jeu comme un autre', () => {
-    expect(allGames().map((g) => g.id)).toEqual(['ygo', FAKE])
+    expect(allGames().map((g) => g.id)).toEqual(['ygo', 'mtg', FAKE])
     expect(canScan(FAKE)).toBe(false)
     expect(canScan('ygo')).toBe(true)
   })
@@ -121,9 +121,7 @@ describe('collection et rangements', () => {
     expect(await containers.listBinderSlots(binder, FAKE)).toMatchObject([
       { cardId: UNIT, name: 'Stone Golem' },
     ])
-    expect(await containers.listUnrangedCards(FAKE)).toMatchObject([
-      { rootId: UNIT, totalQty: 2 },
-    ])
+    expect(await containers.listUnrangedCards(FAKE)).toMatchObject([{ rootId: UNIT, totalQty: 2 }])
   })
 })
 
@@ -185,10 +183,7 @@ describe('decks (règles du faux jeu)', () => {
 
 describe('recherche, fiche, raretés', () => {
   it('passent par le module du jeu', async () => {
-    expect((await searchCards(FAKE, { query: 'golem' })).map((r) => r.id)).toEqual([
-      UNIT,
-      UNIT_ALT,
-    ])
+    expect((await searchCards(FAKE, { query: 'golem' })).map((r) => r.id)).toEqual([UNIT, UNIT_ALT])
     expect(await countCards(FAKE, { query: 'golem' })).toBe(2)
     expect(await getCardDetail(FAKE, HERO)).toMatchObject({
       name: 'Aria the Bold',
@@ -305,6 +300,20 @@ const YGO_FILES = new Set([
   'utils/gameUi.ts', // panneau de filtres par jeu
   'plugins/test-reset.client.ts', // helpers E2E (fixture YGO)
 ])
+const MTG_FILES = new Set([
+  'services/game/mtg.ts',
+  'services/game/index.ts',
+  'services/game/modules/mtg.ts',
+  'services/deck/mtg.ts',
+  'services/search/mtg.ts',
+  'services/card/mtg.ts',
+  'services/scan/mtg.ts',
+  'services/mtgData/import.ts',
+  'services/mtgData/sync.ts',
+  'components/MtgSearchFilters.vue',
+  'utils/gameUi.ts',
+  'plugins/test-reset.client.ts', // helpers E2E (import d'un échantillon)
+])
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -314,18 +323,20 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-describe('garde anti « ygo » en dur', () => {
-  it('aucune couche générique ne nomme YGO ni ses tables', () => {
+describe('garde anti « ygo » / « mtg » en dur', () => {
+  it('aucune couche générique ne nomme un jeu ni ses tables', () => {
     const offenders: string[] = []
     for (const file of sourceFiles(APP)) {
       const rel = relative(APP, file).replace(/\\/g, '/')
-      if (YGO_FILES.has(rel)) continue
       const code = readFileSync(file, 'utf8')
         .split('\n')
         .filter((l) => !/^\s*(\/\/|\*|<!--)/.test(l)) // commentaires
         .map((l) => l.replace(/\s\/\/.*$/, '')) // commentaire en fin de ligne
         .join('\n')
-      if (/['"`]ygo['"`]|ygo_details|ygoprodeck/i.test(code)) offenders.push(rel)
+      if (!YGO_FILES.has(rel) && /['"`]ygo['"`]|ygo_details|ygoprodeck/i.test(code))
+        offenders.push(rel)
+      if (!MTG_FILES.has(rel) && /['"`]mtg['"`]|mtg_(oracle|prints)|scryfall/i.test(code))
+        offenders.push(rel)
     }
     expect(offenders).toEqual([])
   })

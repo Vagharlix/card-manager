@@ -102,7 +102,7 @@ describe('fiche', () => {
   })
 
   it('jeu sans fournisseur → erreur explicite', () => {
-    expect(() => getCardDetail('mtg', 'x')).toThrow(/mtg/)
+    expect(() => getCardDetail('pkm', 'x')).toThrow(/pkm/)
   })
 })
 
@@ -111,6 +111,6 @@ describe('raretés d’une impression', () => {
     expect(await printingRarities('ygo', 'RA01-EN051')).toHaveLength(3)
     expect(await printingRarities('ygo', 'SDY-006')).toEqual(['Ultra Rare'])
     expect(await printingRarities('ygo', 'ZZZ-000')).toEqual([])
-    expect(await printingRarities('mtg', 'RA01-EN051')).toEqual([])
+    expect(await printingRarities('pkm', 'RA01-EN051')).toEqual([])
   })
 })
