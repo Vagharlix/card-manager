@@ -11,6 +11,9 @@ export interface BoardDef {
   id: Board
   label: string // « Main Deck »
   shortLabel?: string // onglet mobile : « Main »
+  // zone où l'on place une carte à la main (Magic : commandant) : proposée
+  // dans le menu des autres zones, et « retour au deck » depuis elle
+  pickable?: boolean
   min: number
   max: number
 }
@@ -43,4 +46,8 @@ export interface DeckEngine {
   boardForCard(card: CardForPlacement): Board
   // copy limit for a card in a given format (banlist-aware)
   maxCopiesForCard(card: CardForPlacement, format: string): number
+  // libellé court d'une limite (liste des infractions : « banned », « max 4 »)
+  // et message quand un ajout est refusé ; status = statut brut du format
+  limitLabel(limit: number, status: string | null): string
+  limitMessage(limit: number, status: string | null): string
 }

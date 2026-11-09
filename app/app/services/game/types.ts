@@ -30,4 +30,6 @@ export interface GameDefinition {
   defaultCondition: string // must be one of conditions[].id
   languages: readonly LanguageDef[]
   defaultLanguage: string // must be one of languages[].id
+  // mention « 1re édition » proposée à l'ajout / au scan (YGO oui, Magic non)
+  firstEdition?: boolean
 }

@@ -224,7 +224,7 @@ describe('identification (YGO)', () => {
 
   it('jeu supporté', () => {
     expect(canScan('ygo')).toBe(true)
-    expect(canScan('mtg')).toBe(false)
+    expect(canScan('pkm')).toBe(false)
   })
 
   it('par code d’impression : carte et impression exactes', async () => {

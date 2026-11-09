@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use tauri::Manager;
 
 use crate::cache_store;
+use crate::card_sources;
 
 // dossier racine du cache d'images : <app_cache_dir>/card-images/[<jeu>/]<size>/<id>.jpg
 fn cache_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -10,26 +11,6 @@ fn cache_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .app_cache_dir()
         .map_err(|e| e.to_string())?
         .join("card-images"))
-}
-
-// Source des images de chaque jeu : (dossier dans le cache, URL).
-// Ajouter un jeu = une branche ici. YGO garde le dossier racine historique
-// (<cache>/card-images/<size>/) pour ne pas retélécharger un cache existant.
-fn image_source(game: &str, id: &str, size: &str) -> Option<(PathBuf, String)> {
-    match game {
-        "ygo" => {
-            let cdn_path = match size {
-                "full" => "cards",
-                "cropped" => "cards_cropped",
-                _ => "cards_small",
-            };
-            Some((
-                PathBuf::from(size),
-                format!("https://images.ygoprodeck.com/images/{}/{}.jpg", cdn_path, id),
-            ))
-        }
-        _ => None,
-    }
 }
 
 #[tauri::command]
@@ -46,8 +27,8 @@ pub async fn cache_card_image(
         "full" | "cropped" => size,
         _ => "small".to_string(),
     };
-    let (dir, url) =
-        image_source(&game, &id, &size).ok_or_else(|| format!("no images for game {}", game))?;
+    let (dir, url) = card_sources::image_source(&game, &id, &size)
+        .ok_or_else(|| format!("no images for game {}", game))?;
 
     let cache_dir = cache_root(&app)?.join(dir);
     std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;

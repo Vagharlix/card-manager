@@ -3,6 +3,7 @@
   <USelect
     v-if="multiGame"
     id="game-picker"
+    :data-current-game="game"
     :model-value="game"
     :items="items"
     :size="size"

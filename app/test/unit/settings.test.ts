@@ -105,7 +105,7 @@ describe('réglages par jeu', () => {
     await s.setGameSetting('ygo', 'default_language', 'fr')
     expect(stored('ygo.default_language')).toBe('fr')
     expect(await s.getDefaultLanguage('ygo')).toBe('fr')
-    expect(await s.getDefaultLanguage('mtg')).not.toBe('fr')
+    expect(await s.getDefaultLanguage('pkm')).not.toBe('fr')
   })
 
   it('jeu inconnu : défauts génériques, sans erreur', async () => {

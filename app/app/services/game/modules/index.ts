@@ -5,6 +5,7 @@ import type { Identified } from '~/services/scan/types'
 import type { OcrLine } from '~/services/scan/text'
 import { registerGame, unregisterGame, type GameDefinition } from '~/services/game'
 import { ygoModule } from './ygo'
+import { mtgModule } from './mtg'
 
 // ============================================================
 // MODULES DE JEU — point d'entrée unique de chaque jeu.
@@ -29,9 +30,10 @@ import { ygoModule } from './ygo'
 export interface CardDataSource {
   // version locale (null = jamais synchronisée)
   localVersion(): Promise<string | null>
-  // met la base à jour (force : retélécharge même si rien n'a changé) ;
+  // met la base à jour (force : retélécharge même si rien n'a changé ;
+  // auto : lancement de l'appli, la source peut espacer ses vérifications) ;
   // progression dans services/cardDataProgress
-  sync(options?: { force?: boolean }): Promise<void>
+  sync(options?: { force?: boolean; auto?: boolean }): Promise<void>
 }
 
 export interface GameModule {
@@ -71,3 +73,4 @@ export function gameModuleOrNull(game: string): GameModule | null {
 }
 
 registerGameModule(ygoModule)
+registerGameModule(mtgModule)

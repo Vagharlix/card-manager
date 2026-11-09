@@ -2,7 +2,7 @@
 
 > Fichier lu automatiquement par Claude Code. Il donne la carte du projet, les
 > règles impératives, l'état **fait / à faire**, et comment vérifier une modif.
-> Gestionnaire de collection de cartes TCG (Yu-Gi-Oh d'abord, **multi-TCG par conception**).
+> Gestionnaire de collection de cartes TCG : **Yu-Gi-Oh! et Magic: The Gathering** (multi-TCG par conception).
 
 ---
 
@@ -12,7 +12,7 @@
 - **Dépôt** : branche d'intégration `dev`, commits conventionnels. Claude travaille sur des branches `claude/*`, committe et pousse lui-même, ouvre une PR vers `dev` ; **Félix relit et merge**. Jamais de push direct sur `dev`.
 - **Langue** : répondre à Félix **en français**. **L'interface de l'appli est en anglais** (décision du 9 nov. 2026) : tout nouveau texte visible (libellés, notifications, messages d'erreur montrés à l'utilisateur) s'écrit en anglais. Vocabulaire : rangement = *storage*, non rangées = *unsorted*, ranger = *store*, à l'échange = *for trade*, exemplaire = *copy*, classeur = *binder*, boîte = *bulk box*, 1re édition = *1st edition*. Les commentaires de code et la doc restent en français.
 - **OS dev** : CachyOS (Arch). Bases dans `~/.config/com.card-manager.app/`.
-- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (14 parcours WebdriverIO, ~10 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
+- **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (15 parcours WebdriverIO, ~10 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
 
 ---
 
@@ -40,6 +40,11 @@ cd app && npx vitest
 # Tests Rust des modules sans dépendance Tauri (pas besoin des libs système)
 rustc --edition 2021 --test src-tauri/src/cache_store.rs -o /tmp/cache_store_test && /tmp/cache_store_test  # + is_safe_name
 rustc --edition 2021 --test src-tauri/src/oauth_loopback.rs -o /tmp/oauth_test && /tmp/oauth_test
+rustc --edition 2021 --test src-tauri/src/card_sources.rs -o /tmp/card_sources_test && /tmp/card_sources_test
+# Tests Rust de la crate entière (lots du téléchargement Magic) : libs système nécessaires
+cd src-tauri && cargo test --lib card_data
+# Import Magic sur le VRAI fichier Scryfall (~80 Mo, à télécharger d'abord, cf. §5 Magic)
+cd app && MTG_GZ=/chemin/default-cards.jsonl.gz npx vitest run test/unit/mtgFullImport.test.ts
 
 # Lancer UN seul spec (utile en debug)
 cd e2e && npx wdio run ./wdio.conf.ts --spec ./specs/deck-range.spec.ts
@@ -72,6 +77,8 @@ card-manager/
 ├── src-tauri/
 │   ├── src/lib.rs            # db_name() (test/dev/prod) + enregistrement migrations + commandes
 │   ├── src/image_cache.rs    # commandes cache d'images (télécharger, taille, vider, élaguer)
+│   ├── src/card_sources.rs   # (std seul, testé) URL des images par jeu + URL autorisées pour les données de cartes
+│   ├── src/card_data.rs      # téléchargement en flux des données en masse (Magic : JSONL gzip) : jsonl_open/next/close, card_data_get
 │   ├── src/cache_store.rs    # logique disque du cache (std seul, testée par rustc --test)
 │   ├── plugins/card-scanner/ # plugin LOCAL Android : OCR ML Kit (commande `recognize`), Kotlin dans android/
 │   ├── plugins/safe-area/    # plugin LOCAL Android : marges système → variables CSS --safe-* (commande `insets`)
@@ -85,14 +92,17 @@ card-manager/
 │       │        004_detach_deleted_collection.sql, 005_binder_slots_multi_copy.sql,
 │       │        006_collection_trade_qty.sql, 007_shared_collections.sql,
 │       │        008_collection_rarity_edition.sql, 009_sync_state.sql
-│       └── ygo/001_initial.sql, 002_printing_rarities.sql, 003_card_contract.sql (vues communes)
+│       ├── ygo/001_initial.sql, 002_printing_rarities.sql, 003_card_contract.sql (vues communes)
+│       └── mtg/001_initial.sql   # Magic (Scryfall) : une carte = une impression
 ├── app/                      # racine de config Nuxt (package.json "app", scripts generate/dev/build)
 │   ├── pnpm-lock.yaml
 │   ├── vitest.config.ts      # alias ~ -> app/app, env node, include test/unit/**
 │   ├── test/unit/            # tests Vitest (HORS de app/app, donc pas vus par Nuxt)
 │   │   ├── deckLink, collection, decks, containers, share, scan, settings,
-│   │   │   search, cardDetail, userSync, drive, backup, perf, multiGame (.test.ts)
+│   │   │   search, cardDetail, userSync, drive, backup, perf, multiGame,
+│   │   │   mtgImport, mtg, mtgFullImport (.test.ts)
 │   │   ├── fixtures/fake-game/   # schéma de la base de cartes du FAUX JEU
+│   │   ├── fixtures/scryfall-sample.jsonl  # 36 vraies impressions Scryfall (pièges choisis), aussi utilisé par l'E2E
 │   │   └── helpers/testDb.ts, seed.ts, ygoCards.ts, fakeGame.ts
 │   └── app/                  # ⚠️ DOUBLE app/ : LE CODE SOURCE RÉEL est ici
 │       ├── pages/            # decks/[id].vue, decks/index.vue, collection.vue, index.vue,
@@ -105,6 +115,8 @@ card-manager/
 │       ├── services/game/modules/      # MODULES DE JEU : point d'entrée unique de chaque jeu (index = registre, ygo.ts)
 │       ├── services/card/meta.ts       # contrat commun des bases de cartes (root, nom, type, légalité, raretés)
 │       ├── services/{card,scan,search}/ygo.ts, services/deck/ygo.ts, services/sync.ts  # tout ce qui est YGO
+│       ├── services/{card,scan,search,deck,game}/mtg.ts, services/mtgData/ (import.ts pur, sync.ts)  # tout ce qui est Magic
+│       ├── components/MtgSearchFilters.vue  # filtres de recherche Magic (searchFilters.vue = YGO)
 │       ├── services/cardData.ts        # mise à jour de la base de cartes d'un jeu (routeur) + cardDataProgress.ts
 │       ├── composables/useCurrentGame.ts, components/GamePicker.vue, GameLaunchModal.vue, utils/gameUi.ts
 │       ├── services/imageCache.ts      # wrappers des commandes Rust du cache d'images
@@ -157,6 +169,7 @@ card-manager/
 Deux bases, nom suffixé selon le mode.
 
 - **Une base de cartes par jeu** (`GameDefinition.cardDb`, ex. `cards-ygo`), ouverte par `useDatabase().cards(game)` — seul point d'accès. **Contrat commun** (ce que lisent les couches génériques, via `services/card/meta.ts`) : `cards(id, name, image_url*, legal_text)`, `printings`, `printing_rarities`, et deux vues que chaque jeu définit sur son schéma : `card_meta(card_id, root, type)` (une ligne par carte ; `root` = carte logique, les artworks la partagent ; `type` = indication pour le moteur de deck) et `card_legality(card_id, format, status)` (pas de ligne = aucune restriction). YGO : migration `ygo/003`.
+- **`cards-mtg.db`** — Magic, importée depuis Scryfall (cf. §5 « Magic »). **Une carte = une impression** (`cards.id` = uuid Scryfall), carte logique (`root`) = `oracle_id`. Tables `mtg_oracle` (règles, `default_print` = impression montrée par la recherche, `deck_limit`), `mtg_prints` (extension, numéro, rareté…), `card_meta` / `card_legality` (**tables** remplies par l'import, pas des vues : jointure trop lente sur 110 000 lignes), `printings` (vue, code « BLB #280 »), `printing_rarities` (vide), FTS `mtg_oracle_fts` (reconstruit à chaque import), `sync_meta` (`db_version` = `updated_at` Scryfall, `synced_at`).
 - **`cards-ygo.db`** — données de référence (lecture seule côté app). Schéma = migration `ygo/001` :
   `cards` + `ygo_details` + `printings` + lookups (`card_types`/`card_attributes`/`card_races`) + `sync_meta` + FTS5 (`cards_fts`, `content=cards`, triggers de synchro).
   - `ygo_details.alias` → passcode « principal » d'une carte à artworks multiples.
@@ -187,7 +200,20 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - **Partage** (nom affiché, même réglage que la page Partage) et **Apparence** (thème système / clair / sombre, `useColorMode`) : sections ajoutées avec la refonte mobile (plus de bouton de thème dans l'en-tête sur mobile).
 - `favoriteGame` / `showGamePicker` sont consommés par `useCurrentGame` (jeu ouvert au lancement, fenêtre « Which game? ») ; invisibles tant qu'il n'y a qu'un jeu.
 
-### Multi-jeu (préparé, nov. 2026) — un seul jeu réel (YGO), le 2e sera choisi ensuite
+### Magic: The Gathering (nov. 2026) — 2e jeu, choisi par Félix
+- **Données** : Scryfall, fichier en masse `default_cards` (chaque impression papier, en anglais ou dans sa seule langue) en **JSONL gzip** (~80 Mo, 650 Mo décompressé, ~120 000 objets). Métadonnées : `GET https://api.scryfall.com/bulk-data/default-cards` (`updated_at`, `jsonl_download_uri`) via la commande Rust `card_data_get` (User-Agent requis par Scryfall). Téléchargement : `jsonl_open(url, keys)` → `jsonl_next(id)` → … : un fil Rust lit HTTP → gzip → lignes, garde les clés demandées (`SCRYFALL_KEYS`) et envoie des lots de 500 par un canal **borné** (4 lots) : le téléchargement avance au rythme des écritures, jamais tout en mémoire. URL limitées à `card_sources::card_data_url_allowed` (api.scryfall.com, data.scryfall.io).
+- **Import** (`services/mtgData/`) : `import.ts` (pur) : on écarte le numérique seul (`digital` / pas `paper`) et les Art Series ; faces jointes par « // » ; restrictions des formats suivis (banned / restricted / not_legal) ; `deck_limit` (-1 terrains de base et « any number of cards named », 7 Seven Dwarves, 9 Nazgûl) ; impression par défaut = extension normale, numéro simple, pas promo/variante, anglais, la plus récente. `sync.ts` : une transaction (DELETE puis INSERT par lots, l'ancienne base reste lisible jusqu'au COMMIT, ROLLBACK si erreur), cartes logiques et légalités à la fin, `rebuild` FTS. Mesure sur le vrai fichier (nov. 2026) : 108 000 impressions, 36 000 cartes, ~12 s en Node, ~1 060 requêtes.
+- **Mises à jour** : au lancement (`auto`), rien si la base a moins de `AUTO_DAYS` = 14 jours (pas même une requête) ; « Check for updates » vérifie toujours ; « Force » retélécharge. Première bascule sur Magic = téléchargement initial (overlay d'`app.vue`).
+- **Images** : `https://cards.scryfall.io/{small|normal|art_crop}/front/a/b/<uuid>.jpg`, déduites de l'id (`card_sources::image_source`), cache `card-images/mtg/<size>/`.
+- **Deck** (`deck/mtg.ts`) : zones main (60+), side (15), commander (0–2, `pickable` : on y place une carte à la main, menu « Move to Commander ») ; formats casual (défaut, 4 copies), standard, pioneer, modern, legacy, vintage, pauper, commander (1 copie) ; banned / not_legal → 0, restricted → 1, `deck_limit` prioritaire. Messages via `DeckEngine.limitLabel` / `limitMessage`.
+- **Recherche** (`search/mtg.ts`) : une ligne par carte logique (impression par défaut), FTS nom ou texte (mots entre guillemets, préfixe), nom exact en tête ; filtres couleurs (« a toutes ces couleurs »), incolore, types (OU), valeur de mana, légal dans un format (`MtgSearchFilters.vue`, `[data-mtg-filters]`, `[data-mtg-color]`, `#mtg-format-filter`).
+- **Fiche** (`card/mtg.ts`) : toutes les impressions de la carte, chacune est une carte (`CardPrinting.cardId`) → `cardDetail.vue` montre `#card-printing-select` : choisir l'impression change l'image, les exemplaires comptés et ce qui est ajouté (`printingId` = la carte, rareté de l'impression). Pas de « 1st edition » (`GameDefinition.firstEdition` = YGO seulement). Mentions Banned / Restricted in … et Reserved List.
+- **Scan** (`scan/mtg.ts`) : bas à gauche des cartes récentes, « BLB • EN » (extension + langue, point souvent mal lu) + numéro (« 0280 », « 280/281 ») → impression exacte et sa langue ; plusieurs numéros plausibles → celle dont le nom ressemble au nom lu ; sinon le nom (faces comprises) → impression par défaut. `Identified.printingLabel` (« BLB #280 ») affiché dans la session.
+- **Partage** : ids uuid → `CMSHARE2` (~37 car. par carte : 1000 cartes ≈ 40 images de QR animé).
+- **Tests** : `mtgImport.test.ts` (mapping, import, remplacement, erreur → ancienne base gardée, mises à jour espacées), `mtg.test.ts` (recherche, filtres, fiche, règles par format, collection, partage, scan), `mtgFullImport.test.ts` (vrai fichier, si `MTG_GZ`), E2E `mtg` (bascule de jeu, `window.__seedMtg(objets)` = vrai importeur sans réseau, fiche + choix d'impression, deck).
+- **À valider sur appareil** : téléchargement réel (80 Mo, durée sur téléphone), images Scryfall, scan sur de vraies cartes Magic.
+
+### Multi-jeu (préparé, nov. 2026)
 - **Module de jeu** (`services/game/modules/`) : `GameModule { def, deck, search, detail, scan?, cardData? }` ; `registerGameModule` (aussi pour les tests), `gameModule(game)`. Les routeurs (`deckEngine`, `searchCards`, `getCardDetail`, `canScan`/`identifyCard`, `syncCardData`) passent par lui. Checklist « ajouter un jeu » en tête de `modules/index.ts` (définition, migrations + `lib.rs`, module, une branche dans `image_cache.rs`, panneau de filtres facultatif dans `utils/gameUi.ts`).
 - **Contraintes de user.db** à respecter par un jeu : états = sous-ensemble de NM/LP/MP/HP/DMG (CHECK de `collection.condition`, libellés libres), zones de deck parmi main/side/extra/commander/maybe.
 - **Jeu courant** : `useCurrentGame()` (choix de session, sinon jeu favori, sinon le 1er). Les pages lisent `const GAME = useCurrentGame().game.value` ; changer de jeu **remonte la page** (clé de page d'`app.vue`) et relance la mise à jour de sa base de cartes. `GamePicker` (en-tête desktop, titre de Collection mobile, `#game-picker`) et `GameLaunchModal` (`[data-game-choice]`, `#game-launch-remember`) n'apparaissent qu'avec plusieurs jeux.
@@ -276,6 +302,7 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 11. `collection-all` — `__seedOwned` → `/search` puis `/collection` (vue « toute ma collection » ; passer par une autre route car l'app démarre déjà sur `/collection`) → fiche → `[data-entry-edit]` → `#entry-trade-qty-input` → `#entry-save-btn` → badge `[data-trade-qty]` → `#collection-only-trade` → `#collection-search`.
 12. `share` — `__seedOwned` → `/share` → `#share-owner-input` → `#share-generate-btn` → `[data-share-code]` (CMSHARE1) + `#share-qr[data-qr-frames]` → `[data-share-section=receive]` → `#share-import-input` → `#share-import-btn` → `#shared-view` `.shared-card[data-shared-qty/mine]` → `#shared-only-missing` → `#shared-delete-btn`.
 13. `scan` — langue (`LOB-FR005` → fr), 1re édition lue + bascule, rareté à choisir quand le code en a plusieurs (`window.__seedRarities(code, [...])`, la fixture n'a pas de raretés) ; `/scan` → `window.__scanFeed` (lignes OCR simulées : `LOB-EN005`, `MP25-EN050`) ×2 → `[data-scan-count]` / `[data-scan-entry]` ; pas de doublon tant que la carte reste ; 2e exemplaire après 3 images vides ; `[data-scan-undo]` ; mode manuel `#scan-auto-add` + `#scan-add-btn`.
+15. `mtg` — `#game-picker` (`data-current-game`) → `window.__seedMtg(échantillon Scryfall)` → recherche (une ligne par carte, `[data-mtg-filters]`) → fiche `#card-printing-select` + ajout → collection → deck (zones main/side/commander, 6 Forest acceptées, 5e Lightning Bolt refusé) → retour YGO. En E2E, la fenêtre « Which game? » n'apparaît jamais (`useCurrentGame` en mode test).
 14. `mobile` — fenêtre 390×844 (`browser.setWindowSize` après `waitForApp`, qui attend l'en-tête du mode bureau) : barre d'onglets (`[data-tab]`, 4 hors Android, `data-active`), bascule `[data-mobile-segment]` + création d'un rangement depuis la liste mobile, `[data-mobile-back-all]`, fiche carte en panneau du bas + ajout rapide, deck : `[data-mobile-board]` (une zone à la fois) + `[data-mobile-deck-add]` → panneau de recherche, partage `[data-mobile-share-section]`, réglages empilés (`[data-section-body]` sur chaque section, pas de `[data-section]`).
 10. `settings-storage` — `/settings` → `[data-section=storage]` → `#image-cache-size[data-cache-bytes]` numérique → `#image-cache-clear` → `0` (vérifie que les commandes Rust sont enregistrées).
 
@@ -357,7 +384,7 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 - Ranger 2 copies d'une même pile dans un classeur plantait (`UNIQUE(collection_id)`) → migration 005.
 - Vue deck : « possédées » compté par artwork exact → par carte logique (comme le rangement).
 
-### ✅ Tests unitaires settings / recherche / fiche carte : faits. 263 Vitest au total (nov. 2026).
+### ✅ Tests unitaires settings / recherche / fiche carte : faits. 281 Vitest au total (nov. 2026).
 
 ### ✖ Protection de branche : abandonnée (choix de Félix) ; les merges se font après CI verte.
 
@@ -366,7 +393,8 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 - **Phase 9 — Settings** : terminer (base en place, cf. §5).
 - **Phase 2 (structure)** : terminée avec la refonte mobile.
 - **Synchro PC ↔ mobile** : faite (cf. §5), synchro au premier plan + restauration faites ; à valider sur PC + téléphone réels (connexion Google, aller-retour Drive).
-- **Plan validé par Félix (9 nov. 2026)** : 1) sauvegarde ✅ ; 2) appli **entièrement en anglais** ✅ ; 3) performances 5000 cartes + E2E en taille téléphone ✅ ; 4) préparation multi-jeu ✅ (cf. §5 « Multi-jeu »). **Prochaine étape : choisir le 2e jeu** (source de données, images, identifiants, scan éventuel).
+- **Plan validé par Félix (9 nov. 2026)** : 1) sauvegarde ✅ ; 2) appli **entièrement en anglais** ✅ ; 3) performances 5000 cartes + E2E en taille téléphone ✅ ; 4) préparation multi-jeu ✅ (cf. §5 « Multi-jeu ») ; 5) **Magic: The Gathering** ✅ (cf. §5 « Magic »), à valider sur appareil.
+- **Pistes Magic** : identité de couleur du commandant (validation commander), prix (Scryfall les fournit), recherche par extension / rareté, mise à jour sans bloquer l'écran.
 
 ---
 

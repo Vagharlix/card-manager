@@ -19,11 +19,17 @@ import { NAME_THRESHOLD, type Identified } from './types'
 //      de Levenshtein ≥ NAME_THRESHOLD, artwork principal privilégié.
 // ============================================================
 
-type Found = Omit<Identified, 'firstEdition'>
+type Found = Omit<Identified, 'firstEdition' | 'printingLabel'>
 
 export async function identifyYgo(lines: OcrLine[]): Promise<Identified | null> {
   const found = (await bySetCode(lines)) ?? (await byPasscode(lines)) ?? (await byName(lines))
-  return found && { ...found, firstEdition: detectFirstEdition(lines) }
+  return (
+    found && {
+      ...found,
+      printingLabel: found.printingId,
+      firstEdition: detectFirstEdition(lines),
+    }
+  )
 }
 
 async function bySetCode(lines: OcrLine[]): Promise<Found | null> {

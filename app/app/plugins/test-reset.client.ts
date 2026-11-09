@@ -90,6 +90,22 @@ export default defineNuxtPlugin(() => {
       ])
   }
 
+  // base Magic : importe des objets Scryfall (échantillon du spec) avec le
+  // vrai importeur, sans réseau
+  ;(window as any).__seedMtg = async (items: unknown[]) => {
+    const { importMtg } = await import('~/services/mtgData/sync')
+    const db = (await useDatabase()).cards('mtg')
+    let done = false
+    return importMtg(
+      db,
+      async () => {
+        done = true
+        return { items: items as never[], read: 1, total: 1, done }
+      },
+      'e2e'
+    )
+  }
+
   // expose to the WebView global so WebdriverIO can call it via execute()
   ;(window as unknown as { __resetTestDb: () => Promise<void> }).__resetTestDb = resetTestDb
 })

@@ -55,7 +55,7 @@
         :data-scan-current="current?.cardId ?? ''"
       >
         <template v-if="current">
-          {{ current.name }}<span v-if="current.printingId"> · {{ current.printingId }}</span
+          {{ current.name }}<span v-if="current.printingLabel"> · {{ current.printingLabel }}</span
           ><span v-if="current.language"> · {{ languageLabel(current.language) }}</span
           ><span v-if="current.firstEdition"> · 1st ed.</span>
         </template>
@@ -116,6 +116,7 @@
           v-for="item in session"
           :key="item.entryId"
           :item="item"
+          :first-edition-on="firstEditionOn"
           :language-label="item.language ? languageLabel(item.language) : undefined"
           large
           @undo="undo(item.entryId)"
@@ -165,6 +166,7 @@
             v-for="item in session"
             :key="item.entryId"
             :item="item"
+            :first-edition-on="firstEditionOn"
             :language-label="item.language ? languageLabel(item.language) : undefined"
             @undo="undo(item.entryId)"
             @rarity="(r) => setRarity(item, r)"
@@ -196,6 +198,7 @@ definePageMeta({ fullscreen: true }) // mobile : ni onglets ni marge du haut
 const GAME = useCurrentGame().game.value
 const android = isAndroid()
 const languages = gameDef(GAME).languages
+const firstEditionOn = !!gameDef(GAME).firstEdition
 function languageLabel(id: string) {
   return languages.find((l) => l.id === id)?.label ?? id
 }
@@ -248,6 +251,7 @@ async function add(card: Identified) {
       entryId,
       cardId: card.cardId,
       printingId: card.printingId,
+      printingLabel: card.printingLabel,
       name: card.name,
       language: card.language,
       firstEdition,

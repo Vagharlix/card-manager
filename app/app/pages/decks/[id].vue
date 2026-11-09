@@ -158,7 +158,7 @@
             variant="soft"
             icon="i-lucide-ban"
             data-banlist-alert
-            :title="`${validation.violations.length} card(s) over the ${format.toUpperCase()} banlist`"
+            :title="`${validation.violations.length} card(s) over the ${format.toUpperCase()} limits`"
           >
             <template #description>
               <ul class="text-xs mt-1 space-y-0.5">
@@ -180,10 +180,12 @@
               :min="b.min"
               :max="b.max"
               show-max
-              :is-side="b.id === SIDE"
+              :is-side="b.id === SIDE || !!b.pickable"
+              :move-targets="moveTargets(b.id)"
               @info="(c) => onCardClick(c.cardId)"
               @remove="(c) => removeCard(c, b.id)"
-              @move="(c) => (b.id === SIDE ? moveFromSide(c) : moveToSide(c, b.id))"
+              @move="(c) => (b.id === SIDE || b.pickable ? moveBack(c, b.id) : moveToSide(c, b.id))"
+              @move-to="(c, to) => moveTo(c, b.id, to as Board)"
               @add="(c) => addExisting(c, b.id === SIDE ? SIDE : undefined)"
             />
           </template>
@@ -383,25 +385,15 @@ function showInfo(cardId: string) {
 }
 
 // libellé de la limite pour une infraction
-function statusLabel(v: { status: string; limit: number }): string {
-  if (v.status === 'Forbidden') return 'forbidden (0)'
-  if (v.status === 'Limited') return 'limited to 1'
-  if (v.status === 'Semi-Limited') return 'semi-limited (2)'
-  return `max ${v.limit}`
+function statusLabel(v: { formatStatus: string | null; limit: number }): string {
+  return engine.limitLabel(v.limit, v.formatStatus)
 }
 
 async function addCard(r: CardSearchResult) {
   const type = await fetchType(r.id)
   const res = await addCardToDeck(deckId.value, GAME, r.id, type)
   if (!res.ok) {
-    const msg =
-      res.reason === 'forbidden'
-        ? 'Card forbidden in this format'
-        : res.reason === 'limited'
-          ? 'Card limited to 1 copy'
-          : res.reason === 'semi'
-            ? 'Card semi-limited (2 max)'
-            : `${res.limit}-copy limit reached`
+    const msg = engine.limitMessage(res.limit ?? 0, res.formatStatus ?? null)
     toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }
@@ -421,10 +413,23 @@ async function moveToSide(c: DeckCard, from: Board) {
   await refreshContents()
 }
 
-// renvoie une carte du Side vers le deck (Main ou Extra selon son type)
-async function moveFromSide(c: DeckCard) {
+// renvoie une carte du Side (ou d'une zone choisie à la main) vers le deck
+// (Main ou Extra selon son type)
+async function moveBack(c: DeckCard, from: Board) {
   const target = engine.boardForCard({ cardId: c.cardId, type: c.type })
-  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, 'side', target)
+  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, from, target)
+  await refreshContents()
+}
+
+// zones à la main (commandant) proposées depuis les autres zones
+function moveTargets(from: Board) {
+  return engine.rules.boards
+    .filter((b) => b.pickable && b.id !== from)
+    .map((b) => ({ id: b.id, label: b.label }))
+}
+
+async function moveTo(c: DeckCard, from: Board, to: Board) {
+  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, from, to)
   await refreshContents()
 }
 
@@ -432,14 +437,7 @@ async function moveFromSide(c: DeckCard) {
 async function addExisting(c: DeckCard, board?: Board) {
   const res = await addCardToDeck(deckId.value, GAME, c.cardId, c.type, board)
   if (!res.ok) {
-    const msg =
-      res.reason === 'forbidden'
-        ? 'Card forbidden in this format'
-        : res.reason === 'limited'
-          ? 'Card limited to 1 copy'
-          : res.reason === 'semi'
-            ? 'Card semi-limited (2 max)'
-            : `${res.limit}-copy limit reached`
+    const msg = engine.limitMessage(res.limit ?? 0, res.formatStatus ?? null)
     toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }

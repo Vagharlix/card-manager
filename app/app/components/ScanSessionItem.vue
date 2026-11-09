@@ -14,7 +14,7 @@
       <div class="flex-1 min-w-0">
         <p class="text-sm truncate" :class="large && 'font-semibold'">{{ item.name }}</p>
         <p class="text-xs text-muted">
-          {{ item.printingId ?? 'printing not detected'
+          {{ item.printingLabel ?? item.printingId ?? 'printing not detected'
           }}<template v-if="item.language"> · {{ languageLabel }}</template>
         </p>
       </div>
@@ -32,6 +32,7 @@
     <!-- précisions que la caméra ne peut pas toujours lire : modifiables d'un geste -->
     <div class="flex flex-wrap items-center gap-2 mt-2" :class="large ? 'pl-12' : 'pl-11'">
       <UButton
+        v-if="firstEditionOn"
         data-scan-first-edition-toggle
         :variant="item.firstEdition ? 'solid' : 'outline'"
         color="neutral"
@@ -72,6 +73,7 @@ export interface ScanSessionEntry {
   entryId: string
   cardId: string
   printingId: string | null
+  printingLabel?: string | null
   name: string
   language: string | null
   firstEdition: boolean
@@ -85,6 +87,7 @@ const props = defineProps<{
   item: ScanSessionEntry
   languageLabel?: string
   large?: boolean
+  firstEditionOn?: boolean // le jeu a une mention « 1re édition »
 }>()
 
 const emit = defineEmits<{

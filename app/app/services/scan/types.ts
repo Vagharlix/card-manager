@@ -3,6 +3,8 @@
 export interface Identified {
   cardId: string
   printingId: string | null
+  // impression lisible (« LOB-EN005 », « BLB #280 ») ; null si inconnue
+  printingLabel: string | null
   name: string
   via: 'setcode' | 'passcode' | 'name'
   score: number // 1 pour un code d'impression, similarité du nom sinon

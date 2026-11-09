@@ -181,7 +181,7 @@ describe('pagination', () => {
 })
 
 it('jeu sans moteur de recherche → erreur explicite', () => {
-  expect(() => searchCards('mtg', {})).toThrow(/mtg/)
+  expect(() => searchCards('pkm', {})).toThrow(/pkm/)
 })
 
 describe('options de filtres', () => {

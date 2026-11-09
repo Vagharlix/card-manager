@@ -34,13 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  syncCardData,
-  syncProgress,
-  syncStatus,
-  syncError,
-  isSyncing,
-} from '~/services/cardData'
+import { syncCardData, syncProgress, syncStatus, syncError, isSyncing } from '~/services/cardData'
 import { getGlobalSettings } from '~/services/settings'
 import { pruneImageCache } from '~/services/imageCache'
 
@@ -48,8 +42,7 @@ const { isMobile } = useResponsive()
 const deviceSync = useDeviceSync()
 const { game } = useCurrentGame()
 // remontée de la page : après une synchro qui a changé la base, ou au changement de jeu
-const pageKey = (r: { fullPath: string }) =>
-  `${r.fullPath}#${game.value}#${deviceSync.epoch.value}`
+const pageKey = (r: { fullPath: string }) => `${r.fullPath}#${game.value}#${deviceSync.epoch.value}`
 // mobile : notifications en haut et brèves (elles passent sur le titre de la page)
 const toaster = computed(() =>
   isMobile.value
@@ -67,7 +60,7 @@ async function runSync() {
   // so we never sync — tests must not depend on the network.
   if (import.meta.env.VITE_TEST_MODE === 'true') return
   try {
-    await syncCardData(game.value)
+    await syncCardData(game.value, { auto: true })
   } catch {}
 }
 
