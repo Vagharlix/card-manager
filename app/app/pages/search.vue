@@ -1,7 +1,7 @@
 <template>
   <AppPage sidebar-label="Filters" title="Search">
     <template #sidebar>
-      <SearchFilters v-model="filters" :options="filterOptions" />
+      <component :is="filterPanel" v-if="filterPanel" v-model="filters" />
     </template>
     <div class="flex flex-col h-full">
       <!-- barre de recherche : fixe -->
@@ -36,24 +36,27 @@
         <USelect v-if="!isMobile" v-model="perPage" :items="perPageItems" class="w-28" size="sm" />
       </div>
     </div>
-    <CardDetail v-model:open="detailOpen" game="ygo" :card-id="selectedId" @added="refreshOwned" />
+    <CardDetail v-model:open="detailOpen" :game="GAME" :card-id="selectedId" @added="refreshOwned" />
   </AppPage>
 </template>
 <script setup lang="ts">
 import {
   searchCards,
   countCards,
-  getYgoFilterOptions,
   type CardSearchResult,
-  type YgoFilters,
-  type YgoFilterOptions,
 } from '~/services/search'
+import { searchFilterPanel } from '~/utils/gameUi'
 import { ownedCardIds } from '~/services/collection'
+
+// jeu affiché (la page est remontée quand il change, cf. app.vue)
+const GAME = useCurrentGame().game.value
 
 const { isMobile } = useResponsive()
 const query = ref('')
 const field = ref<'name' | 'effect'>('name')
-const filters = ref<YgoFilters>({})
+// filtres propres au jeu (panneau fourni par utils/gameUi.ts, ou aucun)
+const filterPanel = searchFilterPanel(GAME)
+const filters = ref<Record<string, unknown>>({})
 const fieldItems = [
   { label: 'Name', value: 'name' },
   { label: 'Effect', value: 'effect' },
@@ -67,19 +70,11 @@ const loading = ref(false)
 const ownedIds = ref<Set<string>>(new Set())
 const detailOpen = ref(false)
 const selectedId = ref<string | null>(null)
-const filterOptions = ref<YgoFilterOptions>({
-  attributes: [],
-  races: [],
-  archetypes: [],
-  monsterTypes: [],
-  spellTrapTypes: [],
-})
 onMounted(async () => {
-  filterOptions.value = await getYgoFilterOptions()
   await refreshOwned()
 })
 async function refreshOwned() {
-  ownedIds.value = await ownedCardIds('ygo')
+  ownedIds.value = await ownedCardIds(GAME)
 }
 async function load() {
   loading.value = true
@@ -92,8 +87,8 @@ async function load() {
       offset: (page.value - 1) * perPage.value,
     }
     const [batch, count] = await Promise.all([
-      searchCards('ygo', params),
-      countCards('ygo', params),
+      searchCards(GAME, params),
+      countCards(GAME, params),
     ])
     results.value = batch
     total.value = count

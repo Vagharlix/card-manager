@@ -46,7 +46,7 @@ describe('assignCardToContainer', () => {
     const binder = seed.binder('Binder')
     expect(await assignCardToContainer('ygo', DM, binder, 'binder', 2)).toBe(2)
     expect(contentsOf(dbs, binder)).toEqual({ [DM]: 2 })
-    expect(await unrangedCount()).toBe(1)
+    expect(await unrangedCount('ygo')).toBe(1)
   })
 
   it('classeur plein : s’arrête et renvoie ce qui a été placé', async () => {
@@ -71,7 +71,7 @@ describe('assignCardToContainer', () => {
     const box = seed.deckbox('Box')
     expect(await assignCardToContainer('ygo', DM, bulk, 'bulk_box', 5)).toBe(2)
     expect(await assignCardToContainer('ygo', DM, box, 'deckbox', 1)).toBe(0)
-    expect(await unrangedCount()).toBe(0)
+    expect(await unrangedCount('ygo')).toBe(0)
   })
 })
 
@@ -92,7 +92,7 @@ describe('unassignCardFromContainer', () => {
     await assignCardToContainer('ygo', DM, binder, 'binder', 3)
     expect(await unassignCardFromContainer('ygo', DM, binder, 'binder', 2)).toBe(2)
     expect(contentsOf(dbs, binder)).toEqual({ [DM]: 1 })
-    expect(await unrangedCount()).toBe(2)
+    expect(await unrangedCount('ygo')).toBe(2)
   })
 })
 
@@ -101,7 +101,7 @@ describe('listContainerCards', () => {
     const box = seed.deckbox('Box')
     seed.inDeckbox(box, seed.owned(DM, 1), 1)
     seed.inDeckbox(box, seed.owned(DM_ALT, 2), 2)
-    expect(await listContainerCards(box, 'deckbox')).toMatchObject([
+    expect(await listContainerCards(box, 'deckbox', 'ygo')).toMatchObject([
       { rootId: DM, name: 'Dark Magician', totalQty: 3 },
     ])
   })
@@ -109,7 +109,7 @@ describe('listContainerCards', () => {
 
 describe('migration 005 — classeur multi-copies', () => {
   it('conserve les cases valides, écarte les orphelines, garde la vue utilisable', () => {
-    const legacy: TestDatabases = { user: new TestDatabase('user', { upTo: 4 }), ygo: dbs.ygo }
+    const legacy: TestDatabases = createTestDatabases({ user: new TestDatabase('user', { upTo: 4 }), ygo: dbs.ygo })
     const s = createSeeder(legacy)
     const binder = s.binder('Binder')
     const entry = s.owned(DM, 3)

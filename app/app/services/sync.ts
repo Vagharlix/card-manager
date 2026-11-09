@@ -1,4 +1,6 @@
 import { useDatabase } from '~/composables/useDatabase'
+type CardDb = import('@tauri-apps/plugin-sql').default
+import { syncProgress, syncStatus, syncError, isSyncing } from '~/services/cardDataProgress'
 
 // ============================================================
 // YGO SYNC SERVICE
@@ -64,10 +66,7 @@ interface SyncMetaRow {
   value: string
 }
 
-export const syncProgress = ref(0)
-export const syncStatus = ref('')
-export const syncError = ref<string | null>(null)
-export const isSyncing = ref(false)
+export { syncProgress, syncStatus, syncError, isSyncing }
 
 function setProgress(value: number, status: string) {
   syncProgress.value = value
@@ -190,7 +189,7 @@ async function batchInsert(
   }
 }
 
-async function raritiesMissing(ygo: Awaited<ReturnType<typeof useDatabase>>['ygo']) {
+async function raritiesMissing(ygo: CardDb) {
   const rows = await ygo.select<{ n: number }[]>(
     `SELECT (SELECT COUNT(*) FROM printing_rarities) = 0
         AND (SELECT COUNT(*) FROM printings) > 0 AS n`
@@ -200,7 +199,7 @@ async function raritiesMissing(ygo: Awaited<ReturnType<typeof useDatabase>>['ygo
 
 // version de la base de cartes locale (null = jamais synchronisée)
 export async function localSyncVersion(): Promise<string | null> {
-  const { ygo } = await useDatabase()
+  const ygo = (await useDatabase()).cards('ygo')
   return getLocalVersion(ygo)
 }
 
@@ -213,7 +212,7 @@ export async function syncYgo(options: { force?: boolean } = {}): Promise<void> 
   setProgress(0, 'Checking for updates...')
 
   try {
-    const { ygo } = await useDatabase()
+    const ygo = (await useDatabase()).cards('ygo')
 
     const [localVersion, remoteVersion] = await Promise.all([
       getLocalVersion(ygo),

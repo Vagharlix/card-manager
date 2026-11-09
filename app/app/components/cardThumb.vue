@@ -88,7 +88,11 @@ const emit = defineEmits<{
   select: [card: CardSearchResult]
   toggle: [card: CardSearchResult]
 }>()
-const { src, loading, error } = useCardImage(() => props.card.id, 'small')
+const { src, loading, error } = useCardImage(
+  () => props.card.id,
+  'small',
+  () => props.card.game
+)
 function onClick() {
   if (props.selectable) emit('toggle', props.card)
   else emit('select', props.card)

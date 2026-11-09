@@ -1,6 +1,7 @@
 import { useDatabase } from '~/composables/useDatabase'
 import { getDefaultCondition, getDefaultLanguage } from '~/services/settings'
 import { ASSIGNED_SUBQUERY } from '~/services/containers'
+import { cardMetaOf } from '~/services/card/meta'
 
 // ============================================================
 // COLLECTION SERVICE
@@ -9,7 +10,8 @@ import { ASSIGNED_SUBQUERY } from '~/services/containers'
 // finish, optionally tied to a specific printing.
 // ============================================================
 
-export type CardCondition = 'NM' | 'LP' | 'MP' | 'HP' | 'DMG'
+// id d'un état défini par le jeu (GameDefinition.conditions, ex. 'NM')
+export type CardCondition = string
 
 export interface CollectionEntry {
   id: string
@@ -209,7 +211,7 @@ export async function collectionTotal(game: string): Promise<number> {
 
 // ── all owned passcodes for a game (for grid "owned" pills) ──
 // Returns a Set for O(1) lookup when rendering search results.
-export async function ownedCardIds(game = 'ygo'): Promise<Set<string>> {
+export async function ownedCardIds(game: string): Promise<Set<string>> {
   const { user } = await useDatabase()
   const rows = await user.select<{ card_id: string }[]>(
     `SELECT DISTINCT card_id FROM collection
@@ -265,10 +267,10 @@ export interface CollectionQuery {
 }
 
 export async function listCollectionCards(
-  game = 'ygo',
+  game: string,
   q: CollectionQuery = {}
 ): Promise<CollectionCard[]> {
-  const { user, ygo } = await useDatabase()
+  const { user } = await useDatabase()
 
   const entries = await user.select<
     { card_id: string; quantity: number; trade_qty: number; assigned: number; created_at: string }[]
@@ -281,15 +283,10 @@ export async function listCollectionCards(
   )
   if (!entries.length) return []
 
-  const ids = [...new Set(entries.map((e) => e.card_id))]
-  const ph = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<{ id: string; root: string; name: string; type: string | null }[]>(
-    `SELECT c.id, COALESCE(d.alias, c.id) AS root, c.name, d.type
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${ph})`,
-    ids
+  const metaById = await cardMetaOf(
+    game,
+    entries.map((e) => e.card_id)
   )
-  const metaById = new Map(meta.map((m) => [m.id, m]))
 
   // regroupement par carte logique ; qtyByPasscode sert à choisir la vignette
   const groups = new Map<string, CollectionCard & { qtyByPasscode: Map<string, number> }>()

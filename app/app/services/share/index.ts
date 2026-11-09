@@ -1,5 +1,7 @@
 import { useDatabase } from '~/composables/useDatabase'
 import { decodeShare, encodeShare, type SharePayload } from './codec'
+import { cardMetaOf, variantsOfRoots, type CardMeta } from '~/services/card/meta'
+import { gameDefOrNull } from '~/services/game'
 
 // ============================================================
 // SHARE SERVICE — partage de collection entre joueurs.
@@ -10,7 +12,7 @@ import { decodeShare, encodeShare, type SharePayload } from './codec'
 //   - collections reçues enregistrées (table shared_collections).
 // ============================================================
 
-export { decodeShare, encodeShare, ShareCodeError, SHARE_PREFIX } from './codec'
+export { decodeShare, encodeShare, ShareCodeError, SHARE_PREFIX, SHARE_PREFIX_V2 } from './codec'
 export type { SharePayload, ShareCard } from './codec'
 export { toFrames, FrameAssembler, type AssembleResult } from './frames'
 
@@ -54,37 +56,27 @@ export interface SharedCardView {
 }
 
 export async function resolveShare(payload: SharePayload): Promise<SharedCardView[]> {
-  const { user, ygo } = await useDatabase()
+  const { user } = await useDatabase()
   if (!payload.cards.length) return []
 
-  // noms + carte logique (alias) — base de référence du jeu
-  const ids = payload.cards.map((c) => c.id)
-  const ph = ids.map(() => '?').join(', ')
-  const meta =
-    payload.game === 'ygo'
-      ? await ygo.select<{ id: string; root: string; name: string }[]>(
-          `SELECT c.id, COALESCE(d.alias, c.id) AS root, c.name
-           FROM cards c JOIN ygo_details d ON d.card_id = c.id
-           WHERE c.id IN (${ph})`,
-          ids
-        )
-      : []
-  const metaById = new Map(meta.map((m) => [m.id, m]))
+  // noms + carte logique — base de cartes du jeu (un jeu absent de cette
+  // version de l'appli : ids bruts, pas de regroupement)
+  const known = gameDefOrNull(payload.game) !== null
+  const metaById = known
+    ? await cardMetaOf(
+        payload.game,
+        payload.cards.map((c) => c.id)
+      )
+    : new Map<string, CardMeta>()
 
   // ma collection, par carte logique
   const roots = [...new Set(payload.cards.map((c) => metaById.get(c.id)?.root ?? c.id))]
-  const rph = roots.map(() => '?').join(', ')
-  const variants =
-    payload.game === 'ygo'
-      ? await ygo.select<{ id: string; root: string }[]>(
-          `SELECT c.id, COALESCE(d.alias, c.id) AS root
-           FROM cards c JOIN ygo_details d ON d.card_id = c.id
-           WHERE COALESCE(d.alias, c.id) IN (${rph})`,
-          roots
-        )
-      : roots.map((r) => ({ id: r, root: r }))
-  const rootOf = new Map(variants.map((v) => [v.id, v.root]))
-  const variantIds = variants.map((v) => v.id)
+  const variants = known
+    ? await variantsOfRoots(payload.game, roots)
+    : new Map(roots.map((r) => [r, [r]]))
+  const rootOf = new Map<string, string>()
+  for (const [root, ids] of variants) for (const id of ids) rootOf.set(id, root)
+  const variantIds = [...rootOf.keys()]
   const mineByRoot = new Map<string, number>()
   if (variantIds.length) {
     const vph = variantIds.map(() => '?').join(', ')

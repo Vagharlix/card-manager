@@ -1,7 +1,8 @@
 // ============================================================
 // GAME REGISTRY — router
-// Resolves a game id to its definition. Mirrors deckEngine() in
-// services/decks.ts. Adding a game = add a file + one line here.
+// Resolves a game id to its definition (pure data: vocabulary, card
+// database). Everything else a game provides lives in its module
+// (services/game/modules) — the single entry point of a game.
 // ============================================================
 
 import type { GameDefinition } from './types'
@@ -10,6 +11,16 @@ import { DEFAULT_CONDITION, DEFAULT_LANGUAGE } from './common'
 
 const GAMES: Record<string, GameDefinition> = {
   ygo: ygoGame,
+}
+
+// ajoute un jeu (appelé par registerGameModule ; tests : faux jeu)
+export function registerGame(def: GameDefinition): void {
+  GAMES[def.id] = def
+}
+
+// retire un jeu (tests)
+export function unregisterGame(id: string): void {
+  delete GAMES[id]
 }
 
 // strict resolver — throws on unknown game (use where a game must exist)

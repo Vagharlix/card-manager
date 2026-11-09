@@ -1,6 +1,7 @@
 import { useDatabase } from '~/composables/useDatabase'
+import { cardMetaOf, legalityOf, logicalVariants, variantsOfRoots } from '~/services/card/meta'
 import type { DeckEngine, Board } from './deck/types'
-import { ygoDeckEngine } from './deck/ygo'
+import { gameModule } from '~/services/game/modules'
 
 // ============================================================
 // DECKS SERVICE
@@ -13,15 +14,17 @@ import { ygoDeckEngine } from './deck/ygo'
 // doesn't own.
 // ============================================================
 
-// ── engine router ──
-const ENGINES: Record<string, DeckEngine> = {
-  ygo: ygoDeckEngine,
+// ── engine router (le moteur vient du module du jeu) ──
+export function deckEngine(game: string): DeckEngine {
+  return gameModule(game).deck
 }
 
-export function deckEngine(game: string): DeckEngine {
-  const engine = ENGINES[game]
-  if (!engine) throw new Error(`No deck engine for game "${game}"`)
-  return engine
+// jeu d'un deck (un deck appartient à un seul jeu)
+export async function deckGame(deckId: string): Promise<string> {
+  const { user } = await useDatabase()
+  const rows = await user.select<{ game: string }[]>(`SELECT game FROM decks WHERE id = ?`, [deckId])
+  if (!rows[0]) throw new Error(`Unknown deck "${deckId}"`)
+  return rows[0].game
 }
 
 // ── types ──
@@ -121,7 +124,7 @@ export async function deleteDeck(id: string): Promise<void> {
 // READ — deck list with counts + default cover
 // ============================================================
 
-export async function listDecks(game = 'ygo'): Promise<DeckListItem[]> {
+export async function listDecks(game: string): Promise<DeckListItem[]> {
   const { user } = await useDatabase()
 
   const decks = await user.select<any[]>(
@@ -210,16 +213,18 @@ export interface DeckCard {
   owned: number // how many copies the user owns (0 = not owned)
 }
 
-export interface DeckContents {
+// cartes par zone (les zones dépendent du jeu : DeckEngine.rules.boards)
+export type DeckContents = Partial<Record<Board, DeckCard[]>> & {
   main: DeckCard[]
   extra: DeckCard[]
   side: DeckCard[]
 }
 
 // full contents of a deck, grouped by board, enriched with name/type
-// (from cards-ygo.db) and owned quantity (from collection in user.db).
-export async function getDeckContents(deckId: string, game = 'ygo'): Promise<DeckContents> {
-  const { user, ygo } = await useDatabase()
+// (from the game's card database) and owned quantity (from collection in user.db).
+export async function getDeckContents(deckId: string, game?: string): Promise<DeckContents> {
+  const { user } = await useDatabase()
+  game ??= await deckGame(deckId)
 
   const rows = await user.select<{ card_id: string; quantity: number; board: Board }[]>(
     `SELECT card_id, quantity, board FROM deck_cards WHERE deck_id = ?`,
@@ -229,29 +234,19 @@ export async function getDeckContents(deckId: string, game = 'ygo'): Promise<Dec
   const empty: DeckContents = { main: [], extra: [], side: [] }
   if (!rows.length) return empty
 
-  // names + types
-  const ids = [...new Set(rows.map((r) => r.card_id))]
-  const ph = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<{ id: string; name: string; type: string | null }[]>(
-    `SELECT c.id, c.name, d.type
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${ph})`,
-    ids
+  // names + types + logical card
+  const metaById = await cardMetaOf(
+    game,
+    rows.map((r) => r.card_id)
   )
-  const metaById = new Map(meta.map((m) => [m.id, m]))
+  const rootOfId = (id: string) => metaById.get(id)?.root ?? id
 
-  // owned quantity per LOGICAL card (all artworks sharing the alias root),
+  // owned quantity per LOGICAL card (all artworks sharing the root),
   // like deck ↔ deckbox ranging: owning any artwork counts.
-  const variants = await ygo.select<{ id: string; root: string }[]>(
-    `SELECT c.id, COALESCE(d.alias, c.id) AS root
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE COALESCE(d.alias, c.id) IN (
-       SELECT COALESCE(d2.alias, d2.card_id) FROM ygo_details d2 WHERE d2.card_id IN (${ph})
-     )`,
-    ids
-  )
-  const rootById = new Map(variants.map((v) => [v.id, v.root]))
-  const variantIds = variants.length ? variants.map((v) => v.id) : ids
+  const variants = await variantsOfRoots(game, rows.map((r) => rootOfId(r.card_id)))
+  const rootById = new Map<string, string>()
+  for (const [root, ids] of variants) for (const id of ids) rootById.set(id, root)
+  const variantIds = [...rootById.keys()]
   const vph = variantIds.map(() => '?').join(', ')
   const owned = await user.select<{ card_id: string; n: number }[]>(
     `SELECT card_id, SUM(quantity) AS n FROM collection
@@ -273,17 +268,13 @@ export async function getDeckContents(deckId: string, game = 'ygo'): Promise<Dec
       name: m?.name ?? r.card_id,
       type: m?.type ?? null,
       quantity: r.quantity,
-      owned: ownedByRoot.get(rootById.get(r.card_id) ?? r.card_id) ?? 0,
+      owned: ownedByRoot.get(rootOfId(r.card_id)) ?? 0,
     }
-    if (r.board === 'main') result.main.push(card)
-    else if (r.board === 'extra') result.extra.push(card)
-    else if (r.board === 'side') result.side.push(card)
+    ;(result[r.board] ??= []).push(card)
   }
 
   // stable display order: by name
-  result.main.sort((a, b) => a.name.localeCompare(b.name))
-  result.extra.sort((a, b) => a.name.localeCompare(b.name))
-  result.side.sort((a, b) => a.name.localeCompare(b.name))
+  for (const list of Object.values(result)) list?.sort((a, b) => a.name.localeCompare(b.name))
 
   return result
 }
@@ -305,7 +296,7 @@ export async function addCardToDeck(
   cardType: string | null,
   board?: Board
 ): Promise<AddResult> {
-  const { user, ygo } = await useDatabase()
+  const { user } = await useDatabase()
   const engine = deckEngine(game)
 
   const targetBoard = board ?? engine.boardForCard({ cardId, type: cardType })
@@ -313,7 +304,7 @@ export async function addCardToDeck(
   // Resolve every passcode that is the SAME logical card (shared alias
   // root), so the copy limit counts all artworks together — not per
   // passcode. Otherwise 3× art-A + 3× art-B would bypass the limit.
-  const variantIds = await logicalVariants(cardId)
+  const variantIds = await logicalVariants(game, cardId)
 
   // current total copies of this logical card across all boards
   const ph = variantIds.map(() => '?').join(', ')
@@ -327,12 +318,12 @@ export async function addCardToDeck(
 
   // deck format + card banlist → format-aware copy limit
   const format = await deckFormat(deckId, engine.rules.defaultFormat)
-  const banlist = await cardBanlist(cardId)
+  const banlist = await cardBanlist(game, cardId)
   const max = engine.maxCopiesForCard({ cardId, type: cardType, banlist }, format)
 
   if (current >= max) {
     // precise reason based on the limit / banlist status
-    const status = format === 'casual' ? null : banlist[format]
+    const status = banlist[format]
     let reason: AddResult['reason'] = 'max'
     if (status === 'Forbidden') reason = 'forbidden'
     else if (status === 'Limited') reason = 'limited'
@@ -360,27 +351,6 @@ export async function addCardToDeck(
   return { ok: true }
 }
 
-// all passcodes that are the same logical card as `cardId`
-// (i.e. share the same alias root). Crosses into cards-ygo.db.
-async function logicalVariants(cardId: string): Promise<string[]> {
-  const { ygo } = await useDatabase()
-  // alias root of the given card
-  const rootRows = await ygo.select<{ root: string }[]>(
-    `SELECT COALESCE(alias, card_id) AS root FROM ygo_details WHERE card_id = ?`,
-    [cardId]
-  )
-  const root = rootRows[0]?.root ?? cardId
-  // every card whose root is the same (id == root OR alias == root)
-  const variants = await ygo.select<{ id: string }[]>(
-    `SELECT c.id
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id = ? OR d.alias = ?`,
-    [root, root]
-  )
-  const ids = variants.map((v) => v.id)
-  return ids.length ? ids : [cardId]
-}
-
 // current format of a deck (falls back to engine default)
 async function deckFormat(deckId: string, fallback: string): Promise<string> {
   const { user } = await useDatabase()
@@ -391,18 +361,11 @@ async function deckFormat(deckId: string, fallback: string): Promise<string> {
   return rows[0]?.format ?? fallback
 }
 
-// banlist status of a card per format, from cards-ygo.db.
-// Uses the alias root so all artworks share the same banlist.
-async function cardBanlist(cardId: string): Promise<Record<string, string | null>> {
-  const { ygo } = await useDatabase()
-  const rows = await ygo.select<{ banlist_tcg: string | null; banlist_ocg: string | null }[]>(
-    `SELECT banlist_tcg, banlist_ocg
-     FROM ygo_details
-     WHERE card_id = COALESCE((SELECT alias FROM ygo_details WHERE card_id = ?), ?)`,
-    [cardId, cardId]
-  )
-  const r = rows[0]
-  return { tcg: r?.banlist_tcg ?? null, ocg: r?.banlist_ocg ?? null }
+// status of a card per format (card_legality), read on its logical
+// card so all artworks share the same restrictions.
+async function cardBanlist(game: string, cardId: string): Promise<Record<string, string>> {
+  const root = (await cardMetaOf(game, [cardId])).get(cardId)?.root ?? cardId
+  return (await legalityOf(game, [root])).get(root) ?? {}
 }
 
 // remove one copy of a card from a specific board (deletes row at 0)
@@ -488,8 +451,9 @@ export interface DeckValidation {
   flagged: Set<string>
 }
 
-export async function validateDeck(deckId: string, game = 'ygo'): Promise<DeckValidation> {
-  const { user, ygo } = await useDatabase()
+export async function validateDeck(deckId: string, game?: string): Promise<DeckValidation> {
+  const { user } = await useDatabase()
+  game ??= await deckGame(deckId)
   const engine = deckEngine(game)
   const format = await deckFormat(deckId, engine.rules.defaultFormat)
 
@@ -500,36 +464,22 @@ export async function validateDeck(deckId: string, game = 'ygo'): Promise<DeckVa
   )
   if (!rows.length) return { valid: true, violations: [], flagged: new Set() }
 
-  // resolve each passcode to its alias root + name + banlist
-  const ids = [...new Set(rows.map((r) => r.card_id))]
-  const ph = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<
-    {
-      id: string
-      root: string
-      name: string
-      banlist_tcg: string | null
-      banlist_ocg: string | null
-    }[]
-  >(
-    `SELECT c.id,
-            COALESCE(d.alias, c.id) AS root,
-            c.name,
-            rd.banlist_tcg, rd.banlist_ocg
-     FROM cards c
-     JOIN ygo_details d  ON d.card_id = c.id
-     JOIN ygo_details rd ON rd.card_id = COALESCE(d.alias, c.id)
-     WHERE c.id IN (${ph})`,
-    ids
+  // resolve each card to its logical root + name, then the root's legality
+  const metaById = await cardMetaOf(
+    game,
+    rows.map((r) => r.card_id)
   )
-  const metaById = new Map(meta.map((m) => [m.id, m]))
+  const legality = await legalityOf(
+    game,
+    [...metaById.values()].map((m) => m.root)
+  )
 
   // sum quantities per logical root
   interface Agg {
     root: string
     name: string
     qty: number
-    banlist: Record<string, string | null>
+    banlist: Record<string, string>
     passcodes: string[]
   }
   const byRoot = new Map<string, Agg>()
@@ -540,7 +490,7 @@ export async function validateDeck(deckId: string, game = 'ygo'): Promise<DeckVa
       root: m.root,
       name: m.name,
       qty: 0,
-      banlist: { tcg: m.banlist_tcg, ocg: m.banlist_ocg },
+      banlist: legality.get(m.root) ?? {},
       passcodes: [],
     }
     agg.qty += r.quantity

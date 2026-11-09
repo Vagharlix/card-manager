@@ -37,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { canScan } from '~/services/scan'
 const route = useRoute()
 
 interface Tab {
@@ -47,16 +48,17 @@ interface Tab {
   primary?: boolean
 }
 
-// le scan n'existe que dans l'app Android
-const tabs: Tab[] = [
+// le scan n'existe que dans l'app Android, et pour un jeu qui sait scanner
+const { game } = useCurrentGame()
+const tabs = computed<Tab[]>(() => [
   { id: 'collection', label: 'Collection', to: '/collection', icon: 'i-lucide-library' },
   { id: 'search', label: 'Search', to: '/search', icon: 'i-lucide-search' },
-  ...(isAndroid()
+  ...(isAndroid() && canScan(game.value)
     ? [{ id: 'scan', label: 'Scan', to: '/scan', icon: 'i-lucide-scan-line', primary: true }]
     : []),
   { id: 'decks', label: 'Decks', to: '/decks', icon: 'i-lucide-layers' },
   { id: 'share', label: 'Share', to: '/share', icon: 'i-lucide-share-2' },
-]
+])
 
 function isActive(to: string) {
   return route.path === to || route.path.startsWith(`${to}/`)

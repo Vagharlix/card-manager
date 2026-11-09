@@ -1,4 +1,5 @@
 import { useDatabase } from '~/composables/useDatabase'
+import { cardMetaOf } from '~/services/card/meta'
 
 // ============================================================
 // CONTAINERS SERVICE
@@ -352,7 +353,7 @@ export async function listContainersWithCapacity(): Promise<ContainerWithCapacit
 // (assigned.qty = NULL) count as full quantity, not NULL.
 // ============================================================
 
-export async function unrangedCount(game = 'ygo'): Promise<number> {
+export async function unrangedCount(game: string): Promise<number> {
   const { user } = await useDatabase()
   const rows = await user.select<{ unranged: number }[]>(
     `SELECT COALESCE(SUM(c.quantity - COALESCE(assigned.qty, 0)), 0) AS unranged
@@ -371,7 +372,7 @@ export interface UnrangedEntry {
   unranged: number
 }
 
-export async function listUnranged(game = 'ygo'): Promise<UnrangedEntry[]> {
+export async function listUnranged(game: string): Promise<UnrangedEntry[]> {
   const { user } = await useDatabase()
   const rows = await user.select<any[]>(
     `SELECT c.id AS collection_id, c.card_id,
@@ -390,9 +391,8 @@ export async function listUnranged(game = 'ygo'): Promise<UnrangedEntry[]> {
 }
 
 // unranged cards grouped by logical card (for grid/list display),
-// crossing user.db + cards-ygo.db.
-export async function listUnrangedCards(game = 'ygo'): Promise<ContainerCard[]> {
-  const { ygo } = await useDatabase()
+// crossing user.db + the game's card database.
+export async function listUnrangedCards(game: string): Promise<ContainerCard[]> {
   const entries = await listUnranged(game)
   if (!entries.length) return []
 
@@ -402,20 +402,12 @@ export async function listUnrangedCards(game = 'ygo'): Promise<ContainerCard[]> 
     qtyByCard.set(e.cardId, (qtyByCard.get(e.cardId) ?? 0) + e.unranged)
   }
 
-  const ids = [...qtyByCard.keys()]
-  const ph = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<{ id: string; name: string; alias: string | null }[]>(
-    `SELECT c.id, c.name, d.alias
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${ph})`,
-    ids
-  )
-  const metaById = new Map(meta.map((m) => [m.id, m]))
+  const metaById = await cardMetaOf(game, qtyByCard.keys())
 
   const groups = new Map<string, ContainerCard>()
   for (const [cardId, qty] of qtyByCard) {
     const m = metaById.get(cardId)
-    const root = m?.alias ?? cardId
+    const root = m?.root ?? cardId
     let g = groups.get(root)
     if (!g) {
       g = { game, rootId: root, displayId: cardId, name: m?.name ?? cardId, totalQty: 0 }
@@ -598,7 +590,7 @@ export async function assignCardToContainer(
 // ============================================================
 // CONTAINER CONTENTS
 // What's actually inside a container, grouped by logical card
-// (via alias), crossing user.db + cards-ygo.db. Binder keeps
+// (via alias), crossing user.db + the game's card database. Binder keeps
 // per-slot rows (position matters) — handled by the binder view.
 // ============================================================
 
@@ -625,9 +617,9 @@ export interface BinderSlotCard {
 // all occupied slots of a binder, with card name (for the grid view)
 export async function listBinderSlots(
   containerId: string,
-  game = 'ygo'
+  game: string
 ): Promise<BinderSlotCard[]> {
-  const { user, ygo } = await useDatabase()
+  const { user } = await useDatabase()
 
   const slots = await user.select<
     { id: string; collection_id: string; card_id: string; page: number; row: number; col: number }[]
@@ -641,20 +633,17 @@ export async function listBinderSlots(
   )
   if (!slots.length) return []
 
-  const ids = [...new Set(slots.map((s) => s.card_id))]
-  const ph = ids.map(() => '?').join(', ')
-  const names = await ygo.select<{ id: string; name: string }[]>(
-    `SELECT id, name FROM cards WHERE id IN (${ph})`,
-    ids
+  const meta = await cardMetaOf(
+    game,
+    slots.map((s) => s.card_id)
   )
-  const nameById = new Map(names.map((n) => [n.id, n.name]))
 
   return slots.map((s) => ({
     slotId: s.id,
     collectionId: s.collection_id,
     game,
     cardId: s.card_id,
-    name: nameById.get(s.card_id) ?? s.card_id,
+    name: meta.get(s.card_id)?.name ?? s.card_id,
     page: s.page,
     row: s.row,
     col: s.col,
@@ -733,9 +722,9 @@ async function containerAssignments(
 export async function listContainerCards(
   containerId: string,
   type: ContainerType,
-  game = 'ygo'
+  game: string
 ): Promise<ContainerCard[]> {
-  const { user, ygo } = await useDatabase()
+  const { user } = await useDatabase()
 
   const assignments = await containerAssignments(containerId, type)
   if (!assignments.length) return []
@@ -759,21 +748,13 @@ export async function listContainerCards(
   if (!qtyByCard.size) return []
 
   // resolve alias root + name for each passcode
-  const ids = [...qtyByCard.keys()]
-  const ph2 = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<{ id: string; name: string; alias: string | null }[]>(
-    `SELECT c.id, c.name, d.alias
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${ph2})`,
-    ids
-  )
-  const metaById = new Map(meta.map((m) => [m.id, m]))
+  const metaById = await cardMetaOf(game, qtyByCard.keys())
 
   // group by alias root
   const groups = new Map<string, ContainerCard>()
   for (const [cardId, qty] of qtyByCard) {
     const m = metaById.get(cardId)
-    const root = m?.alias ?? cardId
+    const root = m?.root ?? cardId
     let g = groups.get(root)
     if (!g) {
       g = { game, rootId: root, displayId: cardId, name: m?.name ?? cardId, totalQty: 0 }

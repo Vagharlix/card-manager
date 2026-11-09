@@ -90,15 +90,48 @@ describe('codec', () => {
   })
 
   it('signale une version future', () => {
-    expect(() => decodeShare('CMSHARE2:ABC')).toThrow('UNSUPPORTED_VERSION')
+    expect(() => decodeShare('CMSHARE9:ABC')).toThrow('UNSUPPORTED_VERSION')
   })
 
-  it('refuse les ids non numériques ou à zéro de tête', () => {
-    for (const id of ['abc-123', '0123']) {
-      expect(() => encodeShare({ ...payload, cards: [{ id, qty: 1, trade: 0 }] })).toThrow(
-        'UNSUPPORTED_ID'
-      )
-    }
+  it('ids non numériques ou à zéro de tête : format v2, aller-retour exact', () => {
+    const cards = [
+      { id: 'abc-123', qty: 2, trade: 1 },
+      { id: '0123', qty: 1, trade: 0 },
+      { id: 'abc-124', qty: 1, trade: 0 },
+      { id: 'Été-ß', qty: 3, trade: 3 },
+      { id: 'abc-123', qty: 1, trade: 0 }, // 2e pile de la même carte
+    ]
+    const code = encodeShare({ ...payload, cards })
+    expect(code).toMatch(/^CMSHARE2:[A-Z2-7]+$/)
+    const back = decodeShare(code.toLowerCase())
+    expect(back.game).toBe(payload.game)
+    expect(back.cards).toEqual(
+      [
+        { id: '0123', qty: 1, trade: 0 },
+        { id: 'abc-123', qty: 3, trade: 1 },
+        { id: 'abc-124', qty: 1, trade: 0 },
+        { id: 'Été-ß', qty: 3, trade: 3 },
+      ].sort((a, b) => (a.id < b.id ? -1 : 1))
+    )
+  })
+
+  it('ids numériques : reste en v1 (plus compact)', () => {
+    expect(encodeShare({ ...payload, cards: [{ id: '46986414', qty: 1, trade: 0 }] })).toMatch(
+      /^CMSHARE1:/
+    )
+  })
+
+  it('refuse un id vide', () => {
+    expect(() => encodeShare({ ...payload, cards: [{ id: '', qty: 1, trade: 0 }] })).toThrow(
+      'UNSUPPORTED_ID'
+    )
+  })
+
+  it('v2 : refuse un préfixe commun plus long que l’id précédent', () => {
+    // en-tête valide puis une carte qui prétend partager 5 octets avec « rien »
+    const good = encodeShare({ ...payload, cards: [{ id: 'x-1', qty: 1, trade: 0 }] })
+    expect(decodeShare(good).cards).toEqual([{ id: 'x-1', qty: 1, trade: 0 }])
+    expect(() => decodeShare('CMSHARE2:AAAA')).toThrow('INVALID')
   })
 
   it('650 cartes différentes tiennent dans un QR code', () => {

@@ -11,5 +11,9 @@ function dbName(base: string): string {
 
 export const DB_NAMES = {
   user: dbName('user'),
-  ygo: dbName('cards-ygo'),
 } as const
+
+// base de cartes d'un jeu (GameDefinition.cardDb, ex. 'cards-ygo')
+export function cardDbName(base: string): string {
+  return dbName(base)
+}

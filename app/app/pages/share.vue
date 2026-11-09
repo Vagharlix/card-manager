@@ -164,7 +164,7 @@
           <UTextarea
             id="share-import-input"
             v-model="importText"
-            placeholder="CMSHARE1:…"
+            placeholder="CMSHARE…"
             :rows="4"
             class="w-full font-mono text-xs"
           />
@@ -292,7 +292,7 @@
       </div>
     </div>
 
-    <CardDetail v-model:open="detailOpen" game="ygo" :card-id="detailCardId" />
+    <CardDetail v-model:open="detailOpen" :game="viewing?.game ?? GAME" :card-id="detailCardId" />
     <QrScanner v-model:open="scannerOpen" @code="importCode" />
   </AppPage>
 </template>
@@ -315,7 +315,7 @@ import {
 } from '~/services/share'
 import { getShareOwnerName, setShareOwnerName } from '~/services/settings'
 
-const GAME = 'ygo'
+const GAME = useCurrentGame().game.value
 const toast = useToast()
 const { isMobile } = useResponsive()
 

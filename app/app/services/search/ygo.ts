@@ -114,7 +114,7 @@ function buildQuery(p: SearchParams): QueryParts {
 
 // ── search: returns a page of results ───────────────────────
 async function search(p: SearchParams): Promise<CardSearchResult[]> {
-  const { ygo } = await useDatabase()
+  const ygo = (await useDatabase()).cards('ygo')
   const { ftsJoin, where, params, hasFts } = buildQuery(p)
 
   const limit = p.limit ?? 48
@@ -141,7 +141,7 @@ async function search(p: SearchParams): Promise<CardSearchResult[]> {
 
 // ── count: total matching cards (for pagination) ────────────
 async function count(p: SearchParams): Promise<number> {
-  const { ygo } = await useDatabase()
+  const ygo = (await useDatabase()).cards('ygo')
   const { ftsJoin, where, params } = buildQuery(p)
 
   const sql = `
@@ -156,3 +156,82 @@ async function count(p: SearchParams): Promise<number> {
 }
 
 export const ygoSearchEngine: CardSearchEngine = { search, count }
+
+// ============================================================
+// FILTER OPTIONS
+// Derives the available filter values from the lookup tables
+// (and the type column for atomic subtypes), so the UI is always
+// in sync with the actual synced data.
+// ============================================================
+
+// Known atomic subtype keywords (stable, rarely changes).
+// We only surface the ones that actually appear in the data.
+const MONSTER_SUBTYPE_KEYWORDS = [
+  'Normal',
+  'Effect',
+  'Fusion',
+  'Synchro',
+  'Xyz',
+  'Link',
+  'Pendulum',
+  'Ritual',
+  'Tuner',
+  'Flip',
+  'Toon',
+  'Spirit',
+  'Union',
+  'Gemini',
+]
+const SPELLTRAP_SUBTYPE_KEYWORDS = [
+  'Normal',
+  'Continuous',
+  'Quick-Play',
+  'Field',
+  'Equip',
+  'Ritual',
+  'Counter',
+]
+
+export interface YgoFilterOptions {
+  attributes: string[]
+  races: string[]
+  archetypes: string[]
+  monsterTypes: string[]
+  spellTrapTypes: string[]
+}
+
+export async function getYgoFilterOptions(): Promise<YgoFilterOptions> {
+  const ygo = (await useDatabase()).cards('ygo')
+
+  // simple lookups
+  const attributes = await ygo.select<{ value: string }[]>(
+    `SELECT value FROM card_attributes ORDER BY value`
+  )
+  const races = await ygo.select<{ value: string }[]>(`SELECT value FROM card_races ORDER BY value`)
+  const archetypes = await ygo.select<{ archetype: string }[]>(
+    `SELECT DISTINCT archetype FROM ygo_details
+     WHERE archetype IS NOT NULL ORDER BY archetype`
+  )
+
+  // derive which atomic subtypes actually appear in the type column
+  const allTypes = await ygo.select<{ value: string }[]>(`SELECT value FROM card_types`)
+  // insensible à la casse : la donnée écrit « XYZ Monster » (le filtre SQL
+  // LIKE l'est aussi pour l'ASCII)
+  const typeBlob = allTypes
+    .map((t) => t.value)
+    .join(' | ')
+    .toLowerCase()
+  const present = (kw: string) => typeBlob.includes(kw.toLowerCase())
+
+  const monsterTypes = MONSTER_SUBTYPE_KEYWORDS.filter(present)
+  const spellTrapTypes = SPELLTRAP_SUBTYPE_KEYWORDS.filter(present)
+
+  return {
+    attributes: attributes.map((r) => r.value),
+    races: races.map((r) => r.value),
+    archetypes: archetypes.map((r) => r.archetype),
+    monsterTypes,
+    spellTrapTypes,
+  }
+}
+

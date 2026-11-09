@@ -19,6 +19,13 @@ export interface LanguageDef {
 export interface GameDefinition {
   id: string // stored in *.game columns (e.g. 'ygo')
   label: string
+  // base de cartes du jeu, sans suffixe ni extension (ex. 'cards-ygo' →
+  // cards-ygo.db) ; ses migrations sont enregistrées côté Rust (lib.rs)
+  // et doivent fournir le contrat commun (cf. migrations/ygo/003)
+  cardDb: string
+  // sous-ensemble de l'échelle commune NM / LP / MP / HP / DMG (imposée par
+  // la base : CHECK de collection.condition, cf. migrations/user/001) ;
+  // les libellés, eux, sont libres
   conditions: readonly ConditionDef[]
   defaultCondition: string // must be one of conditions[].id
   languages: readonly LanguageDef[]

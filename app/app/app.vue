@@ -5,6 +5,7 @@
       <!-- après une synchro qui a modifié la base, la page est remontée (relit ses données) -->
       <NuxtPage :page-key="pageKey" />
     </NuxtLayout>
+    <GameLaunchModal />
     <Transition name="fade">
       <div
         v-if="isSyncing || syncError"
@@ -33,13 +34,22 @@
 </template>
 
 <script setup lang="ts">
-import { syncYgo, syncProgress, syncStatus, syncError, isSyncing } from '~/services/sync'
+import {
+  syncCardData,
+  syncProgress,
+  syncStatus,
+  syncError,
+  isSyncing,
+} from '~/services/cardData'
 import { getGlobalSettings } from '~/services/settings'
 import { pruneImageCache } from '~/services/imageCache'
 
 const { isMobile } = useResponsive()
 const deviceSync = useDeviceSync()
-const pageKey = (r: { fullPath: string }) => `${r.fullPath}#${deviceSync.epoch.value}`
+const { game } = useCurrentGame()
+// remontée de la page : après une synchro qui a changé la base, ou au changement de jeu
+const pageKey = (r: { fullPath: string }) =>
+  `${r.fullPath}#${game.value}#${deviceSync.epoch.value}`
 // mobile : notifications en haut et brèves (elles passent sur le titre de la page)
 const toaster = computed(() =>
   isMobile.value
@@ -57,7 +67,7 @@ async function runSync() {
   // so we never sync — tests must not depend on the network.
   if (import.meta.env.VITE_TEST_MODE === 'true') return
   try {
-    await syncYgo()
+    await syncCardData(game.value)
   } catch {}
 }
 
@@ -69,7 +79,13 @@ async function pruneCache() {
   } catch {}
 }
 
+// un autre jeu choisi : sa base de cartes peut ne jamais avoir été téléchargée
+watch(game, () => runSync())
+
 onMounted(async () => {
+  await useSettings()
+    .ensureLoaded()
+    .catch(() => {})
   await runSync()
   await pruneCache()
   // synchro entre appareils (si un compte Google est connecté), sans bruit

@@ -192,7 +192,7 @@ watch(selectedId, async (id) => {
   }
   planning.value = true
   try {
-    plan.value = await planDeckToDeckbox(props.deckId, id, 'ygo')
+    plan.value = await planDeckToDeckbox(props.deckId, id, useCurrentGame().game.value)
   } finally {
     planning.value = false
   }

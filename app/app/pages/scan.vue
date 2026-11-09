@@ -193,7 +193,7 @@ import { identifyCard, ScanStabilizer, type Identified, type OcrLine } from '~/s
 
 definePageMeta({ fullscreen: true }) // mobile : ni onglets ni marge du haut
 
-const GAME = 'ygo'
+const GAME = useCurrentGame().game.value
 const android = isAndroid()
 const languages = gameDef(GAME).languages
 function languageLabel(id: string) {

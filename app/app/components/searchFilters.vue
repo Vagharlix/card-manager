@@ -116,13 +116,27 @@
 </template>
 
 <script setup lang="ts">
-import type { YgoFilters } from '~/services/search'
-import type { YgoFilterOptions } from '~/services/search'
+import { getYgoFilterOptions, type YgoFilters, type YgoFilterOptions } from '~/services/search'
+
+// ============================================================
+// Filtres de recherche YGO (panneau branché par utils/gameUi.ts).
+// Charge lui-même ses valeurs possibles depuis la base de cartes.
+// ============================================================
 
 const props = defineProps<{
   modelValue: YgoFilters
-  options: YgoFilterOptions
 }>()
+
+const options = ref<YgoFilterOptions>({
+  attributes: [],
+  races: [],
+  archetypes: [],
+  monsterTypes: [],
+  spellTrapTypes: [],
+})
+onMounted(async () => {
+  options.value = await getYgoFilterOptions()
+})
 
 const emit = defineEmits<{ 'update:modelValue': [value: YgoFilters] }>()
 

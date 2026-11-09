@@ -1,9 +1,11 @@
 import Database from '@tauri-apps/plugin-sql'
-import { DB_NAMES } from '~/utils/db-names'
+import { DB_NAMES, cardDbName } from '~/utils/db-names'
+import { allGames } from '~/services/game'
 
 // ============================================================
 // DATABASE CONNECTION MANAGER
-// Opens both databases once and reuses the same connections.
+// Opens user.db + the card database of every registered game, once,
+// and reuses the same connections.
 // Every service imports this — never instantiates Database directly.
 //
 // The cached promise pattern guarantees that even if multiple
@@ -18,27 +20,41 @@ import { DB_NAMES } from '~/utils/db-names'
 //                          so it must be set on every open.
 // ============================================================
 
-interface DatabaseInstances {
-  user: Database // user.db   — collection, containers, decks
-  ygo: Database // cards-ygo.db — reference card data (read-only)
+export interface DatabaseInstances {
+  user: Database // user.db — collection, containers, decks
+  // base de cartes d'un jeu (référence, lecture seule) : seul point d'accès
+  // aux données d'un jeu. Les couches génériques n'y lisent que le contrat
+  // commun (cards, printings, printing_rarities, vues card_meta / card_legality).
+  cards(game: string): Database
 }
 
 let instance: DatabaseInstances | null = null
 let initPromise: Promise<DatabaseInstances> | null = null
 
 async function initDatabases(): Promise<DatabaseInstances> {
-  const [user, ygo] = await Promise.all([Database.load(DB_NAMES.user), Database.load(DB_NAMES.ygo)])
+  const games = allGames()
+  const [user, ...cardDbs] = await Promise.all([
+    Database.load(DB_NAMES.user),
+    ...games.map((g) => Database.load(cardDbName(g.cardDb))),
+  ])
 
   // Enforce foreign key constraints at runtime. SQLite defaults this OFF
   // per connection, and it is ignored inside a transaction — so it has to
   // be set here, right after opening, not in a migration. Best-effort:
   // a failure here should not prevent the app from working.
-  await Promise.all([
-    user.execute('PRAGMA foreign_keys = ON').catch(() => {}),
-    ygo.execute('PRAGMA foreign_keys = ON').catch(() => {}),
-  ])
+  await Promise.all(
+    [user, ...cardDbs].map((db) => db.execute('PRAGMA foreign_keys = ON').catch(() => {}))
+  )
 
-  return { user, ygo }
+  const byGame = new Map(games.map((g, i) => [g.id, cardDbs[i]!]))
+  return {
+    user,
+    cards(game: string) {
+      const db = byGame.get(game)
+      if (!db) throw new Error(`No card database for game "${game}"`)
+      return db
+    },
+  }
 }
 
 export async function useDatabase(): Promise<DatabaseInstances> {

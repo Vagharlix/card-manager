@@ -28,10 +28,10 @@ export class TestDatabase {
   private readonly dir: string
 
   /** `upTo` : n'applique que les migrations <= ce numéro (tester une migration sur données). */
-  constructor(migrationSet: 'user' | 'ygo', opts: { upTo?: number } = {}) {
+  constructor(migrationSet: 'user' | 'ygo' | { dir: string }, opts: { upTo?: number } = {}) {
     this.raw = new DatabaseSync(':memory:')
     this.raw.exec('PRAGMA foreign_keys = ON')
-    this.dir = join(MIGRATIONS_DIR, migrationSet)
+    this.dir = typeof migrationSet === 'string' ? join(MIGRATIONS_DIR, migrationSet) : migrationSet.dir
     this.files = readdirSync(this.dir)
       .filter((f) => f.endsWith('.sql'))
       .sort()
@@ -67,8 +67,25 @@ export class TestDatabase {
 export interface TestDatabases {
   user: TestDatabase
   ygo: TestDatabase
+  // bases de cartes par jeu, comme useDatabase().cards(game)
+  games: Map<string, TestDatabase>
+  cards(game: string): TestDatabase
 }
 
-export function createTestDatabases(): TestDatabases {
-  return { user: new TestDatabase('user'), ygo: new TestDatabase('ygo') }
+/** `user` / `ygo` : bases déjà créées (ex. une base user à une migration donnée). */
+export function createTestDatabases(
+  opts: { user?: TestDatabase; ygo?: TestDatabase } = {}
+): TestDatabases {
+  const ygo = opts.ygo ?? new TestDatabase('ygo')
+  const games = new Map<string, TestDatabase>([['ygo', ygo]])
+  return {
+    user: opts.user ?? new TestDatabase('user'),
+    ygo,
+    games,
+    cards(game: string) {
+      const db = games.get(game)
+      if (!db) throw new Error(`No card database for game "${game}"`)
+      return db
+    },
+  }
 }
