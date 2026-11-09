@@ -23,6 +23,17 @@ fn db_name(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Linux : WebKitGTK peut afficher une fenêtre vide avec son moteur de
+    // rendu DMABUF selon le pilote graphique (NVIDIA, certaines sessions
+    // Wayland), surtout en AppImage (WebKitGTK d'Ubuntu 22.04 sur un système
+    // plus récent). On le désactive, sauf si l'utilisateur a choisi lui-même.
+    // À faire avant la création de la moindre fenêtre (GTK lit la variable à
+    // l'initialisation) : premier appel de run(), encore mono-fil.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     let user_migrations = vec![
         Migration {
             version: 1,

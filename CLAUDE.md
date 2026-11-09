@@ -422,3 +422,4 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 - Contrainte à retirer en SQLite = reconstruire la table dans une migration (et supprimer/recréer les vues qui en dépendent, sinon le RENAME échoue). Recopier en filtrant les orphelines (anciennes bases sans foreign_keys).
 - Soft delete de `collection` : passer par `removeCard` (qui détache des conteneurs), jamais un `UPDATE ... deleted_at` direct. (§6)
 - Tests unitaires : Node >= 22 obligatoire (`node:sqlite`) ; le warning « SQLite is an experimental feature » est normal.
+- Fenêtre vide sous Linux (AppImage sur CachyOS, nov. 2026) : moteur de rendu DMABUF de WebKitGTK selon le pilote (NVIDIA / Wayland). `lib.rs` pose `WEBKIT_DISABLE_DMABUF_RENDERER=1` au démarrage sauf si l'utilisateur l'a déjà défini. Si ça revient : essayer aussi `WEBKIT_DISABLE_COMPOSITING_MODE=1` en lançant depuis un terminal.
