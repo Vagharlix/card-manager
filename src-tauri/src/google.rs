@@ -34,7 +34,7 @@ pub async fn google_request(
         return Err(format!("URL not allowed: {url}"));
     }
     let method = reqwest::Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
-    let mut req = reqwest::Client::new()
+    let mut req = crate::http::client()
         .request(method, &url)
         .timeout(Duration::from_secs(60));
     for (k, v) in headers {
@@ -43,10 +43,23 @@ pub async fn google_request(
     if let Some(b) = body {
         req = req.body(b);
     }
-    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let resp = req.send().await.map_err(|e| describe(&e))?;
     let status = resp.status().as_u16();
     let body = resp.text().await.map_err(|e| e.to_string())?;
     Ok(GoogleResponse { status, body })
+}
+
+// erreur réseau lisible : reqwest n'affiche que « error sending request »,
+// la vraie cause (DNS, TLS, délai…) est dans la chaîne des sources
+fn describe(e: &reqwest::Error) -> String {
+    let mut out = e.to_string();
+    let mut source = std::error::Error::source(e);
+    while let Some(s) = source {
+        out.push_str(": ");
+        out.push_str(&s.to_string());
+        source = s.source();
+    }
+    out
 }
 
 #[derive(Default)]

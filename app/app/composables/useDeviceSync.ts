@@ -58,7 +58,10 @@ export const useDeviceSync = createGlobalState(() => {
 })
 
 /** Message lisible pour une erreur de synchro. */
+// message montré à l'utilisateur : le message prévu pour nos erreurs, sinon
+// l'erreur brute (réseau côté Rust, base de données…) pour pouvoir la signaler
 export function syncErrorMessage(e: unknown): string {
   if (e instanceof GoogleError || e instanceof SyncError) return e.message
-  return 'Sync failed (no connection?)'
+  const detail = (e instanceof Error ? e.message : String(e ?? '')).trim()
+  return detail ? `Sync failed: ${detail.slice(0, 300)}` : 'Sync failed (no connection?)'
 }

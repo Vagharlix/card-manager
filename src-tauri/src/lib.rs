@@ -4,6 +4,7 @@ mod cache_store;
 mod card_data;
 mod card_sources;
 mod google;
+mod http;
 mod image_cache;
 mod oauth_loopback;
 

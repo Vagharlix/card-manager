@@ -42,7 +42,11 @@ pub async fn cache_card_image(
     }
 
     // télécharger (Rust n'est pas soumis au CORS)
-    let resp = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+    let resp = crate::http::client()
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         return Err(format!("fetch failed: {}", resp.status()));
     }
