@@ -12,6 +12,7 @@ import { SyncError, type SyncReport } from '~/services/userSync'
 export const useDeviceSync = createGlobalState(() => {
   const syncing = ref(false)
   const epoch = ref(0)
+  let lastRun = 0
 
   /**
    * Synchronise si un compte Google est connecté. `silent` : au lancement,
@@ -21,6 +22,7 @@ export const useDeviceSync = createGlobalState(() => {
     if (syncing.value || !googleAvailable()) return null
     if (!(await googleAccount())) return null
     syncing.value = true
+    lastRun = Date.now()
     try {
       const report = await syncWithGoogle()
       const changes = report.applied.inserted + report.applied.updated + report.applied.deleted
@@ -37,7 +39,22 @@ export const useDeviceSync = createGlobalState(() => {
     }
   }
 
-  return { syncing, epoch, run }
+  /**
+   * Retour au premier plan (on revient sur l'appli après avoir utilisé
+   * l'autre appareil) : synchro discrète, au plus toutes les 2 minutes.
+   */
+  function watchForeground() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastRun > 120_000) run(true)
+    })
+  }
+
+  /** La base locale a été modifiée hors synchro (import, restauration) : pages à relire. */
+  function dataChanged() {
+    epoch.value++
+  }
+
+  return { syncing, epoch, run, watchForeground, dataChanged }
 })
 
 /** Message lisible pour une erreur de synchro. */

@@ -93,6 +93,88 @@
         </template>
       </section>
 
+      <!-- ── Sauvegarde (fichier, indépendante de Google) ── -->
+      <section v-if="show('backup')" :class="sectionClass" data-section-body="backup">
+        <h2 :class="titleClass">Backup</h2>
+        <p class="text-xs text-muted">
+          Save your whole collection (cards, storage, decks) to a file, to keep a copy or move to
+          another device.
+        </p>
+        <div class="flex flex-wrap gap-2" :class="isMobile && 'flex-col'">
+          <UButton
+            id="backup-export"
+            label="Export backup"
+            icon="i-lucide-download"
+            :size="fieldSize"
+            :block="isMobile"
+            :loading="backupBusy === 'export'"
+            @click="onExportBackup"
+          />
+          <UButton
+            id="backup-import"
+            label="Import backup"
+            icon="i-lucide-upload"
+            color="neutral"
+            variant="soft"
+            :size="fieldSize"
+            :block="isMobile"
+            :loading="backupBusy === 'import'"
+            @click="onPickBackup"
+          />
+          <UButton
+            id="backup-csv"
+            label="Export collection (CSV)"
+            icon="i-lucide-sheet"
+            color="neutral"
+            variant="soft"
+            :size="fieldSize"
+            :block="isMobile"
+            :loading="backupBusy === 'csv'"
+            @click="onExportCsv"
+          />
+        </div>
+        <div v-if="restore" class="space-y-1">
+          <p class="text-sm font-medium">Undo last sync or import</p>
+          <p class="text-xs text-muted" :data-restore-point="restore.createdAt">
+            Goes back to your data as it was on {{ formatDateTime(restore.createdAt) }}. You can
+            undo this too.
+          </p>
+          <UButton
+            id="backup-restore"
+            label="Restore"
+            icon="i-lucide-history"
+            color="neutral"
+            variant="soft"
+            :size="fieldSize"
+            :block="isMobile"
+            :loading="backupBusy === 'restore'"
+            @click="onRestore"
+          />
+        </div>
+      </section>
+
+      <UModal v-model:open="importConfirmOpen" title="Import this backup?">
+        <template #body>
+          <p class="text-sm text-muted">
+            Your current data will be replaced by the backup. You can go back with « Undo last sync
+            or import » afterwards.
+          </p>
+        </template>
+        <template #footer="{ close }">
+          <div class="flex gap-2 justify-end w-full">
+            <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
+            <UButton
+              id="backup-import-confirm"
+              label="Replace my data"
+              color="error"
+              icon="i-lucide-upload"
+              :loading="backupBusy === 'import'"
+              @click="onConfirmImport"
+            />
+          </div>
+        </template>
+      </UModal>
+
       <!-- ── Collection ── -->
       <section v-if="show('collection')" :class="sectionClass">
         <h2 :class="titleClass">Ajout de cartes</h2>
@@ -283,6 +365,16 @@ import {
 } from '~/services/userSync/google'
 import { lastSync, type LastSync } from '~/services/userSync/cloud'
 import { forgetSyncBase } from '~/services/userSync'
+import {
+  exportBackup,
+  importBackup,
+  parseBackup,
+  exportCollectionCsv,
+  restorePoint,
+  restoreLastBackup,
+  backupFileName,
+  type RestorePoint,
+} from '~/services/backup'
 
 // un seul jeu pour l'instant ; quand un 2e arrive, la section Collection
 // gagnera un sélecteur de jeu et GAME deviendra réactif.
@@ -290,6 +382,7 @@ const GAME = 'ygo'
 
 const sections = [
   { id: 'devices', label: 'Synchronisation' },
+  { id: 'backup', label: 'Backup' },
   { id: 'collection', label: 'Ajout de cartes' },
   { id: 'share', label: 'Partage' },
   { id: 'appearance', label: 'Apparence' },
@@ -458,6 +551,7 @@ async function onGoogleSync() {
     toast.add({ title: syncErrorMessage(e), color: 'error' })
   } finally {
     await refreshGoogle()
+    await refreshRestore()
   }
 }
 
@@ -482,8 +576,104 @@ async function onGoogleDisconnect() {
   toast.add({ title: 'Compte Google déconnecté', icon: 'i-lucide-check', color: 'success' })
 }
 
+// ── sauvegarde ──
+const backupBusy = ref<'' | 'export' | 'import' | 'csv' | 'restore'>('')
+const restore = ref<RestorePoint | null>(null)
+const importConfirmOpen = ref(false)
+let pendingImport = ''
+
+async function refreshRestore() {
+  restore.value = await restorePoint()
+}
+
+async function saveTextFile(content: string, name: string, ext: string) {
+  const { save } = await import('@tauri-apps/plugin-dialog')
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+  const path = await save({
+    defaultPath: name,
+    filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+  })
+  if (!path) return false
+  await writeTextFile(path, content)
+  return true
+}
+
+async function onExportBackup() {
+  backupBusy.value = 'export'
+  try {
+    if (await saveTextFile(await exportBackup(), backupFileName('json'), 'json'))
+      toast.add({ title: 'Backup saved', icon: 'i-lucide-check', color: 'success' })
+  } catch {
+    toast.add({ title: 'Could not save the backup', color: 'error' })
+  } finally {
+    backupBusy.value = ''
+  }
+}
+
+async function onExportCsv() {
+  backupBusy.value = 'csv'
+  try {
+    if (await saveTextFile(await exportCollectionCsv(), backupFileName('csv'), 'csv'))
+      toast.add({ title: 'Collection exported', icon: 'i-lucide-check', color: 'success' })
+  } catch {
+    toast.add({ title: 'Could not export the collection', color: 'error' })
+  } finally {
+    backupBusy.value = ''
+  }
+}
+
+async function onPickBackup() {
+  try {
+    const { open } = await import('@tauri-apps/plugin-dialog')
+    const { readTextFile } = await import('@tauri-apps/plugin-fs')
+    const path = await open({ multiple: false, filters: [{ name: 'JSON', extensions: ['json'] }] })
+    if (!path || Array.isArray(path)) return
+    const text = await readTextFile(path)
+    parseBackup(text) // refuse tout de suite un fichier invalide
+    pendingImport = text
+    importConfirmOpen.value = true
+  } catch (e) {
+    toast.add({ title: e instanceof Error ? e.message : 'Could not read the file', color: 'error' })
+  }
+}
+
+async function onConfirmImport() {
+  backupBusy.value = 'import'
+  try {
+    const s = await importBackup(pendingImport)
+    importConfirmOpen.value = false
+    deviceSync.dataChanged()
+    toast.add({
+      title: `Backup imported: ${s.cards} card entries`,
+      icon: 'i-lucide-check',
+      color: 'success',
+    })
+  } catch (e) {
+    toast.add({ title: e instanceof Error ? e.message : 'Import failed', color: 'error' })
+  } finally {
+    pendingImport = ''
+    backupBusy.value = ''
+    await refreshRestore()
+  }
+}
+
+async function onRestore() {
+  backupBusy.value = 'restore'
+  try {
+    await restoreLastBackup()
+    deviceSync.dataChanged()
+    toast.add({ title: 'Previous data restored', icon: 'i-lucide-check', color: 'success' })
+  } catch {
+    toast.add({ title: 'Restore failed', color: 'error' })
+  } finally {
+    backupBusy.value = ''
+    await refreshRestore()
+  }
+}
+
 onMounted(async () => {
   refreshGoogle()
+  refreshRestore()
   ownerName.value = await getShareOwnerName()
   refreshCacheSize()
   refreshVersion()

@@ -24,6 +24,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-sql = { version = "2.4.0", features = ["sqlite"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
+tauri-plugin-dialog = "~2.6"
+tauri-plugin-fs = "~2.5"
 
 # scan de QR codes (partage de collection) : caméra, mobile uniquement
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
