@@ -4,7 +4,7 @@
       <div class="space-y-4">
         <!-- quantité (flux carte unique, si plusieurs non rangés) -->
         <div v-if="maxQuantity && maxQuantity > 1">
-          <p class="text-sm text-muted mb-1.5">Quantité à ranger</p>
+          <p class="text-sm text-muted mb-1.5">Quantity to store</p>
           <UInput
             id="picker-qty-input"
             v-model.number="qty"
@@ -14,17 +14,15 @@
             size="sm"
             class="w-32"
           />
-          <p class="text-xs text-dimmed mt-1">
-            {{ maxQuantity }} non rangé{{ maxQuantity > 1 ? 's' : '' }}
-          </p>
+          <p class="text-xs text-dimmed mt-1">{{ maxQuantity }} unsorted</p>
         </div>
 
         <!-- liste des conteneurs groupés par type -->
         <div>
-          <p class="text-sm text-muted mb-1.5">Conteneur</p>
+          <p class="text-sm text-muted mb-1.5">Storage</p>
 
           <div v-if="!containers.length" class="text-sm text-dimmed text-center py-6">
-            Aucun conteneur. Crée-en un d'abord.
+            No storage yet. Create one first.
           </div>
 
           <div v-else class="space-y-3 max-h-72 overflow-y-auto">
@@ -52,7 +50,7 @@
                 @click="!c.isFull && (selected = c.id)"
               >
                 <span class="flex-1 truncate">{{ c.name }}</span>
-                <UBadge v-if="c.isFull" color="error" variant="soft" size="xs">Plein</UBadge>
+                <UBadge v-if="c.isFull" color="error" variant="soft" size="xs">Full</UBadge>
                 <span v-else class="text-xs text-muted">{{ capacityLabel(c) }}</span>
               </button>
             </div>
@@ -64,14 +62,14 @@
     <template #footer>
       <div class="flex gap-2 justify-end w-full">
         <UButton
-          label="Annuler"
+          label="Cancel"
           color="neutral"
           variant="ghost"
           @click="$emit('update:open', false)"
         />
         <UButton
           id="picker-confirm"
-          label="Ranger"
+          label="Store"
           icon="i-lucide-check"
           :loading="busy"
           :disabled="!selected"
@@ -94,7 +92,7 @@ const props = withDefaults(
     busy?: boolean
   }>(),
   {
-    title: 'Ranger dans...',
+    title: 'Store in…',
     maxQuantity: null,
     busy: false,
   }

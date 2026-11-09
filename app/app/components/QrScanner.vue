@@ -2,7 +2,7 @@
   <UModal
     :open="open"
     fullscreen
-    title="Scanner le partage"
+    title="Scan a shared collection"
     @update:open="(v: boolean) => !v && close()"
   >
     <template #body>
@@ -22,8 +22,8 @@
         />
         <template v-else>
           <p class="text-sm text-muted text-center max-w-md">
-            Vise le QR code de l'autre appareil. S'il change en boucle, garde-le dans le cadre
-            jusqu'à la fin.
+            Point at the other device's QR code. If it keeps changing, keep it in view until the
+            end.
           </p>
           <div v-if="total > 1" class="w-full max-w-md space-y-1" :data-scan-progress="got">
             <UProgress :model-value="got" :max="total" />

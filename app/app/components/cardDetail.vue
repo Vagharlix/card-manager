@@ -4,7 +4,7 @@
     :is="isMobile ? UDrawer : USlideover"
     :open="open"
     v-bind="isMobile ? {} : { side: 'right' }"
-    :title="detail?.name ?? 'Carte'"
+    :title="detail?.name ?? 'Card'"
     @update:open="$emit('update:open', $event)"
   >
     <template #body>
@@ -54,7 +54,7 @@
             :data-owned-count="owned"
             :class="owned > 0 ? 'text-success font-medium' : 'text-muted'"
           >
-            {{ owned }} dans ta collection
+            {{ owned }} in your collection
           </span>
         </div>
 
@@ -65,7 +65,7 @@
               id="btn-quick-add"
               block
               icon="i-lucide-plus"
-              label="Ajouter"
+              label="Add"
               :loading="adding"
               :size="isMobile ? 'xl' : 'md'"
               class="flex-1"
@@ -76,7 +76,7 @@
               icon="i-lucide-sliders-horizontal"
               color="neutral"
               variant="soft"
-              aria-label="Ajout détaillé"
+              aria-label="Detailed add"
               :size="isMobile ? 'xl' : 'md'"
               @click="toggleDetailedForm"
             />
@@ -85,15 +85,15 @@
           <div v-if="showDetailedForm" class="rounded-lg border border-default p-3 space-y-3">
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <p class="text-xs text-muted mb-1">Quantité</p>
+                <p class="text-xs text-muted mb-1">Quantity</p>
                 <UInput v-model.number="form.quantity" type="number" min="1" size="sm" />
               </div>
               <div>
-                <p class="text-xs text-muted mb-1">État</p>
+                <p class="text-xs text-muted mb-1">Condition</p>
                 <USelect v-model="form.condition" :items="conditionItems" size="sm" />
               </div>
               <div>
-                <p class="text-xs text-muted mb-1">Langue</p>
+                <p class="text-xs text-muted mb-1">Language</p>
                 <USelect v-model="form.language" :items="languageItems" size="sm" />
               </div>
               <div>
@@ -101,24 +101,24 @@
                 <USelect
                   v-model="form.printingId"
                   :items="printingItems"
-                  placeholder="Aucun"
+                  placeholder="None"
                   size="sm"
                 />
               </div>
               <div>
-                <p class="text-xs text-muted mb-1">Rareté</p>
+                <p class="text-xs text-muted mb-1">Rarity</p>
                 <USelect
                   id="add-rarity-select"
                   v-model="form.rarity"
                   :items="rarityItems(form.printingId)"
                   :disabled="!rarityItems(form.printingId).length"
-                  placeholder="Non précisée"
+                  placeholder="Not set"
                   size="sm"
                 />
               </div>
             </div>
             <div class="flex gap-4">
-              <UCheckbox v-model="form.firstEdition" label="1re édition" size="sm" />
+              <UCheckbox v-model="form.firstEdition" label="1st edition" size="sm" />
               <UCheckbox v-model="form.foil" label="Foil" size="sm" />
               <UCheckbox v-model="form.altered" label="Altered" size="sm" />
               <UCheckbox v-model="form.signed" label="Signed" size="sm" />
@@ -127,7 +127,7 @@
               id="btn-detailed-add"
               block
               icon="i-lucide-check"
-              label="Ajouter avec ces détails"
+              label="Add with these details"
               :loading="adding"
               @click="detailedAdd"
             />
@@ -142,13 +142,13 @@
           icon="i-lucide-folder-input"
           color="neutral"
           variant="soft"
-          :label="`Ranger (${unrangedForCard} non rangé${unrangedForCard > 1 ? 's' : ''})`"
+          :label="`Store (${unrangedForCard} unsorted)`"
           @click="openPicker"
         />
 
         <!-- ── où est cette carte ── -->
         <div v-if="locations.length" class="border-t border-default pt-4">
-          <p class="text-muted text-xs mb-2">RANGEMENT</p>
+          <p class="text-muted text-xs mb-2">STORAGE</p>
           <div class="space-y-1.5">
             <div
               v-for="(loc, i) in locations"
@@ -178,7 +178,7 @@
 
         <!-- ── mes exemplaires ── -->
         <div v-if="entries.length" class="border-t border-default pt-4">
-          <p class="text-muted text-xs mb-2">MES EXEMPLAIRES ({{ entries.length }})</p>
+          <p class="text-muted text-xs mb-2">MY COPIES ({{ entries.length }})</p>
           <div class="space-y-1.5">
             <div v-for="entry in entries" :key="entry.id" class="rounded-lg border border-default">
               <div class="flex items-center gap-2 p-2">
@@ -199,7 +199,7 @@
                   color="info"
                   variant="soft"
                   size="xs"
-                  >1re éd.</UBadge
+                  >1st ed.</UBadge
                 >
                 <UBadge v-if="entry.foil" color="warning" variant="soft" size="xs">Foil</UBadge>
                 <UBadge
@@ -209,7 +209,7 @@
                   color="primary"
                   variant="soft"
                   size="xs"
-                  :label="`${entry.tradeQty} à l'échange`"
+                  :label="`${entry.tradeQty} for trade`"
                 />
                 <span v-if="entry.printingId" class="text-xs text-muted truncate">{{
                   entry.printingId
@@ -235,15 +235,15 @@
               <div v-if="editingId === entry.id" class="border-t border-default p-2 space-y-2">
                 <div class="grid grid-cols-2 gap-2">
                   <div>
-                    <p class="text-xs text-muted mb-1">Quantité</p>
+                    <p class="text-xs text-muted mb-1">Quantity</p>
                     <UInput v-model.number="editForm.quantity" type="number" min="1" size="sm" />
                   </div>
                   <div>
-                    <p class="text-xs text-muted mb-1">État</p>
+                    <p class="text-xs text-muted mb-1">Condition</p>
                     <USelect v-model="editForm.condition" :items="conditionItems" size="sm" />
                   </div>
                   <div>
-                    <p class="text-xs text-muted mb-1">Langue</p>
+                    <p class="text-xs text-muted mb-1">Language</p>
                     <USelect v-model="editForm.language" :items="languageItems" size="sm" />
                   </div>
                   <div>
@@ -251,23 +251,23 @@
                     <USelect
                       v-model="editForm.printingId"
                       :items="printingItems"
-                      placeholder="Aucun"
+                      placeholder="None"
                       size="sm"
                     />
                   </div>
                   <div>
-                    <p class="text-xs text-muted mb-1">Rareté</p>
+                    <p class="text-xs text-muted mb-1">Rarity</p>
                     <USelect
                       id="entry-rarity-select"
                       v-model="editForm.rarity"
                       :items="rarityItems(editForm.printingId)"
                       :disabled="!rarityItems(editForm.printingId).length"
-                      placeholder="Non précisée"
+                      placeholder="Not set"
                       size="sm"
                     />
                   </div>
                   <div>
-                    <p class="text-xs text-muted mb-1">À l'échange</p>
+                    <p class="text-xs text-muted mb-1">For trade</p>
                     <UInput
                       id="entry-trade-qty-input"
                       v-model.number="editForm.tradeQty"
@@ -282,7 +282,7 @@
                   <UCheckbox
                     id="entry-first-edition"
                     v-model="editForm.firstEdition"
-                    label="1re édition"
+                    label="1st edition"
                     size="sm"
                   />
                   <UCheckbox v-model="editForm.foil" label="Foil" size="sm" />
@@ -293,14 +293,14 @@
                   <UButton
                     id="entry-save-btn"
                     size="sm"
-                    label="Enregistrer"
+                    label="Save"
                     icon="i-lucide-check"
                     :loading="savingEdit"
                     @click="saveEdit(entry.id)"
                   />
                   <UButton
                     size="sm"
-                    label="Annuler"
+                    label="Cancel"
                     color="neutral"
                     variant="ghost"
                     @click="cancelEdit"
@@ -317,22 +317,22 @@
             <span class="text-muted">Type</span><span>{{ detail.type }}</span>
           </div>
           <div v-if="detail.attribute" class="flex justify-between">
-            <span class="text-muted">Attribut</span><span>{{ detail.attribute }}</span>
+            <span class="text-muted">Attribute</span><span>{{ detail.attribute }}</span>
           </div>
           <div v-if="detail.race" class="flex justify-between">
-            <span class="text-muted">Race</span><span>{{ detail.race }}</span>
+            <span class="text-muted">Monster type</span><span>{{ detail.race }}</span>
           </div>
           <div v-if="detail.level != null" class="flex justify-between">
-            <span class="text-muted">Niveau</span><span>{{ detail.level }}</span>
+            <span class="text-muted">Level</span><span>{{ detail.level }}</span>
           </div>
           <div v-if="detail.rank != null" class="flex justify-between">
-            <span class="text-muted">Rang</span><span>{{ detail.rank }}</span>
+            <span class="text-muted">Rank</span><span>{{ detail.rank }}</span>
           </div>
           <div v-if="detail.linkValue != null" class="flex justify-between">
             <span class="text-muted">Link</span><span>{{ detail.linkValue }}</span>
           </div>
           <div v-if="detail.scale != null" class="flex justify-between">
-            <span class="text-muted">Échelle Pendule</span><span>{{ detail.scale }}</span>
+            <span class="text-muted">Pendulum scale</span><span>{{ detail.scale }}</span>
           </div>
           <div v-if="detail.atk != null" class="flex justify-between">
             <span class="text-muted">ATK</span><span>{{ detail.atk }}</span>
@@ -341,7 +341,7 @@
             <span class="text-muted">DEF</span><span>{{ detail.def }}</span>
           </div>
           <div v-if="detail.archetype" class="flex justify-between">
-            <span class="text-muted">Archétype</span><span>{{ detail.archetype }}</span>
+            <span class="text-muted">Archetype</span><span>{{ detail.archetype }}</span>
           </div>
         </div>
 
@@ -373,17 +373,17 @@
   </component>
 
   <!-- confirmation de suppression (hors slideover pour le z-index) -->
-  <UModal v-model:open="confirmOpen" title="Supprimer cet exemplaire ?">
+  <UModal v-model:open="confirmOpen" title="Delete this copy?">
     <template #body>
       <p class="text-sm text-muted">
-        Cette action retirera cet exemplaire de ta collection. Tu pourras le rajouter plus tard.
+        This removes the copy from your collection. You can add it again later.
       </p>
     </template>
     <template #footer="{ close }">
       <div class="flex gap-2 justify-end w-full">
-        <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
+        <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
         <UButton
-          label="Supprimer"
+          label="Delete"
           color="error"
           icon="i-lucide-trash-2"
           :loading="deletingId !== null"
@@ -616,10 +616,10 @@ async function quickAdd() {
   try {
     await addCard({ game: props.game, cardId: activeArtId.value })
     await refreshOwned()
-    toast.add({ title: 'Carte ajoutée', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Card added', icon: 'i-lucide-check', color: 'success' })
     emit('added')
   } catch {
-    toast.add({ title: "Échec de l'ajout", color: 'error' })
+    toast.add({ title: 'Could not add the card', color: 'error' })
   } finally {
     adding.value = false
   }
@@ -643,10 +643,10 @@ async function detailedAdd() {
     })
     await refreshOwned()
     showDetailedForm.value = false
-    toast.add({ title: 'Carte ajoutée', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Card added', icon: 'i-lucide-check', color: 'success' })
     emit('added')
   } catch {
-    toast.add({ title: "Échec de l'ajout", color: 'error' })
+    toast.add({ title: 'Could not add the card', color: 'error' })
   } finally {
     adding.value = false
   }
@@ -689,15 +689,13 @@ async function saveEdit(id: string) {
     })
     await refreshOwned()
     editingId.value = null
-    toast.add({ title: 'Exemplaire modifié', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Copy updated', icon: 'i-lucide-check', color: 'success' })
     emit('added')
   } catch (e) {
     const belowAssigned = e instanceof Error && e.message === 'QUANTITY_BELOW_ASSIGNED'
     toast.add({
-      title: belowAssigned ? 'Des copies sont encore rangées' : 'Échec de la modification',
-      description: belowAssigned
-        ? "Retirez d'abord les copies en trop de leurs conteneurs."
-        : undefined,
+      title: belowAssigned ? 'Some copies are still stored' : 'Could not save the changes',
+      description: belowAssigned ? 'Remove the extra copies from their storage first.' : undefined,
       color: 'error',
     })
   } finally {
@@ -717,10 +715,10 @@ async function confirmRemove() {
   try {
     await removeCard(id)
     await refreshOwned()
-    toast.add({ title: 'Exemplaire supprimé', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Copy deleted', icon: 'i-lucide-check', color: 'success' })
     emit('added')
   } catch {
-    toast.add({ title: 'Échec de la suppression', color: 'error' })
+    toast.add({ title: 'Could not delete', color: 'error' })
   } finally {
     deletingId.value = null
     confirmOpen.value = false
@@ -740,7 +738,7 @@ async function onRange(payload: { containerId: string; type: ContainerType; quan
     )
     pickerOpen.value = false
     toast.add({
-      title: placed > 0 ? `${placed} carte(s) rangée(s)` : 'Rien à ranger',
+      title: placed > 0 ? `${placed} card(s) stored` : 'Nothing to store',
       icon: 'i-lucide-check',
       color: placed > 0 ? 'success' : 'warning',
     })
@@ -749,7 +747,7 @@ async function onRange(payload: { containerId: string; type: ContainerType; quan
     emit('added')
   } catch (e: any) {
     toast.add({
-      title: e?.message === 'BINDER_FULL' ? 'Le classeur est plein' : 'Échec du rangement',
+      title: e?.message === 'BINDER_FULL' ? 'The binder is full' : 'Could not store the cards',
       color: 'error',
     })
   } finally {

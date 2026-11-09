@@ -1,5 +1,5 @@
 <template>
-  <AppPage sidebar-label="Filtres" title="Recherche">
+  <AppPage sidebar-label="Filters" title="Search">
     <template #sidebar>
       <SearchFilters v-model="filters" :options="filterOptions" />
     </template>
@@ -9,7 +9,7 @@
         <UInput
           id="search-card-input"
           v-model="query"
-          placeholder="Nom de carte..."
+          placeholder="Card name…"
           icon="i-lucide-search"
           class="flex-1"
           :size="isMobile ? 'lg' : 'md'"
@@ -25,7 +25,7 @@
         v-if="total > 0"
         class="flex items-center justify-between gap-4 pt-4 shrink-0 border-t border-default"
       >
-        <p v-if="!isMobile" class="text-sm text-muted">{{ total }} cartes</p>
+        <p v-if="!isMobile" class="text-sm text-muted">{{ total }} cards</p>
         <UPagination
           v-model:page="page"
           :total="total"
@@ -55,8 +55,8 @@ const query = ref('')
 const field = ref<'name' | 'effect'>('name')
 const filters = ref<YgoFilters>({})
 const fieldItems = [
-  { label: 'Nom', value: 'name' },
-  { label: 'Effet', value: 'effect' },
+  { label: 'Name', value: 'name' },
+  { label: 'Effect', value: 'effect' },
 ]
 const page = ref(1)
 const perPage = ref(48)

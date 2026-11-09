@@ -13,7 +13,7 @@ const YGO_RULES: DeckRules = {
   formats: [
     { id: 'tcg', label: 'TCG' },
     { id: 'ocg', label: 'OCG' },
-    { id: 'casual', label: 'Casual (sans banlist)' },
+    { id: 'casual', label: 'Casual (no banlist)' },
   ],
   defaultFormat: 'tcg',
   defaultMaxCopies: 3,

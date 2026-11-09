@@ -12,8 +12,8 @@
         <UIcon name="i-lucide-inbox" class="size-5" />
       </span>
       <span class="flex-1 min-w-0">
-        <span class="block font-semibold">Non rangées</span>
-        <span class="block text-xs text-muted">{{ unrangedCount }} carte(s) à ranger</span>
+        <span class="block font-semibold">Unsorted</span>
+        <span class="block text-xs text-muted">{{ unrangedCount }} card(s) to store</span>
       </span>
       <UIcon name="i-lucide-chevron-right" class="text-muted" />
     </button>
@@ -22,7 +22,7 @@
       <p class="mt-3 px-1 text-xs font-semibold text-muted uppercase tracking-wide">
         {{ group.label }}
       </p>
-      <p v-if="!group.items.length" class="px-1 text-sm text-dimmed italic">aucun</p>
+      <p v-if="!group.items.length" class="px-1 text-sm text-dimmed italic">none</p>
       <div
         v-for="c in group.items"
         :key="c.id"
@@ -63,7 +63,7 @@
     <UButton
       id="container-create-btn"
       icon="i-lucide-plus"
-      label="Nouveau"
+      label="New"
       size="xl"
       class="fixed right-4 z-10 rounded-full shadow-lg"
       :style="{ bottom: 'calc(5rem + var(--safe-bottom))' }"
@@ -83,12 +83,12 @@
       @click="$emit('select', ALL_ID)"
     >
       <UIcon name="i-lucide-library" class="shrink-0" />
-      <span class="flex-1">Toute ma collection</span>
+      <span class="flex-1">My whole collection</span>
       <span class="text-xs shrink-0">{{ totalCount }}</span>
     </button>
 
     <div class="flex items-center justify-between mb-3 shrink-0">
-      <p class="text-xs text-muted uppercase tracking-wide">Conteneurs</p>
+      <p class="text-xs text-muted uppercase tracking-wide">Storage</p>
       <UButton
         id="container-create-btn"
         icon="i-lucide-plus"
@@ -142,7 +142,7 @@
             <span class="text-xs text-muted shrink-0 w-5 text-right">{{ c.cardCount }}</span>
           </div>
         </div>
-        <p v-else class="text-xs text-dimmed pl-2 italic">vide</p>
+        <p v-else class="text-xs text-dimmed pl-2 italic">empty</p>
       </div>
     </div>
 
@@ -157,18 +157,18 @@
       @click="$emit('select', UNRANGED_ID)"
     >
       <UIcon name="i-lucide-inbox" class="shrink-0" />
-      <span class="flex-1">Non rangées</span>
+      <span class="flex-1">Unsorted</span>
       <span class="text-xs shrink-0">{{ unrangedCount }}</span>
     </button>
   </div>
 
   <!-- renommage -->
-  <UModal v-model:open="renameOpen" title="Renommer le conteneur">
+  <UModal v-model:open="renameOpen" title="Rename storage">
     <template #body>
       <UInput
         id="container-rename-input"
         v-model="renameValue"
-        placeholder="Nouveau nom"
+        placeholder="New name"
         class="w-full"
         autofocus
         @keydown.enter="confirmRename"
@@ -176,10 +176,10 @@
     </template>
     <template #footer="{ close }">
       <div class="flex gap-2 justify-end w-full">
-        <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
+        <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
         <UButton
           id="container-rename-confirm"
-          label="Renommer"
+          label="Rename"
           icon="i-lucide-check"
           :loading="renaming"
           :disabled="!renameValue.trim()"
@@ -193,19 +193,19 @@
   <containerEditModal v-model:open="editOpen" :container="pendingEdit" @saved="$emit('changed')" />
 
   <!-- confirmation de suppression -->
-  <UModal v-model:open="confirmOpen" title="Supprimer ce conteneur ?">
+  <UModal v-model:open="confirmOpen" title="Delete this storage?">
     <template #body>
       <p class="text-sm text-muted">
-        « {{ pendingDelete?.name }} » sera supprimé. Les cartes qu'il contient ne seront pas perdues
-        — elles redeviendront « non rangées ».
+        “{{ pendingDelete?.name }}” will be deleted. Its cards are not lost: they become unsorted
+        again.
       </p>
     </template>
     <template #footer="{ close }">
       <div class="flex gap-2 justify-end w-full">
-        <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
+        <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
         <UButton
           id="container-delete-confirm"
-          label="Supprimer"
+          label="Delete"
           color="error"
           icon="i-lucide-trash-2"
           :loading="deleting"
@@ -237,16 +237,16 @@ const toast = useToast()
 const { isMobile } = useResponsive()
 
 function describe(c: ContainerListItem): string {
-  if (c.type === 'deckbox' && c.maxCapacity) return `${c.cardCount} / ${c.maxCapacity} cartes`
+  if (c.type === 'deckbox' && c.maxCapacity) return `${c.cardCount} / ${c.maxCapacity} cards`
   if (c.type === 'binder')
-    return `${c.cardCount} carte(s) · ${c.pageCount ?? 0} pages ${c.rowsPerPage ?? 3}×${c.colsPerPage ?? 3}`
-  return `${c.cardCount} carte(s)`
+    return `${c.cardCount} card(s) · ${c.pageCount ?? 0} pages ${c.rowsPerPage ?? 3}×${c.colsPerPage ?? 3}`
+  return `${c.cardCount} card(s)`
 }
 
 const TYPE_META: Record<ContainerType, { label: string; icon: string }> = {
-  deckbox: { label: 'Deckbox', icon: 'i-lucide-box' },
-  binder: { label: 'Classeurs', icon: 'i-lucide-notebook' },
-  bulk_box: { label: 'Boîtes', icon: 'i-lucide-archive' },
+  deckbox: { label: 'Deckboxes', icon: 'i-lucide-box' },
+  binder: { label: 'Binders', icon: 'i-lucide-notebook' },
+  bulk_box: { label: 'Bulk boxes', icon: 'i-lucide-archive' },
 }
 
 const groups = computed(() => {
@@ -263,19 +263,19 @@ function menuItems(c: ContainerListItem) {
   return [
     [
       {
-        label: 'Renommer',
+        label: 'Rename',
         icon: 'i-lucide-pencil',
         action: 'rename',
         onSelect: () => askRename(c),
       },
       {
-        label: 'Modifier',
+        label: 'Edit',
         icon: 'i-lucide-settings-2',
         action: 'edit',
         onSelect: () => askEdit(c),
       },
       {
-        label: 'Supprimer',
+        label: 'Delete',
         icon: 'i-lucide-trash-2',
         action: 'delete',
         color: 'error' as const,
@@ -303,13 +303,13 @@ async function confirmRename() {
   renaming.value = true
   try {
     await renameContainer(c.id, renameValue.value)
-    toast.add({ title: 'Conteneur renommé', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Storage renamed', icon: 'i-lucide-check', color: 'success' })
     renameOpen.value = false
     emit('changed')
   } catch (e: any) {
     toast.add({
       title:
-        e?.message === 'DUPLICATE_NAME' ? 'Un conteneur porte déjà ce nom' : 'Échec du renommage',
+        e?.message === 'DUPLICATE_NAME' ? 'A storage already has this name' : 'Could not rename',
       color: 'error',
     })
   } finally {
@@ -343,10 +343,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await deleteContainer(c.id)
-    toast.add({ title: 'Conteneur supprimé', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Storage deleted', icon: 'i-lucide-check', color: 'success' })
     emit('changed')
   } catch {
-    toast.add({ title: 'Échec de la suppression', color: 'error' })
+    toast.add({ title: 'Could not delete', color: 'error' })
   } finally {
     deleting.value = false
     confirmOpen.value = false

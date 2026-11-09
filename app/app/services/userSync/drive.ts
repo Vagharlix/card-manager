@@ -36,13 +36,13 @@ export class DriveTransport implements SyncTransport {
       body
     )
     if (res.status === 401)
-      throw new GoogleError('NOT_CONNECTED', 'Accès Google expiré : reconnecte-toi')
+      throw new GoogleError('NOT_CONNECTED', 'Google access expired: sign in again')
     return res
   }
 
   private ok(res: { status: number; body: string }, what: string) {
     if (res.status < 200 || res.status >= 300)
-      throw new GoogleError('HTTP', `Drive : ${what} impossible (${res.status})`)
+      throw new GoogleError('HTTP', `Drive: ${what} failed (${res.status})`)
     return res
   }
 
@@ -53,7 +53,7 @@ export class DriveTransport implements SyncTransport {
         'GET',
         `${API}/drive/v3/files?spaces=appDataFolder&q=${q}&orderBy=createdTime&fields=files(id,createdTime)`
       ),
-      'lecture'
+      'read'
     )
     return (JSON.parse(res.body).files ?? []) as DriveFile[]
   }
@@ -61,7 +61,7 @@ export class DriveTransport implements SyncTransport {
   private async etag(id: string): Promise<string | null> {
     const res = await this.call('GET', `${API}/drive/v2/files/${id}?fields=etag`)
     if (res.status === 404) return null
-    return JSON.parse(this.ok(res, 'lecture').body).etag as string
+    return JSON.parse(this.ok(res, 'read').body).etag as string
   }
 
   async pull(): Promise<PublishedState | null> {
@@ -73,7 +73,7 @@ export class DriveTransport implements SyncTransport {
       if (!before) return null
       const content = this.ok(
         await this.call('GET', `${API}/drive/v3/files/${file.id}?alt=media`),
-        'téléchargement'
+        'download'
       )
       const after = await this.etag(file.id)
       if (before === after) {
@@ -83,7 +83,7 @@ export class DriveTransport implements SyncTransport {
         }
       }
     }
-    throw new GoogleError('HTTP', 'Le fichier de synchro change sans arrêt : réessaie')
+    throw new GoogleError('HTTP', 'The sync file keeps changing: try again')
   }
 
   async push(snapshot: Snapshot, expectedVersion: string | null): Promise<boolean> {
@@ -102,7 +102,7 @@ export class DriveTransport implements SyncTransport {
         body
       )
       if (res.status === 412 || res.status === 404) return false // un autre appareil a écrit
-      this.ok(res, 'enregistrement')
+      this.ok(res, 'upload')
       return true
     }
 
@@ -125,7 +125,7 @@ export class DriveTransport implements SyncTransport {
           [['Content-Type', `multipart/related; boundary=${boundary}`]],
           multipart
         ),
-        'création'
+        'create'
       ).body
     ) as { id: string }
     const all = await this.files()

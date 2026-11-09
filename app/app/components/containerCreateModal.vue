@@ -1,5 +1,5 @@
 <template>
-  <UModal :open="open" title="Nouveau conteneur" @update:open="$emit('update:open', $event)">
+  <UModal :open="open" title="New storage" @update:open="$emit('update:open', $event)">
     <template #body>
       <div class="space-y-4">
         <!-- type -->
@@ -26,11 +26,11 @@
 
         <!-- nom -->
         <div>
-          <p class="text-sm text-muted mb-1.5">Nom</p>
+          <p class="text-sm text-muted mb-1.5">Name</p>
           <UInput
             id="container-name-input"
             v-model="name"
-            placeholder="ex. Classeur rares"
+            placeholder="e.g. Rare binder"
             class="w-full"
             autofocus
           />
@@ -49,7 +49,7 @@
             />
           </div>
           <div>
-            <p class="text-xs text-muted mb-1">Lignes</p>
+            <p class="text-xs text-muted mb-1">Rows</p>
             <UInput
               id="container-rows-input"
               v-model.number="rows"
@@ -59,7 +59,7 @@
             />
           </div>
           <div>
-            <p class="text-xs text-muted mb-1">Colonnes</p>
+            <p class="text-xs text-muted mb-1">Columns</p>
             <UInput
               id="container-cols-input"
               v-model.number="cols"
@@ -72,13 +72,13 @@
 
         <!-- capacité deckbox / bulk -->
         <div v-else>
-          <p class="text-xs text-muted mb-1">Capacité max (optionnel)</p>
+          <p class="text-xs text-muted mb-1">Max capacity (optional)</p>
           <UInput
             id="container-capacity-input"
             v-model.number="maxCapacity"
             type="number"
             min="1"
-            placeholder="Illimitée"
+            placeholder="Unlimited"
             size="sm"
             class="w-full"
           />
@@ -89,14 +89,14 @@
     <template #footer>
       <div class="flex gap-2 justify-end w-full">
         <UButton
-          label="Annuler"
+          label="Cancel"
           color="neutral"
           variant="ghost"
           @click="$emit('update:open', false)"
         />
         <UButton
           id="container-create-confirm"
-          label="Créer"
+          label="Create"
           icon="i-lucide-check"
           :loading="creating"
           :disabled="!canCreate"
@@ -163,21 +163,21 @@ async function create() {
     } else {
       id = await createBulkBox(name.value.trim(), maxCapacity.value)
     }
-    toast.add({ title: 'Conteneur créé', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Storage created', icon: 'i-lucide-check', color: 'success' })
     resetForm()
     emit('update:open', false)
     emit('created', id)
   } catch (e: any) {
     const msg =
       e?.message === 'DUPLICATE_NAME'
-        ? 'Un conteneur porte déjà ce nom'
+        ? 'A storage already has this name'
         : e?.message === 'INVALID_CAPACITY'
-          ? 'La capacité doit être supérieure à 0'
+          ? 'Capacity must be greater than 0'
           : e?.message === 'INVALID_LAYOUT'
-            ? 'Dimensions de classeur invalides'
+            ? 'Invalid binder size'
             : e?.message === 'EMPTY_NAME'
-              ? 'Le nom ne peut pas être vide'
-              : 'Échec de la création'
+              ? 'The name cannot be empty'
+              : 'Could not create the storage'
     toast.add({ title: msg, color: 'error' })
   } finally {
     creating.value = false

@@ -1,11 +1,11 @@
 <template>
-  <UModal :open="open" title="Modifier le conteneur" @update:open="$emit('update:open', $event)">
+  <UModal :open="open" title="Edit storage" @update:open="$emit('update:open', $event)">
     <template #body>
       <div v-if="container" class="space-y-4">
         <!-- binder : nombre de pages (dimensions figées) -->
         <template v-if="container.type === 'binder'">
           <div>
-            <p class="text-sm text-muted mb-1.5">Nombre de pages</p>
+            <p class="text-sm text-muted mb-1.5">Number of pages</p>
             <UInput v-model.number="pageCount" type="number" min="0" size="sm" class="w-32" />
             <p class="text-xs text-dimmed mt-1">
               Format fixe : {{ container.rowsPerPage }} × {{ container.colsPerPage }} par page
@@ -14,8 +14,8 @@
           <div v-if="willOrphan" class="text-xs text-warning flex items-start gap-1.5">
             <UIcon name="i-lucide-triangle-alert" class="shrink-0 mt-0.5" />
             <span
-              >Réduire à {{ pageCount }} page(s) retirera des cartes placées sur les pages
-              supprimées. Elles redeviendront « non rangées ».</span
+              >Reducing to {{ pageCount }} page(s) removes the cards placed on the deleted pages.
+              They become unsorted again.</span
             >
           </div>
         </template>
@@ -23,23 +23,23 @@
         <!-- deckbox / bulk : capacité max -->
         <template v-else>
           <div>
-            <p class="text-sm text-muted mb-1.5">Capacité max</p>
+            <p class="text-sm text-muted mb-1.5">Max capacity</p>
             <UInput
               v-model.number="capacity"
               type="number"
               min="1"
-              placeholder="Illimitée"
+              placeholder="Unlimited"
               size="sm"
               class="w-32"
             />
-            <p class="text-xs text-dimmed mt-1">Laisse vide pour une capacité illimitée.</p>
+            <p class="text-xs text-dimmed mt-1">Leave empty for unlimited capacity.</p>
           </div>
           <div v-if="willTrim" class="text-xs text-warning flex items-start gap-1.5">
             <UIcon name="i-lucide-triangle-alert" class="shrink-0 mt-0.5" />
             <span
-              >Réduire à {{ capacity }} retirera
-              {{ container.cardCount - (capacity ?? 0) }} carte(s) du conteneur. Elles redeviendront
-              « non rangées ».</span
+              >Reducing to {{ capacity }} removes
+              {{ container.cardCount - (capacity ?? 0) }} card(s) from this storage. They become
+              unsorted again.</span
             >
           </div>
         </template>
@@ -49,13 +49,13 @@
     <template #footer>
       <div class="flex gap-2 justify-end w-full">
         <UButton
-          label="Annuler"
+          label="Cancel"
           color="neutral"
           variant="ghost"
           @click="$emit('update:open', false)"
         />
         <UButton
-          label="Enregistrer"
+          label="Save"
           icon="i-lucide-check"
           :loading="saving"
           :disabled="!canSave"
@@ -127,9 +127,7 @@ async function save() {
       const freed = await setBinderPageCount(c.id, pageCount.value)
       toast.add({
         title:
-          freed > 0
-            ? `Pages modifiées · ${freed} carte(s) remise(s) en non rangées`
-            : 'Pages modifiées',
+          freed > 0 ? `Pages updated · ${freed} card(s) moved back to unsorted` : 'Pages updated',
         icon: 'i-lucide-check',
         color: 'success',
       })
@@ -138,8 +136,8 @@ async function save() {
       toast.add({
         title:
           freed > 0
-            ? `Capacité modifiée · ${freed} carte(s) remise(s) en non rangées`
-            : 'Capacité modifiée',
+            ? `Capacity updated · ${freed} card(s) moved back to unsorted`
+            : 'Capacity updated',
         icon: 'i-lucide-check',
         color: 'success',
       })
@@ -150,10 +148,10 @@ async function save() {
     toast.add({
       title:
         e?.message === 'INVALID_CAPACITY'
-          ? 'La capacité doit être supérieure à 0'
+          ? 'Capacity must be greater than 0'
           : e?.message === 'INVALID_LAYOUT'
-            ? 'Valeur invalide'
-            : 'Échec de la modification',
+            ? 'Invalid value'
+            : 'Could not save the changes',
       color: 'error',
     })
   } finally {

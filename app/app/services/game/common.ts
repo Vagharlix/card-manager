@@ -24,14 +24,14 @@ export const TCG_CONDITIONS: readonly ConditionDef[] = [
 export const DEFAULT_CONDITION = 'NM'
 
 export const TCG_LANGUAGES: readonly LanguageDef[] = [
-  { id: 'en', label: 'Anglais' },
-  { id: 'fr', label: 'Français' },
-  { id: 'de', label: 'Allemand' },
-  { id: 'it', label: 'Italien' },
-  { id: 'es', label: 'Espagnol' },
-  { id: 'pt', label: 'Portugais' },
-  { id: 'ja', label: 'Japonais' },
-  { id: 'ko', label: 'Coréen' },
+  { id: 'en', label: 'English' },
+  { id: 'fr', label: 'French' },
+  { id: 'de', label: 'German' },
+  { id: 'it', label: 'Italian' },
+  { id: 'es', label: 'Spanish' },
+  { id: 'pt', label: 'Portuguese' },
+  { id: 'ja', label: 'Japanese' },
+  { id: 'ko', label: 'Korean' },
 ]
 
 export const DEFAULT_LANGUAGE = 'en'

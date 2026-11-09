@@ -31,7 +31,7 @@ pub async fn google_request(
     body: Option<String>,
 ) -> Result<GoogleResponse, String> {
     if !ALLOWED_PREFIXES.iter().any(|p| url.starts_with(p)) {
-        return Err(format!("adresse refusée : {url}"));
+        return Err(format!("URL not allowed: {url}"));
     }
     let method = reqwest::Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
     let mut req = reqwest::Client::new()
@@ -78,7 +78,7 @@ pub async fn oauth_loopback_wait(
         .lock()
         .map_err(|e| e.to_string())?
         .remove(&port)
-        .ok_or("aucune écoute sur ce port")?;
+        .ok_or("no listener on this port")?;
     let cb = tauri::async_runtime::spawn_blocking(move || {
         oauth_loopback::wait(listener, Duration::from_secs(timeout_secs))
     })

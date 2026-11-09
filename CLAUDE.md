@@ -10,7 +10,7 @@
 
 - **Stack** : Tauri v2 (Rust) + Nuxt 4 SPA (`app/`) + Nuxt UI v4 (4.8.1, embarque Reka UI) + Tailwind v4 + SQLite (`tauri-plugin-sql`) + VueUse. `withGlobalTauri: true`.
 - **Dépôt** : branche d'intégration `dev`, commits conventionnels. Claude travaille sur des branches `claude/*`, committe et pousse lui-même, ouvre une PR vers `dev` ; **Félix relit et merge**. Jamais de push direct sur `dev`.
-- **Langue** : répondre **en français**.
+- **Langue** : répondre à Félix **en français**. **L'interface de l'appli est en anglais** (décision du 9 nov. 2026) : tout nouveau texte visible (libellés, notifications, messages d'erreur montrés à l'utilisateur) s'écrit en anglais. Vocabulaire : rangement = *storage*, non rangées = *unsorted*, ranger = *store*, à l'échange = *for trade*, exemplaire = *copy*, classeur = *binder*, boîte = *bulk box*, 1re édition = *1st edition*. Les commentaires de code et la doc restent en français.
 - **OS dev** : CachyOS (Arch). Bases dans `~/.config/com.card-manager.app/`.
 - **CI** : GitHub Actions, `checks` (typecheck + Vitest + tests Rust std-only, ~1 min) et `e2e` (13 parcours WebdriverIO, ~15 min) sur push `dev` + PR ; `release` (AppImage + APK → pré-release `dev-latest`) sur push `dev`.
 
@@ -134,6 +134,7 @@ card-manager/
 
 ## 3. Règles impératives (à ne pas violer)
 
+0. **Textes d'interface en anglais** (cf. §0) ; E2E toujours sans texte (§3.2).
 1. **Multi-TCG** : ne rien hardcoder YGO-only sans raison. Le schéma porte `game` partout.
 2. **Tests E2E i18n-safe** : ne JAMAIS cibler/asserter du **texte d'UI**. Uniquement `id`, `data-*`, rôles ARIA. Les assertions lisent des `data-*`.
 3. **Jamais de `PRAGMA journal_mode` (ni `foreign_keys`) dans une migration** : `tauri-plugin-sql` enveloppe chaque migration dans une transaction, et SQLite refuse WAL dans une transaction → échec sur base vierge. Les PRAGMA runtime vont dans `useDatabase.ts`, par connexion (hors transaction).

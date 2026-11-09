@@ -1,5 +1,5 @@
 <template>
-  <AppPage sidebar-label="Partage" title="Partage" :mobile-sidebar="false">
+  <AppPage sidebar-label="Share" title="Share" :mobile-sidebar="false">
     <template #sidebar>
       <nav class="flex flex-col gap-1">
         <button
@@ -15,7 +15,7 @@
         </button>
       </nav>
 
-      <p class="text-xs text-muted uppercase tracking-wide mt-6 mb-2">Collections reçues</p>
+      <p class="text-xs text-muted uppercase tracking-wide mt-6 mb-2">Received collections</p>
       <div v-if="saved.length" class="space-y-0.5">
         <button
           v-for="s in saved"
@@ -30,7 +30,7 @@
           <span class="text-xs text-muted shrink-0">{{ s.cardCount }}</span>
         </button>
       </div>
-      <p v-else class="text-xs text-dimmed italic px-3">Aucune pour l'instant</p>
+      <p v-else class="text-xs text-dimmed italic px-3">None yet</p>
     </template>
 
     <div class="h-full overflow-y-auto" :class="isMobile && 'pb-6'">
@@ -53,7 +53,7 @@
       <UButton
         v-if="isMobile && active === 'view'"
         icon="i-lucide-arrow-left"
-        label="Collections reçues"
+        label="Received collections"
         color="neutral"
         variant="ghost"
         class="mb-2 -ml-2"
@@ -63,19 +63,19 @@
       <!-- ── Partager ma collection ── -->
       <div v-if="active === 'mine'" class="space-y-5 max-w-md">
         <div>
-          <h2 v-if="!isMobile" class="text-lg font-medium">Partager ma collection</h2>
+          <h2 v-if="!isMobile" class="text-lg font-medium">Share my collection</h2>
           <p class="text-xs text-muted">
-            L'autre joueur scanne le QR code (ou colle le code) pour voir tes cartes et celles que
-            tu proposes à l'échange.
+            The other player scans the QR code (or pastes the code) to see your cards and the ones
+            you offer for trade.
           </p>
         </div>
 
         <div class="space-y-1">
-          <p class="text-sm font-medium">Ton nom</p>
+          <p class="text-sm font-medium">Your name</p>
           <UInput
             id="share-owner-input"
             v-model="ownerName"
-            placeholder="Affiché chez l'autre joueur"
+            placeholder="Shown to the other player"
             :class="isMobile ? 'w-full' : 'w-64'"
             :size="isMobile ? 'lg' : 'sm'"
           />
@@ -83,12 +83,12 @@
 
         <label class="flex items-center gap-2 text-sm">
           <USwitch id="share-only-trade" v-model="onlyTrade" size="sm" />
-          Seulement les cartes à l'échange
+          Only cards for trade
         </label>
 
         <UButton
           id="share-generate-btn"
-          label="Générer le partage"
+          label="Create share"
           icon="i-lucide-qr-code"
           :loading="generating"
           :block="isMobile"
@@ -98,7 +98,7 @@
 
         <div v-if="myCode" class="space-y-3">
           <p class="text-xs text-muted" :data-share-card-count="myCardCount">
-            {{ myCardCount }} carte(s) différente(s) · {{ myCode.length }} caractères
+            {{ myCardCount }} distinct card(s) · {{ myCode.length }} characters
           </p>
           <div
             v-if="qrFrames.length"
@@ -109,16 +109,16 @@
           >
             <img
               :src="qrFrames[qrIndex]"
-              alt="QR code de partage"
+              alt="Share QR code"
               class="max-w-full rounded-xl bg-white p-2"
               :class="isMobile ? 'w-full' : 'w-72'"
             />
             <p v-if="qrFrames.length > 1" class="text-xs text-muted">
-              QR animé : image {{ qrIndex + 1 }} / {{ qrFrames.length }}. L'autre appareil le scanne
-              en continu jusqu'à la fin.
+              Animated QR: frame {{ qrIndex + 1 }} / {{ qrFrames.length }}. The other device keeps
+              scanning until the end.
             </p>
           </div>
-          <p class="text-xs text-muted">À distance : copie le code et envoie-le par message.</p>
+          <p class="text-xs text-muted">Far away? Copy the code and send it in a message.</p>
           <UTextarea
             id="share-code"
             :model-value="myCode"
@@ -129,7 +129,7 @@
           />
           <UButton
             id="share-copy-btn"
-            label="Copier le code"
+            label="Copy code"
             icon="i-lucide-copy"
             color="neutral"
             variant="soft"
@@ -143,17 +143,17 @@
       <!-- ── Recevoir ── -->
       <div v-else-if="active === 'receive'" class="space-y-5 max-w-md">
         <div>
-          <h2 v-if="!isMobile" class="text-lg font-medium">Voir la collection d'un joueur</h2>
+          <h2 v-if="!isMobile" class="text-lg font-medium">View a player's collection</h2>
           <p class="text-xs text-muted">
-            Scanne son QR code ou colle le code qu'il t'a envoyé. La collection est enregistrée pour
-            pouvoir la revoir.
+            Scan their QR code or paste the code they sent you. The collection is saved so you can
+            see it again.
           </p>
         </div>
 
         <UButton
           v-if="canScan"
           id="share-scan-btn"
-          label="Scanner un QR code"
+          label="Scan a QR code"
           icon="i-lucide-scan-line"
           :block="isMobile"
           :size="isMobile ? 'xl' : 'md'"
@@ -170,7 +170,7 @@
           />
           <UButton
             id="share-import-btn"
-            label="Ouvrir"
+            label="Open"
             icon="i-lucide-folder-open"
             :disabled="!importText.trim()"
             :loading="importing"
@@ -182,8 +182,10 @@
 
         <!-- MOBILE : collections déjà reçues (dans la sidebar sur desktop) -->
         <div v-if="isMobile" class="space-y-2">
-          <p class="text-xs font-semibold text-muted uppercase tracking-wide">Collections reçues</p>
-          <p v-if="!saved.length" class="text-sm text-dimmed italic">Aucune pour l'instant</p>
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide">
+            Received collections
+          </p>
+          <p v-if="!saved.length" class="text-sm text-dimmed italic">None yet</p>
           <button
             v-for="sv in saved"
             :key="sv.id"
@@ -196,8 +198,8 @@
             >
               <UIcon name="i-lucide-user" class="size-5" />
             </span>
-            <span class="flex-1 min-w-0 font-semibold truncate">{{ sv.owner || 'Sans nom' }}</span>
-            <span class="text-sm text-muted">{{ sv.cardCount }} cartes</span>
+            <span class="flex-1 min-w-0 font-semibold truncate">{{ sv.owner || 'No name' }}</span>
+            <span class="text-sm text-muted">{{ sv.cardCount }} cards</span>
             <UIcon name="i-lucide-chevron-right" class="text-muted" />
           </button>
         </div>
@@ -207,10 +209,10 @@
       <div v-else-if="active === 'view' && viewing" id="shared-view" class="space-y-4">
         <div class="flex items-start gap-3">
           <div class="flex-1">
-            <h2 class="text-lg font-medium">Collection de {{ viewing.owner || 'Sans nom' }}</h2>
+            <h2 class="text-lg font-medium">{{ viewing.owner || 'No name' }}'s collection</h2>
             <p class="text-xs text-muted">
-              Partagée le {{ formatDate(viewing.createdAt) }} · {{ viewCards.length }} carte(s)
-              différente(s) · {{ tradeTotal }} à l'échange
+              Shared on {{ formatDate(viewing.createdAt) }} · {{ viewCards.length }} distinct
+              card(s) · {{ tradeTotal }} for trade
             </p>
           </div>
           <UButton
@@ -219,7 +221,7 @@
             color="error"
             variant="ghost"
             size="sm"
-            aria-label="Supprimer cette collection"
+            aria-label="Delete this collection"
             @click="removeSaved"
           />
         </div>
@@ -229,17 +231,17 @@
             id="shared-search"
             v-model="viewFilters.search"
             icon="i-lucide-search"
-            placeholder="Rechercher par nom"
+            placeholder="Search by name"
             size="sm"
             class="w-56"
           />
           <label class="flex items-center gap-2 text-sm">
             <USwitch id="shared-only-trade" v-model="viewFilters.onlyTrade" size="sm" />
-            À l'échange
+            For trade
           </label>
           <label class="flex items-center gap-2 text-sm">
             <USwitch id="shared-only-missing" v-model="viewFilters.onlyMissing" size="sm" />
-            Qui me manquent
+            Missing from mine
           </label>
         </div>
 
@@ -248,7 +250,7 @@
           class="flex flex-col items-center py-16 text-muted text-center"
         >
           <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
-          <p>Aucune carte ne correspond</p>
+          <p>No matching cards</p>
         </div>
         <div
           v-else
@@ -318,12 +320,12 @@ const toast = useToast()
 const { isMobile } = useResponsive()
 
 const sections = [
-  { id: 'mine', label: 'Partager ma collection', icon: 'i-lucide-qr-code' },
-  { id: 'receive', label: 'Voir une collection', icon: 'i-lucide-scan-line' },
+  { id: 'mine', label: 'Share my collection', icon: 'i-lucide-qr-code' },
+  { id: 'receive', label: 'View a collection', icon: 'i-lucide-scan-line' },
 ]
 const mobileSections = [
-  { id: 'mine', label: 'Montrer la mienne' },
-  { id: 'receive', label: 'Recevoir' },
+  { id: 'mine', label: 'Show mine' },
+  { id: 'receive', label: 'Receive' },
 ]
 const active = ref<'mine' | 'receive' | 'view'>('mine')
 function openSection(id: string) {
@@ -372,7 +374,7 @@ async function generate() {
     myCardCount.value = decodeShare(myCode.value).cards.length
     await buildQr(myCode.value)
   } catch {
-    toast.add({ title: 'Échec de la génération du partage', color: 'error' })
+    toast.add({ title: 'Could not create the share', color: 'error' })
   } finally {
     generating.value = false
   }
@@ -381,9 +383,9 @@ async function generate() {
 async function copyCode() {
   try {
     await navigator.clipboard.writeText(myCode.value)
-    toast.add({ title: 'Code copié', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Code copied', icon: 'i-lucide-check', color: 'success' })
   } catch {
-    toast.add({ title: 'Copie impossible : sélectionne le code à la main', color: 'warning' })
+    toast.add({ title: 'Could not copy: select the code by hand', color: 'warning' })
   }
 }
 
@@ -407,7 +409,7 @@ async function importCode(code: string) {
   } catch (e) {
     const unsupported = e instanceof ShareCodeError && e.message === 'UNSUPPORTED_VERSION'
     toast.add({
-      title: unsupported ? 'Code créé par une version plus récente de l’app' : 'Code invalide',
+      title: unsupported ? 'Code made by a newer version of the app' : 'Invalid code',
       color: 'error',
     })
   } finally {

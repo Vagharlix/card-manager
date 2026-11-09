@@ -93,7 +93,7 @@ export async function forgetSyncBase(): Promise<void> {
 let running = false
 
 export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promise<SyncReport> {
-  if (running) throw new SyncError('BUSY', 'Une synchronisation est déjà en cours')
+  if (running) throw new SyncError('BUSY', 'A sync is already running')
   running = true
   try {
     const { user } = await useDatabase()
@@ -109,11 +109,11 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
 
       if (remote) {
         if (remote.snapshot.protocol !== SYNC_PROTOCOL)
-          throw new SyncError('PROTOCOL', 'Format de synchronisation inconnu')
+          throw new SyncError('PROTOCOL', 'Unknown sync format')
         if (remote.snapshot.schema > USER_SCHEMA_VERSION)
           throw new SyncError(
             'REMOTE_NEWER',
-            "Un autre appareil utilise une version plus récente de l'appli : mets-la à jour ici"
+            'Another device uses a newer version of the app: update it here'
           )
       }
 
@@ -154,7 +154,7 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
       }
       // un autre appareil a publié entre-temps : on refusionne avec son état
     }
-    throw new SyncError('BUSY', 'Synchronisation impossible : un autre appareil publie en continu')
+    throw new SyncError('BUSY', 'Sync failed: another device keeps publishing')
   } finally {
     running = false
   }

@@ -39,7 +39,7 @@ const props = withDefaults(
   {
     loading: false,
     showNames: false,
-    emptyMessage: 'Aucune carte trouvée',
+    emptyMessage: 'No cards found',
   }
 )
 

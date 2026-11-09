@@ -2,7 +2,7 @@
   <div class="w-72 shrink-0 border-l border-default flex flex-col h-full">
     <!-- en-tête avec bouton masquer -->
     <div class="flex items-center justify-between px-3 h-10 border-b border-default shrink-0">
-      <span class="text-xs text-muted uppercase tracking-wide">Aperçu</span>
+      <span class="text-xs text-muted uppercase tracking-wide">Preview</span>
       <UButton
         icon="i-lucide-panel-right-close"
         color="neutral"
@@ -15,7 +15,7 @@
     <!-- contenu -->
     <div class="flex-1 min-h-0 overflow-y-auto p-3">
       <div v-if="!cardId" class="text-center text-dimmed text-sm py-10">
-        Clique une carte pour voir ses infos
+        Click a card to see its details
       </div>
 
       <div v-else-if="loading" class="space-y-3">
@@ -36,16 +36,16 @@
             <span class="text-muted">Type</span><span>{{ detail.type }}</span>
           </div>
           <div v-if="detail.attribute" class="flex justify-between">
-            <span class="text-muted">Attribut</span><span>{{ detail.attribute }}</span>
+            <span class="text-muted">Attribute</span><span>{{ detail.attribute }}</span>
           </div>
           <div v-if="detail.race" class="flex justify-between">
-            <span class="text-muted">Race</span><span>{{ detail.race }}</span>
+            <span class="text-muted">Monster type</span><span>{{ detail.race }}</span>
           </div>
           <div v-if="detail.level != null" class="flex justify-between">
-            <span class="text-muted">Niveau</span><span>{{ detail.level }}</span>
+            <span class="text-muted">Level</span><span>{{ detail.level }}</span>
           </div>
           <div v-if="detail.rank != null" class="flex justify-between">
-            <span class="text-muted">Rang</span><span>{{ detail.rank }}</span>
+            <span class="text-muted">Rank</span><span>{{ detail.rank }}</span>
           </div>
           <div v-if="detail.linkValue != null" class="flex justify-between">
             <span class="text-muted">Link</span><span>{{ detail.linkValue }}</span>

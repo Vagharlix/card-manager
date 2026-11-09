@@ -1,5 +1,5 @@
 <template>
-  <AppPage sidebar-label="Sections" title="Réglages" :mobile-sidebar="false">
+  <AppPage sidebar-label="Sections" title="Settings" :mobile-sidebar="false">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
@@ -7,7 +7,7 @@
         variant="ghost"
         size="lg"
         to="/collection"
-        aria-label="Retour"
+        aria-label="Back"
       />
     </template>
     <template #sidebar>
@@ -29,21 +29,20 @@
     <div class="h-full overflow-y-auto" :class="isMobile && 'space-y-4 pb-6'">
       <!-- ── Synchronisation entre appareils (compte Google, Drive) ── -->
       <section v-if="show('devices')" :class="sectionClass" data-section-body="devices">
-        <h2 :class="titleClass">Synchronisation entre appareils</h2>
+        <h2 :class="titleClass">Sync between devices</h2>
         <p class="text-xs text-muted">
-          Garde ta collection, tes rangements et tes decks identiques sur le PC et le téléphone, via
-          ton compte Google (dossier caché de l'appli dans ton Drive, invisible et séparé de tes
-          fichiers).
+          Keep your collection, storage and decks the same on your computer and phone, through your
+          Google account (a hidden app folder in your Drive, separate from your files).
         </p>
 
         <p v-if="!gAvailable" class="text-sm text-muted">
-          Non disponible dans cette version de l'appli.
+          Not available in this version of the app.
         </p>
 
         <template v-else-if="!gAccount">
           <UButton
             id="gsync-connect"
-            label="Se connecter avec Google"
+            label="Sign in with Google"
             icon="i-lucide-log-in"
             :size="fieldSize"
             :block="isMobile"
@@ -51,23 +50,23 @@
             @click="onGoogleConnect"
           />
           <p v-if="gBusy && !isAndroidDevice" class="text-xs text-muted">
-            Termine la connexion dans le navigateur qui vient de s'ouvrir.
+            Finish signing in in the browser that just opened.
           </p>
         </template>
 
         <template v-else>
           <div class="space-y-1">
             <p class="text-sm font-medium" data-gsync-email>
-              {{ gAccount.email ?? 'Compte Google connecté' }}
+              {{ gAccount.email ?? 'Google account connected' }}
             </p>
             <p class="text-xs text-muted" :data-gsync-last="gLast?.at ?? ''">
-              {{ gLast ? `Dernière synchro : ${formatDateTime(gLast.at)}` : 'Jamais synchronisé' }}
+              {{ gLast ? `Last sync: ${formatDateTime(gLast.at)}` : 'Never synced' }}
             </p>
           </div>
           <div class="flex flex-wrap gap-2" :class="isMobile && 'flex-col'">
             <UButton
               id="gsync-now"
-              label="Synchroniser maintenant"
+              label="Sync now"
               icon="i-lucide-refresh-cw"
               :size="fieldSize"
               :block="isMobile"
@@ -76,7 +75,7 @@
             />
             <UButton
               id="gsync-disconnect"
-              label="Se déconnecter"
+              label="Sign out"
               icon="i-lucide-log-out"
               color="neutral"
               variant="soft"
@@ -87,8 +86,8 @@
             />
           </div>
           <p class="text-xs text-muted">
-            La synchro se fait aussi à chaque lancement. En cas de modification du même élément sur
-            les deux appareils, la plus récente est gardée.
+            Sync also runs at every launch. If the same item was changed on both devices, the most
+            recent change wins.
           </p>
         </template>
       </section>
@@ -156,8 +155,8 @@
       <UModal v-model:open="importConfirmOpen" title="Import this backup?">
         <template #body>
           <p class="text-sm text-muted">
-            Your current data will be replaced by the backup. You can go back with « Undo last sync
-            or import » afterwards.
+            Your current data will be replaced by the backup. You can go back with “Undo last sync
+            or import” afterwards.
           </p>
         </template>
         <template #footer="{ close }">
@@ -177,13 +176,11 @@
 
       <!-- ── Collection ── -->
       <section v-if="show('collection')" :class="sectionClass">
-        <h2 :class="titleClass">Ajout de cartes</h2>
-        <p class="text-xs text-muted">
-          Valeurs pré-remplies lors de l'ajout rapide d'une carte ({{ gameLabel }}).
-        </p>
+        <h2 :class="titleClass">Adding cards</h2>
+        <p class="text-xs text-muted">Values used when you quickly add a card ({{ gameLabel }}).</p>
 
         <div class="space-y-1">
-          <p class="text-sm font-medium">État par défaut</p>
+          <p class="text-sm font-medium">Default condition</p>
           <USelect
             :model-value="games[GAME]?.defaultCondition"
             :items="conditionItems"
@@ -194,7 +191,7 @@
         </div>
 
         <div class="space-y-1">
-          <p class="text-sm font-medium">Langue par défaut</p>
+          <p class="text-sm font-medium">Default language</p>
           <USelect
             :model-value="games[GAME]?.defaultLanguage"
             :items="languageItems"
@@ -207,14 +204,14 @@
 
       <!-- ── Partage ── -->
       <section v-if="show('share')" :class="sectionClass">
-        <h2 :class="titleClass">Partage</h2>
+        <h2 :class="titleClass">Sharing</h2>
         <div class="space-y-1">
-          <p class="text-sm font-medium">Mon nom</p>
-          <p class="text-xs text-muted">Affiché chez ceux qui reçoivent ma collection.</p>
+          <p class="text-sm font-medium">My name</p>
+          <p class="text-xs text-muted">Shown to people who receive my collection.</p>
           <UInput
             id="settings-owner-name"
             v-model="ownerName"
-            placeholder="Ton nom"
+            placeholder="Your name"
             :size="fieldSize"
             :class="fieldClass"
             @blur="saveOwnerName"
@@ -224,9 +221,9 @@
 
       <!-- ── Apparence ── -->
       <section v-if="show('appearance')" :class="sectionClass">
-        <h2 :class="titleClass">Apparence</h2>
+        <h2 :class="titleClass">Appearance</h2>
         <div class="space-y-1">
-          <p class="text-sm font-medium">Thème</p>
+          <p class="text-sm font-medium">Theme</p>
           <USelect
             id="settings-color-mode"
             v-model="colorMode.preference"
@@ -239,19 +236,19 @@
 
       <!-- ── Synchronisation ── -->
       <section v-if="show('sync')" :class="sectionClass">
-        <h2 :class="titleClass">Base de cartes</h2>
+        <h2 :class="titleClass">Card database</h2>
 
         <div class="space-y-1">
-          <p class="text-sm font-medium">Base de cartes {{ gameLabel }}</p>
+          <p class="text-sm font-medium">{{ gameLabel }} card database</p>
           <p class="text-xs text-muted" :data-sync-version="localVersion ?? ''">
-            {{ localVersion ? `Version ${localVersion}` : 'Jamais synchronisée' }}
+            {{ localVersion ? `Version ${localVersion}` : 'Never downloaded' }}
           </p>
         </div>
 
         <div class="flex flex-wrap gap-2" :class="isMobile && 'flex-col'">
           <UButton
             id="sync-check-btn"
-            label="Vérifier les mises à jour"
+            label="Check for updates"
             icon="i-lucide-refresh-cw"
             :size="fieldSize"
             :block="isMobile"
@@ -260,7 +257,7 @@
           />
           <UButton
             id="sync-force-btn"
-            label="Tout retélécharger"
+            label="Download everything again"
             icon="i-lucide-download"
             color="neutral"
             variant="soft"
@@ -271,27 +268,27 @@
           />
         </div>
         <p class="text-xs text-muted">
-          Retélécharge toutes les cartes (réseau requis, quelques minutes). Collection et decks ne
-          sont pas touchés.
+          Downloads all cards again (needs a connection, a few minutes). Your collection and decks
+          are not touched.
         </p>
       </section>
 
       <!-- ── Stockage ── -->
       <section v-if="show('storage')" :class="sectionClass">
-        <h2 :class="titleClass">Stockage</h2>
+        <h2 :class="titleClass">Storage</h2>
 
         <div class="space-y-1">
-          <p class="text-sm font-medium">Cache d'images</p>
+          <p class="text-sm font-medium">Image cache</p>
           <p id="image-cache-size" class="text-xs text-muted" :data-cache-bytes="cacheBytes ?? ''">
-            {{ cacheBytes === null ? '…' : `${formatBytes(cacheBytes)} utilisés` }}
+            {{ cacheBytes === null ? '…' : `${formatBytes(cacheBytes)} used` }}
           </p>
         </div>
 
         <div class="space-y-1">
-          <p class="text-sm font-medium">Limite du cache d'images (Mo)</p>
+          <p class="text-sm font-medium">Image cache limit (MB)</p>
           <p class="text-xs text-muted">
-            Au-delà, les images les moins récemment affichées sont supprimées (appliqué à
-            l'enregistrement et à chaque lancement).
+            Above this, the least recently shown images are deleted (applied when saved and at every
+            launch).
           </p>
           <UInput
             v-model.number="cacheLimit"
@@ -306,7 +303,7 @@
         <div>
           <UButton
             id="image-cache-clear"
-            label="Vider le cache d'images"
+            label="Clear image cache"
             icon="i-lucide-trash-2"
             color="error"
             variant="soft"
@@ -320,11 +317,11 @@
 
       <!-- ── Jeux ── -->
       <section v-if="show('games')" :class="sectionClass">
-        <h2 :class="titleClass">Jeux</h2>
+        <h2 :class="titleClass">Games</h2>
 
         <div class="space-y-1">
-          <p class="text-sm font-medium">Jeu favori</p>
-          <p class="text-xs text-muted">Ouvre directement ce jeu au lancement, sans demander.</p>
+          <p class="text-sm font-medium">Favorite game</p>
+          <p class="text-xs text-muted">Opens this game at launch without asking.</p>
           <USelect
             :model-value="global.favoriteGame || NONE"
             :items="favoriteGameItems"
@@ -336,8 +333,8 @@
 
         <div class="flex items-center justify-between gap-4">
           <div>
-            <p class="text-sm font-medium">Afficher le sélecteur de jeu</p>
-            <p class="text-xs text-muted">Proposer le choix du jeu à l'ouverture.</p>
+            <p class="text-sm font-medium">Show the game picker</p>
+            <p class="text-xs text-muted">Ask which game to open at launch.</p>
           </div>
           <USwitch :model-value="global.showGamePicker" @update:model-value="onShowGamePicker" />
         </div>
@@ -381,14 +378,14 @@ import {
 const GAME = 'ygo'
 
 const sections = [
-  { id: 'devices', label: 'Synchronisation' },
+  { id: 'devices', label: 'Sync' },
   { id: 'backup', label: 'Backup' },
-  { id: 'collection', label: 'Ajout de cartes' },
-  { id: 'share', label: 'Partage' },
-  { id: 'appearance', label: 'Apparence' },
-  { id: 'sync', label: 'Base de cartes' },
-  { id: 'storage', label: 'Stockage' },
-  { id: 'games', label: 'Jeux' },
+  { id: 'collection', label: 'Adding cards' },
+  { id: 'share', label: 'Sharing' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'sync', label: 'Card database' },
+  { id: 'storage', label: 'Storage' },
+  { id: 'games', label: 'Games' },
 ]
 const active = ref('devices')
 
@@ -410,9 +407,9 @@ const fieldClass = computed(() => (isMobile.value ? 'w-full' : 'w-56'))
 // ── apparence ──
 const colorMode = useColorMode()
 const colorModeItems = [
-  { label: 'Comme le système', value: 'system' },
-  { label: 'Clair', value: 'light' },
-  { label: 'Sombre', value: 'dark' },
+  { label: 'System', value: 'system' },
+  { label: 'Light', value: 'light' },
+  { label: 'Dark', value: 'dark' },
 ]
 
 // ── partage : nom affiché chez les autres (même réglage que la page Partage) ──
@@ -443,7 +440,7 @@ const toast = useToast()
 // donc on utilise une sentinelle qu'on retraduit en '' au stockage.
 const NONE = '__none__'
 const favoriteGameItems = [
-  { label: 'Aucun', value: NONE },
+  { label: 'None', value: NONE },
   ...allGames().map((g) => ({ label: g.label, value: g.id })),
 ]
 const def = gameDef(GAME)
@@ -484,9 +481,9 @@ async function clearCache() {
   clearing.value = true
   try {
     await clearImageCache()
-    toast.add({ title: "Cache d'images vidé", icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Image cache cleared', icon: 'i-lucide-check', color: 'success' })
   } catch {
-    toast.add({ title: 'Échec du vidage du cache', color: 'error' })
+    toast.add({ title: 'Could not clear the cache', color: 'error' })
   } finally {
     clearing.value = false
     await refreshCacheSize()
@@ -507,7 +504,7 @@ async function refreshVersion() {
 async function runSync(force: boolean) {
   try {
     await syncYgo({ force })
-    toast.add({ title: 'Base de cartes à jour', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Card database up to date', icon: 'i-lucide-check', color: 'success' })
   } catch {
     // l'overlay d'app.vue affiche déjà l'erreur avec un bouton « Retry »
   } finally {
@@ -531,7 +528,7 @@ async function refreshGoogle() {
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
 }
 
 async function onGoogleSync() {
@@ -540,9 +537,9 @@ async function onGoogleSync() {
     if (!r) return
     const changes = r.applied.inserted + r.applied.updated + r.applied.deleted
     toast.add({
-      title: changes ? `Synchronisé : ${changes} changement(s) reçu(s)` : 'Déjà à jour',
+      title: changes ? `Synced: ${changes} change(s) received` : 'Already up to date',
       description: r.conflicts.length
-        ? `${r.conflicts.length} modification(s) faite(s) des deux côtés : la plus récente a été gardée.`
+        ? `${r.conflicts.length} item(s) changed on both devices: the most recent change was kept.`
         : undefined,
       icon: 'i-lucide-check',
       color: 'success',
@@ -573,7 +570,7 @@ async function onGoogleDisconnect() {
   await disconnectGoogle()
   await forgetSyncBase() // reconnecté plus tard : on repart d'une union, rien n'est supprimé
   await refreshGoogle()
-  toast.add({ title: 'Compte Google déconnecté', icon: 'i-lucide-check', color: 'success' })
+  toast.add({ title: 'Google account signed out', icon: 'i-lucide-check', color: 'success' })
 }
 
 // ── sauvegarde ──

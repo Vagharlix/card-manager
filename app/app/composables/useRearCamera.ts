@@ -24,7 +24,7 @@ export function useRearCamera(video: Ref<HTMLVideoElement | null>) {
   async function start(): Promise<boolean> {
     error.value = ''
     if (!(await ensurePermission())) {
-      error.value = 'Accès à la caméra refusé'
+      error.value = 'Camera access denied'
       return false
     }
     try {
@@ -33,7 +33,7 @@ export function useRearCamera(video: Ref<HTMLVideoElement | null>) {
         audio: false,
       })
     } catch {
-      error.value = 'Caméra indisponible'
+      error.value = 'Camera unavailable'
       return false
     }
     // mise au point continue (sinon image souvent floue dans la WebView) : best-effort

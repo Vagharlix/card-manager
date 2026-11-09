@@ -146,7 +146,7 @@ export async function saveShare(code: string): Promise<SavedShare> {
   const saved: SavedShare = {
     id: crypto.randomUUID(),
     game: payload.game,
-    owner: payload.owner || 'Sans nom',
+    owner: payload.owner || 'No name',
     cardCount: payload.cards.reduce((s, c) => s + c.qty, 0),
     tradeCount: payload.cards.reduce((s, c) => s + c.trade, 0),
     sharedAt: new Date(payload.createdAt).toISOString(),

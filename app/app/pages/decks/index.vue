@@ -11,7 +11,7 @@
         <UButton
           id="deck-create-btn"
           icon="i-lucide-plus"
-          label="Nouveau deck"
+          label="New deck"
           :block="isMobile"
           :size="isMobile ? 'lg' : 'md'"
           @click="openCreate"
@@ -25,12 +25,12 @@
           class="flex flex-col items-center justify-center text-center py-20 text-muted"
         >
           <UIcon name="i-lucide-layers" class="text-4xl mb-3" />
-          <p>Aucun deck pour l'instant</p>
+          <p>No decks yet</p>
           <UButton
             id="deck-create-empty"
             class="mt-4"
             icon="i-lucide-plus"
-            label="Créer un deck"
+            label="Create a deck"
             @click="openCreate"
           />
         </div>
@@ -50,12 +50,12 @@
     </div>
 
     <!-- création -->
-    <UModal v-model:open="createOpen" title="Nouveau deck">
+    <UModal v-model:open="createOpen" title="New deck">
       <template #body>
         <UInput
           id="deck-name-input"
           v-model="createName"
-          placeholder="Nom du deck"
+          placeholder="Deck name"
           class="w-full"
           autofocus
           @keydown.enter="confirmCreate"
@@ -63,10 +63,10 @@
       </template>
       <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
+          <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="deck-create-confirm"
-            label="Créer"
+            label="Create"
             icon="i-lucide-check"
             :loading="creating"
             :disabled="!createName.trim()"
@@ -77,12 +77,12 @@
     </UModal>
 
     <!-- renommage -->
-    <UModal v-model:open="renameOpen" title="Renommer le deck">
+    <UModal v-model:open="renameOpen" title="Rename deck">
       <template #body>
         <UInput
           id="deck-rename-input"
           v-model="renameValue"
-          placeholder="Nouveau nom"
+          placeholder="New name"
           class="w-full"
           autofocus
           @keydown.enter="confirmRename"
@@ -90,10 +90,10 @@
       </template>
       <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
+          <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="deck-rename-confirm"
-            label="Renommer"
+            label="Rename"
             icon="i-lucide-check"
             :loading="renaming"
             :disabled="!renameValue.trim()"
@@ -104,19 +104,16 @@
     </UModal>
 
     <!-- suppression -->
-    <UModal v-model:open="deleteOpen" title="Supprimer ce deck ?">
+    <UModal v-model:open="deleteOpen" title="Delete this deck?">
       <template #body>
-        <p class="text-sm text-muted">
-          « {{ pendingDelete?.name }} » sera supprimé. Cette action peut être annulée plus tard
-          (soft delete).
-        </p>
+        <p class="text-sm text-muted">“{{ pendingDelete?.name }}” will be deleted.</p>
       </template>
       <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
+          <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="deck-delete-confirm"
-            label="Supprimer"
+            label="Delete"
             color="error"
             icon="i-lucide-trash-2"
             :loading="deleting"
@@ -180,7 +177,7 @@ async function confirmCreate() {
     toast.add({ title: 'Deck créé', icon: 'i-lucide-check', color: 'success' })
     router.push(`/decks/${id}`)
   } catch {
-    toast.add({ title: 'Échec de la création', color: 'error' })
+    toast.add({ title: 'Could not create the deck', color: 'error' })
   } finally {
     creating.value = false
   }
@@ -208,7 +205,7 @@ async function confirmRename() {
     toast.add({ title: 'Deck renommé', icon: 'i-lucide-check', color: 'success' })
     await load()
   } catch {
-    toast.add({ title: 'Échec du renommage', color: 'error' })
+    toast.add({ title: 'Could not rename', color: 'error' })
   } finally {
     renaming.value = false
     pendingRename.value = null
@@ -235,7 +232,7 @@ async function confirmDelete() {
     toast.add({ title: 'Deck supprimé', icon: 'i-lucide-check', color: 'success' })
     await load()
   } catch {
-    toast.add({ title: 'Échec de la suppression', color: 'error' })
+    toast.add({ title: 'Could not delete', color: 'error' })
   } finally {
     deleting.value = false
     pendingDelete.value = null
@@ -258,13 +255,13 @@ async function onRangeConfirm(plan: DeckLinkPlan) {
     await applyDeckToDeckbox(rangeDeckId.value, plan.deckboxId, 'ygo')
     rangeOpen.value = false
     toast.add({
-      title: `Deck rangé dans « ${plan.deckboxName} »`,
+      title: `Deck stored in “${plan.deckboxName}”`,
       icon: 'i-lucide-check',
       color: 'success',
     })
     await load()
   } catch (e) {
-    toast.add({ title: 'Échec du rangement', color: 'error' })
+    toast.add({ title: 'Could not store the deck', color: 'error' })
   } finally {
     rangeApplying.value = false
   }
