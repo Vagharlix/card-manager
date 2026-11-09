@@ -59,6 +59,13 @@ jobs:
       - name: Build frontend
         working-directory: app
         run: pnpm --ignore-workspace generate
+        # synchro Google Drive : identifiants du client OAuth « bureau »
+        # (Google ne considère pas ce secret comme confidentiel pour une appli
+        # installée ; il reste hors du dépôt). Android n'en a pas besoin :
+        # l'appli y est reconnue par son paquet et sa clé de signature.
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
       - name: Build AppImage
         run: pnpm tauri build --bundles appimage --config "{\"version\":\"$APP_VERSION\"}"
@@ -119,6 +126,13 @@ jobs:
       - name: Build frontend
         working-directory: app
         run: pnpm --ignore-workspace generate
+        # synchro Google Drive : identifiants du client OAuth « bureau »
+        # (Google ne considère pas ce secret comme confidentiel pour une appli
+        # installée ; il reste hors du dépôt). Android n'en a pas besoin :
+        # l'appli y est reconnue par son paquet et sa clé de signature.
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
       # src-tauri/gen/ n'est pas versionné : on génère le projet Android ici,
       # puis les icônes de l'app dans ses ressources.
