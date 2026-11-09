@@ -73,7 +73,10 @@ onMounted(async () => {
   await runSync()
   await pruneCache()
   // synchro entre appareils (si un compte Google est connecté), sans bruit
-  if (import.meta.env.VITE_TEST_MODE !== 'true') await deviceSync.run(true)
+  if (import.meta.env.VITE_TEST_MODE !== 'true') {
+    await deviceSync.run(true)
+    deviceSync.watchForeground()
+  }
 })
 </script>
 
