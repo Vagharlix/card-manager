@@ -38,7 +38,7 @@ cd app && pnpm --ignore-workspace test:unit
 # en mode watch
 cd app && npx vitest
 # Tests Rust des modules sans dépendance Tauri (pas besoin des libs système)
-rustc --edition 2021 --test src-tauri/src/cache_store.rs -o /tmp/cache_store_test && /tmp/cache_store_test
+rustc --edition 2021 --test src-tauri/src/cache_store.rs -o /tmp/cache_store_test && /tmp/cache_store_test  # + is_safe_name
 rustc --edition 2021 --test src-tauri/src/oauth_loopback.rs -o /tmp/oauth_test && /tmp/oauth_test
 
 # Lancer UN seul spec (utile en debug)
@@ -85,14 +85,15 @@ card-manager/
 │       │        004_detach_deleted_collection.sql, 005_binder_slots_multi_copy.sql,
 │       │        006_collection_trade_qty.sql, 007_shared_collections.sql,
 │       │        008_collection_rarity_edition.sql, 009_sync_state.sql
-│       └── ygo/001_initial.sql, 002_printing_rarities.sql
+│       └── ygo/001_initial.sql, 002_printing_rarities.sql, 003_card_contract.sql (vues communes)
 ├── app/                      # racine de config Nuxt (package.json "app", scripts generate/dev/build)
 │   ├── pnpm-lock.yaml
 │   ├── vitest.config.ts      # alias ~ -> app/app, env node, include test/unit/**
 │   ├── test/unit/            # tests Vitest (HORS de app/app, donc pas vus par Nuxt)
 │   │   ├── deckLink, collection, decks, containers, share, scan, settings,
-│   │   │   search, cardDetail, userSync, drive, backup (.test.ts)
-│   │   └── helpers/testDb.ts, seed.ts, ygoCards.ts
+│   │   │   search, cardDetail, userSync, drive, backup, perf, multiGame (.test.ts)
+│   │   ├── fixtures/fake-game/   # schéma de la base de cartes du FAUX JEU
+│   │   └── helpers/testDb.ts, seed.ts, ygoCards.ts, fakeGame.ts
 │   └── app/                  # ⚠️ DOUBLE app/ : LE CODE SOURCE RÉEL est ici
 │       ├── pages/            # decks/[id].vue, decks/index.vue, collection.vue, index.vue,
 │       │                     #   search.vue, settings.vue  (PAS de containers.vue)
@@ -100,7 +101,12 @@ card-manager/
 │       ├── composables/useDatabase.ts   # ⚠️ ici (pas services/), parfois importé ~/services/useDatabase
 │       ├── composables/useSettings.ts   # store réactif global des settings
 │       ├── services/deckLink.ts
-│       ├── services/settings.ts, services/game/ (registre par jeu : types/common/ygo/index)
+│       ├── services/settings.ts, services/game/ (définitions par jeu : types/common/ygo/index)
+│       ├── services/game/modules/      # MODULES DE JEU : point d'entrée unique de chaque jeu (index = registre, ygo.ts)
+│       ├── services/card/meta.ts       # contrat commun des bases de cartes (root, nom, type, légalité, raretés)
+│       ├── services/{card,scan,search}/ygo.ts, services/deck/ygo.ts, services/sync.ts  # tout ce qui est YGO
+│       ├── services/cardData.ts        # mise à jour de la base de cartes d'un jeu (routeur) + cardDataProgress.ts
+│       ├── composables/useCurrentGame.ts, components/GamePicker.vue, GameLaunchModal.vue, utils/gameUi.ts
 │       ├── services/imageCache.ts      # wrappers des commandes Rust du cache d'images
 │       ├── services/share/             # partage : codec.ts (format CMSHARE1), frames.ts (QR animé), index.ts (service)
 │       ├── pages/share.vue + components/QrScanner.vue   # écran de partage + scanner caméra continu (mobile)
@@ -150,6 +156,7 @@ card-manager/
 
 Deux bases, nom suffixé selon le mode.
 
+- **Une base de cartes par jeu** (`GameDefinition.cardDb`, ex. `cards-ygo`), ouverte par `useDatabase().cards(game)` — seul point d'accès. **Contrat commun** (ce que lisent les couches génériques, via `services/card/meta.ts`) : `cards(id, name, image_url*, legal_text)`, `printings`, `printing_rarities`, et deux vues que chaque jeu définit sur son schéma : `card_meta(card_id, root, type)` (une ligne par carte ; `root` = carte logique, les artworks la partagent ; `type` = indication pour le moteur de deck) et `card_legality(card_id, format, status)` (pas de ligne = aucune restriction). YGO : migration `ygo/003`.
 - **`cards-ygo.db`** — données de référence (lecture seule côté app). Schéma = migration `ygo/001` :
   `cards` + `ygo_details` + `printings` + lookups (`card_types`/`card_attributes`/`card_races`) + `sync_meta` + FTS5 (`cards_fts`, `content=cards`, triggers de synchro).
   - `ygo_details.alias` → passcode « principal » d'une carte à artworks multiples.
@@ -178,7 +185,15 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - **Stockage** : taille du cache affichée, vidage, limite appliquée (LRU par mtime : un fichier relu est « touché ») à l'enregistrement et à chaque lancement (`app.vue` → `pruneImageCache`). Après suppression de fichiers, `forgetCachedImages()` vide les URLs résolues en mémoire (`useCardImage`).
 - **Synchronisation** : version locale affichée, « Vérifier les mises à jour » et « Forcer la resynchronisation » (`syncYgo({ force: true })`, progression dans l'overlay d'`app.vue`).
 - **Partage** (nom affiché, même réglage que la page Partage) et **Apparence** (thème système / clair / sombre, `useColorMode`) : sections ajoutées avec la refonte mobile (plus de bouton de thème dans l'en-tête sur mobile).
-- **Reste** : `favoriteGame` / `showGamePicker` sont stockés et éditables mais rien ne les consomme encore (pas de sélecteur de jeu tant qu'il n'y a qu'un jeu).
+- `favoriteGame` / `showGamePicker` sont consommés par `useCurrentGame` (jeu ouvert au lancement, fenêtre « Which game? ») ; invisibles tant qu'il n'y a qu'un jeu.
+
+### Multi-jeu (préparé, nov. 2026) — un seul jeu réel (YGO), le 2e sera choisi ensuite
+- **Module de jeu** (`services/game/modules/`) : `GameModule { def, deck, search, detail, scan?, cardData? }` ; `registerGameModule` (aussi pour les tests), `gameModule(game)`. Les routeurs (`deckEngine`, `searchCards`, `getCardDetail`, `canScan`/`identifyCard`, `syncCardData`) passent par lui. Checklist « ajouter un jeu » en tête de `modules/index.ts` (définition, migrations + `lib.rs`, module, une branche dans `image_cache.rs`, panneau de filtres facultatif dans `utils/gameUi.ts`).
+- **Contraintes de user.db** à respecter par un jeu : états = sous-ensemble de NM/LP/MP/HP/DMG (CHECK de `collection.condition`, libellés libres), zones de deck parmi main/side/extra/commander/maybe.
+- **Jeu courant** : `useCurrentGame()` (choix de session, sinon jeu favori, sinon le 1er). Les pages lisent `const GAME = useCurrentGame().game.value` ; changer de jeu **remonte la page** (clé de page d'`app.vue`) et relance la mise à jour de sa base de cartes. `GamePicker` (en-tête desktop, titre de Collection mobile, `#game-picker`) et `GameLaunchModal` (`[data-game-choice]`, `#game-launch-remember`) n'apparaissent qu'avec plusieurs jeux.
+- **Génériques** : collection, rangements, decks (zones et limites lues dans le moteur ; `getDeckContents` / `validateDeck` / `planDeckToDeckbox` déduisent le jeu du deck), partage, sauvegarde (CSV : noms par jeu), fiche carte (`CardDetail.facts` / `badges` fournis par le module), images (`cache_card_image(game, id, size)`, ids filtrés par `cache_store::is_safe_name`, YGO garde son dossier de cache historique).
+- **Partage v2** : `CMSHARE2:` pour les ids non numériques (ids triés, préfixe commun + reste en UTF-8) ; l'encodeur garde v1 dès que tous les ids sont numériques. QR animé : morceaux = code sans `CMSHARE1:` (v1, compatible avec les versions précédentes) ou sans `CMSHARE` (« 2:… »).
+- **Faux jeu de test** (`helpers/fakeGame.ts` + `fixtures/fake-game/001_cards.sql`, ids texte, variantes sans alias, interdictions par format, héros en zone commander) : `multiGame.test.ts` le fait traverser collection, rangements, decks, rangement deck → deckbox, recherche, fiche, raretés, partage v2 + QR animé, CSV, synchro entre appareils. **Garde** dans le même fichier : aucun `'ygo'` / `ygo_details` / `ygoprodeck` hors des fichiers propres à YGO (liste `YGO_FILES`).
 
 ### Collection (Phase 4)
 - **Toute ma collection** : `listCollectionCards(game, { search, onlyTrade, sort })` (`services/collection.ts`) — une ligne par carte logique (artworks regroupés, vignette = artwork le plus possédé), quantités possédée / à l'échange / non rangée ; tri nom / quantité / ajout récent. Barre de filtres dans `collection.vue` (recherche debounced 250 ms).
@@ -291,6 +306,7 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - `cardDetail.test.ts` : stats, Link, impressions triées avec toutes leurs raretés (+ repli), artworks par alias, `printingRarities`.
 - `userSync.test.ts` : deux bases « PC » / « téléphone » + transport mémoire, données créées par les vrais services : 1re synchro, union sans base, idempotence, ajouts parallèles, champs différents, même champ (le plus récent gagne), retrait vs modification, suppression propagée, conteneur supprimé ailleurs, sur-rangement, case de classeur disputée, réglages partagés ou non, course entre appareils (refusion), état plus récent refusé, état plus ancien accepté, sauvegarde avant fusion ; `USER_SCHEMA_VERSION` = nombre de migrations.
 - `perf.test.ts` : **5 000 cartes** (rangements, classeur de 1 000 cases, deck) ; mesure **durée et nombre de requêtes** de chaque opération (`TestDatabase.queries` : dans l'appli, chaque requête = un aller-retour WebView → Rust). Seuils larges (requêtes max par opération, < 3 s) pour attraper une boucle « une requête par carte ». `npx vitest run test/unit/perf.test.ts --reporter=verbose` affiche le tableau. Mesures (nov. 2026) : collection complète 2 requêtes / ~40 ms, plan deck → deckbox 11 requêtes (était 67 : une boucle par carte, regroupée en 4 requêtes), synchro sans changement 1 vérification de version.
+- `multiGame.test.ts` : faux jeu de bout en bout + garde anti-« ygo » en dur (cf. §5 « Multi-jeu »).
 - `deckLink.test.ts` : 26 cas (plan + apply) : alias/boards fusionnés, déjà là, partiel, non rangées prioritaires, multi-sources ordonnées par nom, conteneur supprimé, isolation par jeu, purge (alt art conservée), capacité (NULL / purge déduite / dépassement + relève), relink unique, idempotence, pas de sur-assignation, entrées de collection soft-deleted.
 - **Bug corrigé grâce à ces tests** : `removeCard` (soft delete) laisse les lignes d'assignation ; `deckLink` les comptait (alreadyHere/currentInBox/purge) et pouvait déplacer ces copies fantômes. Toutes les requêtes d'assignation joignent maintenant `collection ... AND c.deleted_at IS NULL`. Résolution alias/nom factorisée dans `rootsOf()`.
 - Pour tester un autre service : même schéma `vi.hoisted` + `vi.mock` + `createTestDatabases()` / `createSeeder()` (cf. en-tête de `deckLink.test.ts`).
@@ -341,7 +357,7 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 - Ranger 2 copies d'une même pile dans un classeur plantait (`UNIQUE(collection_id)`) → migration 005.
 - Vue deck : « possédées » compté par artwork exact → par carte logique (comme le rangement).
 
-### ✅ Tests unitaires settings / recherche / fiche carte : faits. 205 Vitest au total (dont 22 synchro).
+### ✅ Tests unitaires settings / recherche / fiche carte : faits. 263 Vitest au total (nov. 2026).
 
 ### ✖ Protection de branche : abandonnée (choix de Félix) ; les merges se font après CI verte.
 
@@ -350,7 +366,7 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 - **Phase 9 — Settings** : terminer (base en place, cf. §5).
 - **Phase 2 (structure)** : terminée avec la refonte mobile.
 - **Synchro PC ↔ mobile** : faite (cf. §5), synchro au premier plan + restauration faites ; à valider sur PC + téléphone réels (connexion Google, aller-retour Drive).
-- **Plan validé par Félix (9 nov. 2026)** : 1) sauvegarde ✅ ; 2) appli **entièrement en anglais** ✅ ; 3) performances 5000 cartes + E2E en taille téléphone ✅ ; 4) préparation multi-jeu (jeu courant + sélecteur, point d'entrée unique par jeu : base de cartes / images / recherche / decks / scan, partage v2 à identifiants non numériques, faux jeu dans les tests). Le 2e jeu sera choisi ensuite.
+- **Plan validé par Félix (9 nov. 2026)** : 1) sauvegarde ✅ ; 2) appli **entièrement en anglais** ✅ ; 3) performances 5000 cartes + E2E en taille téléphone ✅ ; 4) préparation multi-jeu ✅ (cf. §5 « Multi-jeu »). **Prochaine étape : choisir le 2e jeu** (source de données, images, identifiants, scan éventuel).
 
 ---
 

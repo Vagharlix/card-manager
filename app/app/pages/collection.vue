@@ -1,6 +1,7 @@
 <template>
   <AppPage sidebar-label="Storage" title="Collection" :subtitle="subtitle" :mobile-sidebar="false">
     <template #actions>
+      <GamePicker size="lg" />
       <UButton
         id="mobile-settings-btn"
         to="/settings"
@@ -299,7 +300,7 @@
       </template>
     </div>
 
-    <CardDetail v-model:open="detailOpen" game="ygo" :card-id="selectedCardId" @added="reload" />
+    <CardDetail v-model:open="detailOpen" :game="GAME" :card-id="selectedCardId" @added="reload" />
     <ContainerCreateModal v-model:open="createOpen" @created="onContainerCreated" />
 
     <ContainerPicker
@@ -312,7 +313,7 @@
     />
 
     <!-- sélecteur de carte non rangée pour un slot de binder -->
-    <unrangedCardPicker v-model:open="binderPickerOpen" game="ygo" @pick="onBinderCardPick" />
+    <unrangedCardPicker v-model:open="binderPickerOpen" :game="GAME" @pick="onBinderCardPick" />
 
     <UModal v-model:open="unassignOpen" title="Remove from this storage?">
       <template #body>
@@ -370,9 +371,13 @@ import {
   type BinderSlotCard,
 } from '~/services/containers'
 import { listCollectionCards, collectionTotal, type CollectionSort } from '~/services/collection'
+import { canScan } from '~/services/scan'
+
+// jeu affiché (la page est remontée quand il change, cf. app.vue)
+const GAME = useCurrentGame().game.value
 
 const toast = useToast()
-const android = isAndroid() // scan de cartes : app mobile seulement
+const android = isAndroid() && canScan(GAME) // scan de cartes : app mobile, jeu qui sait scanner
 const { isMobile } = useResponsive()
 
 // mobile : la sidebar des conteneurs devient un onglet « Rangements »
@@ -476,8 +481,8 @@ const emptyMessage = computed(() => {
 async function loadSidebar() {
   const [list, unranged, total] = await Promise.all([
     listContainers(),
-    fetchUnranged('ygo'),
-    collectionTotal('ygo'),
+    fetchUnranged(GAME),
+    collectionTotal(GAME),
   ])
   containers.value = list
   unrangedCount.value = unranged
@@ -488,19 +493,19 @@ async function loadContent() {
   loading.value = true
   try {
     if (isAll.value) {
-      cards.value = await listCollectionCards('ygo', { ...filters })
+      cards.value = await listCollectionCards(GAME, { ...filters })
       binderSlots.value = []
     } else if (isUnranged.value) {
-      cards.value = await listUnrangedCards('ygo')
+      cards.value = await listUnrangedCards(GAME)
       binderSlots.value = []
     } else if (isBinder.value) {
-      binderSlots.value = await listBinderSlots(selectedId.value, 'ygo')
+      binderSlots.value = await listBinderSlots(selectedId.value, GAME)
       cards.value = []
     } else if (currentContainer.value) {
       cards.value = await listContainerCards(
         currentContainer.value.id,
         currentContainer.value.type,
-        'ygo'
+        GAME
       )
       binderSlots.value = []
     } else {
@@ -580,7 +585,7 @@ async function onBatchRange(payload: {
     let totalPlaced = 0
     for (const c of selected) {
       totalPlaced += await assignCardToContainer(
-        'ygo',
+        GAME,
         c.displayId,
         payload.containerId,
         payload.type,
@@ -618,7 +623,7 @@ async function confirmUnassign() {
   unassignBusy.value = true
   try {
     const removed = await unassignCardFromContainer(
-      'ygo',
+      GAME,
       c.displayId,
       selectedId.value,
       currentType.value,
@@ -665,7 +670,7 @@ async function onBinderCardPick(card: ContainerCard) {
   if (!pos) return
   try {
     await assignCardToBinderSlot(
-      'ygo',
+      GAME,
       card.displayId,
       selectedId.value,
       pos.page,

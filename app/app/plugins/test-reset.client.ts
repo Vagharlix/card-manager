@@ -81,7 +81,7 @@ export default defineNuxtPlugin(() => {
   // raretés d'une impression dans la base de cartes (la fixture n'en a pas :
   // table créée par la migration ygo 002, remplie seulement par la synchro)
   ;(window as any).__seedRarities = async (setCode: string, list: string[]) => {
-    const { ygo } = await useDatabase()
+    const ygo = (await useDatabase()).cards('ygo')
     await ygo.execute(`DELETE FROM printing_rarities WHERE set_code = ?`, [setCode])
     for (const r of list)
       await ygo.execute(`INSERT INTO printing_rarities (set_code, rarity) VALUES (?, ?)`, [

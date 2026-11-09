@@ -31,6 +31,7 @@
           </NuxtLink>
         </nav>
         <div class="flex items-center gap-2 flex-1 justify-end">
+          <GamePicker />
           <UColorModeButton />
         </div>
       </div>

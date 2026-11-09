@@ -1,4 +1,6 @@
 import { useDatabase } from '~/composables/useDatabase'
+import { cardMetaOf, variantsOfRoots } from '~/services/card/meta'
+import { deckGame } from '~/services/decks'
 
 function uuid(): string {
   return crypto.randomUUID()
@@ -69,30 +71,23 @@ interface DeckNeed {
   needed: number
 }
 
-// resolve passcodes to their logical card (alias root) + name.
-// Unknown ids are absent from the maps: callers fall back to the id.
+// resolve card ids to their logical card (root) + name, via the game's
+// card database (shared contract). Unknown ids are absent from the maps:
+// callers fall back to the id.
 async function rootsOf(
+  game: string,
   cardIds: string[]
 ): Promise<{ rootById: Map<string, string>; nameById: Map<string, string> }> {
-  const ids = [...new Set(cardIds)]
-  if (!ids.length) return { rootById: new Map(), nameById: new Map() }
-  const { ygo } = await useDatabase()
-  const ph = ids.map(() => '?').join(', ')
-  const meta = await ygo.select<{ id: string; root: string; name: string }[]>(
-    `SELECT c.id, COALESCE(d.alias, c.id) AS root, c.name
-     FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${ph})`,
-    ids
-  )
+  const meta = await cardMetaOf(game, cardIds)
   return {
-    rootById: new Map(meta.map((m) => [m.id, m.root])),
-    nameById: new Map(meta.map((m) => [m.id, m.name])),
+    rootById: new Map([...meta.values()].map((m) => [m.id, m.root])),
+    nameById: new Map([...meta.values()].map((m) => [m.id, m.name])),
   }
 }
 
 // resolve every deck card to its alias root, sum the quantities per
 // logical card (so all artworks + all boards combine into one need).
-async function deckNeeds(deckId: string): Promise<Map<string, DeckNeed>> {
+async function deckNeeds(deckId: string, game: string): Promise<Map<string, DeckNeed>> {
   const { user } = await useDatabase()
 
   const rows = await user.select<DeckRow[]>(
@@ -101,7 +96,7 @@ async function deckNeeds(deckId: string): Promise<Map<string, DeckNeed>> {
   )
   if (!rows.length) return new Map()
 
-  const { rootById } = await rootsOf(rows.map((r) => r.card_id))
+  const { rootById } = await rootsOf(game, rows.map((r) => r.card_id))
 
   const needs = new Map<string, DeckNeed>()
   for (const r of rows) {
@@ -111,34 +106,6 @@ async function deckNeeds(deckId: string): Promise<Map<string, DeckNeed>> {
     needs.set(root, n)
   }
   return needs
-}
-
-// artworks de plusieurs cartes logiques en une requête : root → passcodes
-async function variantsOfRoots(roots: string[]): Promise<Map<string, string[]>> {
-  const out = new Map<string, string[]>(roots.map((r) => [r, []]))
-  if (!roots.length) return out
-  const { ygo } = await useDatabase()
-  const ph = roots.map(() => '?').join(', ')
-  const rows = await ygo.select<{ id: string; root: string }[]>(
-    `SELECT c.id, COALESCE(d.alias, c.id) AS root FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id IN (${ph}) OR d.alias IN (${ph})`,
-    [...roots, ...roots]
-  )
-  for (const r of rows) out.get(r.root)?.push(r.id)
-  for (const [root, ids] of out) if (!ids.length) ids.push(root) // carte absente de la base
-  return out
-}
-
-// all passcodes that share an alias root (the logical card's artworks)
-async function variantsOfRoot(root: string): Promise<string[]> {
-  const { ygo } = await useDatabase()
-  const rows = await ygo.select<{ id: string }[]>(
-    `SELECT c.id FROM cards c JOIN ygo_details d ON d.card_id = c.id
-     WHERE c.id = ? OR d.alias = ?`,
-    [root, root]
-  )
-  const ids = rows.map((r) => r.id)
-  return ids.length ? ids : [root]
 }
 
 // Soft-deleted collection entries (removeCard) keep their assignment
@@ -185,9 +152,10 @@ export async function deckCurrentDeckbox(deckId: string): Promise<CurrentDeckbox
 export async function planDeckToDeckbox(
   deckId: string,
   deckboxId: string,
-  game = 'ygo'
+  game?: string
 ): Promise<DeckLinkPlan> {
   const { user } = await useDatabase()
+  game ??= await deckGame(deckId)
 
   // deckbox name + capacity
   const boxRows = await user.select<{ name: string; max_capacity: number | null }[]>(
@@ -209,7 +177,7 @@ export async function planDeckToDeckbox(
   )
   const currentInBox = inBoxRows[0]?.n ?? 0
 
-  const needs = await deckNeeds(deckId)
+  const needs = await deckNeeds(deckId, game)
   const lines: DeckLinkLine[] = []
   let totalToPlace = 0
 
@@ -217,7 +185,7 @@ export async function planDeckToDeckbox(
   // soit le nombre de cartes (chaque requête coûte un aller-retour vers
   // Rust dans l'appli) : artworks, exemplaires possédés, copies déjà dans
   // la deckbox, provenance des copies rangées ailleurs.
-  const variants = await variantsOfRoots([...needs.keys()])
+  const variants = await variantsOfRoots(game, [...needs.keys()])
   const rootOf = new Map<string, string>()
   for (const [root, ids] of variants) for (const id of ids) rootOf.set(id, root)
   const allIds = [...rootOf.keys()]
@@ -329,7 +297,7 @@ export async function planDeckToDeckbox(
 
   // fill names
   if (lines.length) {
-    const { nameById } = await rootsOf(lines.map((l) => l.displayId))
+    const { nameById } = await rootsOf(game, lines.map((l) => l.displayId))
     for (const l of lines) l.name = nameById.get(l.displayId) ?? l.displayId
     lines.sort((a, b) => a.name.localeCompare(b.name))
   }
@@ -349,7 +317,7 @@ export async function planDeckToDeckbox(
   const purge: { name: string; qty: number }[] = []
   let purgeTotal = 0
   if (boxCards.length) {
-    const { rootById, nameById } = await rootsOf(boxCards.map((b) => b.card_id))
+    const { rootById, nameById } = await rootsOf(game, boxCards.map((b) => b.card_id))
     for (const b of boxCards) {
       const root = rootById.get(b.card_id) ?? b.card_id
       if (!needs.has(root)) {
@@ -393,9 +361,10 @@ export async function planDeckToDeckbox(
 export async function applyDeckToDeckbox(
   deckId: string,
   deckboxId: string,
-  game = 'ygo'
+  game?: string
 ): Promise<void> {
   const { user } = await useDatabase()
+  game ??= await deckGame(deckId)
 
   // recompute the plan to act on fresh data
   const plan = await planDeckToDeckbox(deckId, deckboxId, game)
@@ -403,7 +372,7 @@ export async function applyDeckToDeckbox(
   // 0. purge: remove from the deckbox every card NOT in the deck
   //    (they become unranged). Resolve box cards to logical roots and
   //    delete the assignment rows whose root isn't a deck need.
-  const needs = await deckNeeds(deckId)
+  const needs = await deckNeeds(deckId, game)
   const boxRows = await user.select<{ id: string; card_id: string }[]>(
     `SELECT dc.id, c.card_id
      FROM deckbox_cards dc
@@ -412,7 +381,7 @@ export async function applyDeckToDeckbox(
     [deckboxId, game]
   )
   if (boxRows.length) {
-    const { rootById } = await rootsOf(boxRows.map((r) => r.card_id))
+    const { rootById } = await rootsOf(game, boxRows.map((r) => r.card_id))
     for (const r of boxRows) {
       const root = rootById.get(r.card_id) ?? r.card_id
       if (!needs.has(root)) {
@@ -433,7 +402,7 @@ export async function applyDeckToDeckbox(
 
   // 2. per card: assign unranged + move from elsewhere
   for (const line of plan.lines) {
-    const variantIds = await variantsOfRoot(line.rootId)
+    const variantIds = (await variantsOfRoots(game, [line.rootId])).get(line.rootId) ?? [line.rootId]
     const vph = variantIds.map(() => '?').join(', ')
 
     // ── assign unranged copies (toAssign) ──

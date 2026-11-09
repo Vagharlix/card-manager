@@ -6,9 +6,9 @@ import type { DeckEngine, DeckRules, Board, CardForPlacement } from './types'
 
 const YGO_RULES: DeckRules = {
   boards: [
-    { id: 'main', label: 'Main Deck', min: 40, max: 60 },
-    { id: 'extra', label: 'Extra Deck', min: 0, max: 15 },
-    { id: 'side', label: 'Side Deck', min: 0, max: 15 },
+    { id: 'main', label: 'Main Deck', shortLabel: 'Main', min: 40, max: 60 },
+    { id: 'extra', label: 'Extra Deck', shortLabel: 'Extra', min: 0, max: 15 },
+    { id: 'side', label: 'Side Deck', shortLabel: 'Side', min: 0, max: 15 },
   ],
   formats: [
     { id: 'tcg', label: 'TCG' },

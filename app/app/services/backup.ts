@@ -1,4 +1,6 @@
 import { useDatabase } from '~/composables/useDatabase'
+import { cardMetaOf } from '~/services/card/meta'
+import { gameDefOrNull } from '~/services/game'
 import { repairTables } from '~/services/userSync/merge'
 import { applySnapshot, takeSnapshot, type Snapshot } from '~/services/userSync/snapshot'
 import { USER_SCHEMA_VERSION, type Row } from '~/services/userSync/tables'
@@ -136,22 +138,22 @@ export function csvCell(v: unknown): string {
 
 /** Une ligne par exemplaire (pile) de la collection, avec le nom de la carte. */
 export async function exportCollectionCsv(): Promise<string> {
-  const dbs = await useDatabase()
-  const entries = await dbs.user.select<Row[]>(
+  const { user } = await useDatabase()
+  const entries = await user.select<Row[]>(
     `SELECT game, card_id, printing_id, rarity, first_edition, language, condition,
             quantity, trade_qty, foil, notes
      FROM collection WHERE deleted_at IS NULL ORDER BY game, card_id, created_at`
   )
-  // noms depuis la base de cartes du jeu (une seule pour l'instant : ygo)
+  // noms depuis la base de cartes de chaque jeu (jeu inconnu de cette
+  // version : colonne vide)
   const names = new Map<string, string>()
-  const ids = [...new Set(entries.filter((e) => e.game === 'ygo').map((e) => String(e.card_id)))]
-  for (let i = 0; i < ids.length; i += 500) {
-    const chunk = ids.slice(i, i + 500)
-    const rows = await dbs.ygo.select<{ id: string; name: string }[]>(
-      `SELECT id, name FROM cards WHERE id IN (${chunk.map(() => '?').join(',')})`,
-      chunk
+  for (const game of new Set(entries.map((e) => String(e.game)))) {
+    if (!gameDefOrNull(game)) continue
+    const meta = await cardMetaOf(
+      game,
+      entries.filter((e) => String(e.game) === game).map((e) => String(e.card_id))
     )
-    for (const r of rows) names.set(`ygo:${r.id}`, r.name)
+    for (const m of meta.values()) names.set(`${game}:${m.id}`, m.name)
   }
   const lines = [CSV_COLUMNS.join(',')]
   for (const e of entries) {

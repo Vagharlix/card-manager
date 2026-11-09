@@ -9,7 +9,8 @@ export type Board = 'main' | 'side' | 'extra' | 'commander' | 'maybe'
 
 export interface BoardDef {
   id: Board
-  label: string
+  label: string // « Main Deck »
+  shortLabel?: string // onglet mobile : « Main »
   min: number
   max: number
 }

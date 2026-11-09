@@ -129,7 +129,8 @@
         <div
           v-if="isMobile"
           role="tablist"
-          class="grid grid-cols-3 mb-3 border-b border-default shrink-0"
+          class="grid mb-3 border-b border-default shrink-0"
+          :style="{ gridTemplateColumns: `repeat(${boardTabs.length}, minmax(0, 1fr))` }"
         >
           <button
             v-for="b in boardTabs"
@@ -168,49 +169,24 @@
             </template>
           </UAlert>
 
-          <DeckBoard
-            v-if="!isMobile || mobileBoard === 'main'"
-            label="Main Deck"
-            board="main"
-            :cards="contents.main"
-            :flagged="validation.flagged"
-            :min="40"
-            :max="60"
-            show-max
-            @info="(c) => onCardClick(c.cardId)"
-            @remove="(c) => removeCard(c, 'main')"
-            @move="(c) => moveToSide(c, 'main')"
-            @add="(c) => addExisting(c)"
-          />
-          <DeckBoard
-            v-if="!isMobile || mobileBoard === 'extra'"
-            label="Extra Deck"
-            board="extra"
-            :cards="contents.extra"
-            :flagged="validation.flagged"
-            :min="0"
-            :max="15"
-            show-max
-            @info="(c) => onCardClick(c.cardId)"
-            @remove="(c) => removeCard(c, 'extra')"
-            @move="(c) => moveToSide(c, 'extra')"
-            @add="(c) => addExisting(c)"
-          />
-          <DeckBoard
-            v-if="!isMobile || mobileBoard === 'side'"
-            label="Side Deck"
-            board="side"
-            :cards="contents.side"
-            :flagged="validation.flagged"
-            :min="0"
-            :max="15"
-            show-max
-            is-side
-            @info="(c) => onCardClick(c.cardId)"
-            @remove="(c) => removeCard(c, 'side')"
-            @move="(c) => moveFromSide(c)"
-            @add="(c) => addExisting(c, 'side')"
-          />
+          <!-- une zone par board du moteur de deck du jeu -->
+          <template v-for="b in engine.rules.boards" :key="b.id">
+            <DeckBoard
+              v-if="!isMobile || mobileBoard === b.id"
+              :label="b.label"
+              :board="b.id"
+              :cards="contents[b.id] ?? []"
+              :flagged="validation.flagged"
+              :min="b.min"
+              :max="b.max"
+              show-max
+              :is-side="b.id === SIDE"
+              @info="(c) => onCardClick(c.cardId)"
+              @remove="(c) => removeCard(c, b.id)"
+              @move="(c) => (b.id === SIDE ? moveFromSide(c) : moveToSide(c, b.id))"
+              @add="(c) => addExisting(c, b.id === SIDE ? SIDE : undefined)"
+            />
+          </template>
         </div>
 
         <!-- MOBILE : ajout de cartes à portée de pouce -->
@@ -230,7 +206,7 @@
       <CardPreviewPanel
         v-if="!isMobile && showPreview"
         :card-id="previewCardId"
-        game="ygo"
+        :game="GAME"
         @close="showPreview = false"
       />
     </div>
@@ -238,7 +214,7 @@
     <!-- détail slideover : utilisé sur mobile -->
     <CardDetail
       v-model:open="detailOpen"
-      game="ygo"
+      :game="GAME"
       :card-id="detailCardId"
       @added="refreshOwned"
     />
@@ -277,6 +253,12 @@ import {
   type DeckLinkPlan,
 } from '~/services/deckLink'
 import type { Board } from '~/services/deck/types'
+import { cardMetaOf } from '~/services/card/meta'
+
+// jeu affiché (la page est remontée quand il change, cf. app.vue)
+const GAME = useCurrentGame().game.value
+// règles de deck du jeu (zones, formats, limites)
+const engine = deckEngine(GAME)
 
 const route = useRoute()
 const router = useRouter()
@@ -288,15 +270,11 @@ const searchOpen = ref(false)
 function openSearch() {
   searchOpen.value = true
 }
-type MainBoard = keyof DeckContents
-const boardTabs: { id: MainBoard; label: string }[] = [
-  { id: 'main', label: 'Main' },
-  { id: 'extra', label: 'Extra' },
-  { id: 'side', label: 'Side' },
-]
-const mobileBoard = ref<MainBoard>('main')
-function boardCount(b: MainBoard) {
-  return contents.value[b].reduce((s, c) => s + c.quantity, 0)
+const SIDE: Board = 'side'
+const boardTabs = engine.rules.boards.map((b) => ({ id: b.id, label: b.shortLabel ?? b.label }))
+const mobileBoard = ref<Board>(engine.rules.boards[0]?.id ?? 'main')
+function boardCount(b: Board) {
+  return (contents.value[b] ?? []).reduce((s, c) => s + c.quantity, 0)
 }
 
 const deckId = computed(() => route.params.id as string)
@@ -307,7 +285,6 @@ const ownedIds = ref<Set<string>>(new Set())
 const validation = ref<DeckValidation>({ valid: true, violations: [], flagged: new Set() })
 
 // format du deck
-const engine = deckEngine('ygo')
 const format = ref<string>(engine.rules.defaultFormat)
 const formatItems = engine.rules.formats.map((f) => ({ label: f.label, value: f.id }))
 
@@ -357,17 +334,17 @@ async function onFormatChange(value: string) {
   format.value = value
   await updateDeckMeta(deckId.value, { format: value })
   // un changement de format peut rendre le deck invalide → revalider
-  validation.value = await validateDeck(deckId.value, 'ygo')
+  validation.value = await validateDeck(deckId.value, GAME)
   toast.add({ title: `Format : ${value.toUpperCase()}`, icon: 'i-lucide-check', color: 'success' })
 }
 
 async function refreshContents() {
-  contents.value = await getDeckContents(deckId.value, 'ygo')
-  validation.value = await validateDeck(deckId.value, 'ygo')
+  contents.value = await getDeckContents(deckId.value, GAME)
+  validation.value = await validateDeck(deckId.value, GAME)
 }
 
 async function refreshOwned() {
-  ownedIds.value = await ownedCardIds('ygo')
+  ownedIds.value = await ownedCardIds(GAME)
   await refreshContents()
 }
 
@@ -380,7 +357,7 @@ watchDebounced(
     }
     searching.value = true
     try {
-      results.value = await searchCards('ygo', { query: query.value, field: 'name', limit: 30 })
+      results.value = await searchCards(GAME, { query: query.value, field: 'name', limit: 30 })
     } finally {
       searching.value = false
     }
@@ -415,7 +392,7 @@ function statusLabel(v: { status: string; limit: number }): string {
 
 async function addCard(r: CardSearchResult) {
   const type = await fetchType(r.id)
-  const res = await addCardToDeck(deckId.value, 'ygo', r.id, type)
+  const res = await addCardToDeck(deckId.value, GAME, r.id, type)
   if (!res.ok) {
     const msg =
       res.reason === 'forbidden'
@@ -424,7 +401,7 @@ async function addCard(r: CardSearchResult) {
           ? 'Card limited to 1 copy'
           : res.reason === 'semi'
             ? 'Card semi-limited (2 max)'
-            : '3-copy limit reached'
+            : `${res.limit}-copy limit reached`
     toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }
@@ -440,20 +417,20 @@ async function removeCard(c: DeckCard, board: Board) {
 
 // envoie une carte du Main/Extra vers le Side
 async function moveToSide(c: DeckCard, from: Board) {
-  await moveCardBoard(deckId.value, 'ygo', c.cardId, c.type, from, 'side')
+  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, from, 'side')
   await refreshContents()
 }
 
 // renvoie une carte du Side vers le deck (Main ou Extra selon son type)
 async function moveFromSide(c: DeckCard) {
   const target = engine.boardForCard({ cardId: c.cardId, type: c.type })
-  await moveCardBoard(deckId.value, 'ygo', c.cardId, c.type, 'side', target)
+  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, 'side', target)
   await refreshContents()
 }
 
 // +1 d'une carte déjà dans le deck (menu mobile). board explicite pour le Side.
 async function addExisting(c: DeckCard, board?: Board) {
-  const res = await addCardToDeck(deckId.value, 'ygo', c.cardId, c.type, board)
+  const res = await addCardToDeck(deckId.value, GAME, c.cardId, c.type, board)
   if (!res.ok) {
     const msg =
       res.reason === 'forbidden'
@@ -462,7 +439,7 @@ async function addExisting(c: DeckCard, board?: Board) {
           ? 'Card limited to 1 copy'
           : res.reason === 'semi'
             ? 'Card semi-limited (2 max)'
-            : '3-copy limit reached'
+            : `${res.limit}-copy limit reached`
     toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }
@@ -470,19 +447,14 @@ async function addExisting(c: DeckCard, board?: Board) {
 }
 
 async function fetchType(cardId: string): Promise<string | null> {
-  const { ygo } = await useDatabase()
-  const rows = await ygo.select<{ type: string | null }[]>(
-    `SELECT type FROM ygo_details WHERE card_id = ?`,
-    [cardId]
-  )
-  return rows[0]?.type ?? null
+  return (await cardMetaOf(GAME, [cardId])).get(cardId)?.type ?? null
 }
 
 // applique le rangement du deck dans le deckbox choisi
 async function onRangeConfirm(plan: DeckLinkPlan) {
   rangeApplying.value = true
   try {
-    await applyDeckToDeckbox(deckId.value, plan.deckboxId, 'ygo')
+    await applyDeckToDeckbox(deckId.value, plan.deckboxId, GAME)
     rangeOpen.value = false
     currentBox.value = await deckCurrentDeckbox(deckId.value)
     toast.add({
@@ -499,7 +471,7 @@ async function onRangeConfirm(plan: DeckLinkPlan) {
 }
 
 onMounted(async () => {
-  ownedIds.value = await ownedCardIds('ygo')
+  ownedIds.value = await ownedCardIds(GAME)
   await loadDeck()
 })
 </script>

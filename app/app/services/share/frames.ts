@@ -1,4 +1,4 @@
-import { SHARE_PREFIX } from './codec'
+import { SHARE_MAGIC, SHARE_PREFIX } from './codec'
 
 // ============================================================
 // QR ANIMÉ — découpe un code de partage en une série d'images QR
@@ -8,6 +8,9 @@ import { SHARE_PREFIX } from './codec'
 // Image : "CMSQ:<lot>:<i>:<n>:<morceau>"
 //   lot     = empreinte du code (4 car.), pour ne pas mélanger deux partages
 //   i / n   = index (base 1) / nombre d'images
+//   morceaux mis bout à bout = le code sans « CMSHARE1: » pour un code v1
+//   (« ABC… », comme les versions précédentes de l'appli), sans « CMSHARE »
+//   pour les versions suivantes (« 2:ABC… » : le base32 n'a pas de ':')
 // Tout reste dans le jeu alphanumérique des QR codes (majuscules,
 // chiffres, ':'), donc des QR peu denses et faciles à lire à l'écran.
 // ============================================================
@@ -31,7 +34,9 @@ function lotOf(code: string): string {
 }
 
 export function toFrames(code: string, chunk = DEFAULT_CHUNK): string[] {
-  const body = code.slice(SHARE_PREFIX.length)
+  const body = code.toUpperCase().startsWith(SHARE_PREFIX)
+    ? code.slice(SHARE_PREFIX.length)
+    : code.slice(SHARE_MAGIC.length)
   const lot = lotOf(code)
   const n = Math.max(1, Math.ceil(body.length / chunk))
   const frames: string[] = []
@@ -58,7 +63,7 @@ export class FrameAssembler {
   add(text: string): AssembleResult {
     const t = text.trim()
     // un code complet (QR simple, ancien format) suffit à lui seul
-    if (t.toUpperCase().startsWith(SHARE_PREFIX)) return { status: 'complete', code: t }
+    if (t.toUpperCase().startsWith(SHARE_MAGIC)) return { status: 'complete', code: t }
 
     const m = FRAME_RE.exec(t)
     if (!m) return { status: 'ignored' }
@@ -78,7 +83,7 @@ export class FrameAssembler {
     if (this.chunks.size < n) return { status: 'progress', got: this.chunks.size, total: n }
     let body = ''
     for (let k = 1; k <= n; k++) body += this.chunks.get(k)
-    const code = SHARE_PREFIX + body
+    const code = /^\d+:/.test(body) ? SHARE_MAGIC + body : SHARE_PREFIX + body
     // l'empreinte protège d'un mélange de morceaux entre deux partages
     if (lotOf(code) !== lot) {
       this.chunks.clear()

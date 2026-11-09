@@ -311,37 +311,15 @@
           </div>
         </div>
 
-        <!-- stats -->
-        <div class="space-y-1 text-sm border-t border-default pt-4">
-          <div v-if="detail.type" class="flex justify-between">
-            <span class="text-muted">Type</span><span>{{ detail.type }}</span>
-          </div>
-          <div v-if="detail.attribute" class="flex justify-between">
-            <span class="text-muted">Attribute</span><span>{{ detail.attribute }}</span>
-          </div>
-          <div v-if="detail.race" class="flex justify-between">
-            <span class="text-muted">Monster type</span><span>{{ detail.race }}</span>
-          </div>
-          <div v-if="detail.level != null" class="flex justify-between">
-            <span class="text-muted">Level</span><span>{{ detail.level }}</span>
-          </div>
-          <div v-if="detail.rank != null" class="flex justify-between">
-            <span class="text-muted">Rank</span><span>{{ detail.rank }}</span>
-          </div>
-          <div v-if="detail.linkValue != null" class="flex justify-between">
-            <span class="text-muted">Link</span><span>{{ detail.linkValue }}</span>
-          </div>
-          <div v-if="detail.scale != null" class="flex justify-between">
-            <span class="text-muted">Pendulum scale</span><span>{{ detail.scale }}</span>
-          </div>
-          <div v-if="detail.atk != null" class="flex justify-between">
-            <span class="text-muted">ATK</span><span>{{ detail.atk }}</span>
-          </div>
-          <div v-if="detail.def != null" class="flex justify-between">
-            <span class="text-muted">DEF</span><span>{{ detail.def }}</span>
-          </div>
-          <div v-if="detail.archetype" class="flex justify-between">
-            <span class="text-muted">Archetype</span><span>{{ detail.archetype }}</span>
+        <!-- caractéristiques (fournies par le module du jeu) -->
+        <div v-if="detail.facts.length" class="space-y-1 text-sm border-t border-default pt-4">
+          <div
+            v-for="f in detail.facts"
+            :key="f.label"
+            class="flex justify-between gap-4"
+            :data-card-fact="f.label"
+          >
+            <span class="text-muted">{{ f.label }}</span><span class="text-right">{{ f.value }}</span>
           </div>
         </div>
 
@@ -353,9 +331,11 @@
           {{ detail.legalText }}
         </div>
 
-        <!-- banlist -->
-        <div v-if="detail.banlistTcg" class="flex items-center gap-2 text-sm">
-          <UBadge color="error" variant="soft">{{ detail.banlistTcg }} (TCG)</UBadge>
+        <!-- mentions (ex. banlist) -->
+        <div v-if="detail.badges.length" class="flex flex-wrap items-center gap-2 text-sm">
+          <UBadge v-for="b in detail.badges" :key="b.label" :color="b.color" variant="soft">
+            {{ b.label }}
+          </UBadge>
         </div>
 
         <!-- printings -->
@@ -404,7 +384,7 @@
 </template>
 
 <script setup lang="ts">
-import { getCardDetail, type YgoCardDetail } from '~/services/card/detail'
+import { getCardDetail, type CardDetail } from '~/services/card/detail'
 import {
   addCard,
   updateCard,
@@ -438,7 +418,7 @@ const UDrawer = resolveComponent('UDrawer')
 const USlideover = resolveComponent('USlideover')
 const toast = useToast()
 
-const detail = ref<YgoCardDetail | null>(null)
+const detail = ref<CardDetail | null>(null)
 const loading = ref(false)
 const activeArtId = ref<string>('')
 const owned = ref(0)

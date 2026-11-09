@@ -3,7 +3,7 @@ use tauri::Manager;
 
 use crate::cache_store;
 
-// dossier racine du cache d'images : <app_cache_dir>/card-images/<size>/<passcode>.jpg
+// dossier racine du cache d'images : <app_cache_dir>/card-images/[<jeu>/]<size>/<id>.jpg
 fn cache_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(app
         .path()
@@ -12,22 +12,47 @@ fn cache_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .join("card-images"))
 }
 
+// Source des images de chaque jeu : (dossier dans le cache, URL).
+// Ajouter un jeu = une branche ici. YGO garde le dossier racine historique
+// (<cache>/card-images/<size>/) pour ne pas retélécharger un cache existant.
+fn image_source(game: &str, id: &str, size: &str) -> Option<(PathBuf, String)> {
+    match game {
+        "ygo" => {
+            let cdn_path = match size {
+                "full" => "cards",
+                "cropped" => "cards_cropped",
+                _ => "cards_small",
+            };
+            Some((
+                PathBuf::from(size),
+                format!("https://images.ygoprodeck.com/images/{}/{}.jpg", cdn_path, id),
+            ))
+        }
+        _ => None,
+    }
+}
+
 #[tauri::command]
 pub async fn cache_card_image(
     app: tauri::AppHandle,
-    passcode: String,
+    game: String,
+    id: String,
     size: String,
 ) -> Result<String, String> {
-    let cdn_path = match size.as_str() {
-        "full" => "cards",
-        "cropped" => "cards_cropped",
-        _ => "cards_small",
+    if !cache_store::is_safe_name(&game) || !cache_store::is_safe_name(&id) {
+        return Err("invalid card id".into());
+    }
+    let size = match size.as_str() {
+        "full" | "cropped" => size,
+        _ => "small".to_string(),
     };
+    let (dir, url) =
+        image_source(&game, &id, &size).ok_or_else(|| format!("no images for game {}", game))?;
 
-    let cache_dir = cache_root(&app)?.join(&size);
+    let cache_dir = cache_root(&app)?.join(dir);
     std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
 
-    let file_path: PathBuf = cache_dir.join(format!("{}.jpg", passcode));
+    let file_path: PathBuf = cache_dir.join(format!("{}.jpg", id));
 
     // déjà en cache → marquer comme récemment utilisé (LRU) et retourner le chemin
     if file_path.exists() {
@@ -36,11 +61,6 @@ pub async fn cache_card_image(
     }
 
     // télécharger (Rust n'est pas soumis au CORS)
-    let url = format!(
-        "https://images.ygoprodeck.com/images/{}/{}.jpg",
-        cdn_path, passcode
-    );
-
     let resp = reqwest::get(&url).await.map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         return Err(format!("fetch failed: {}", resp.status()));

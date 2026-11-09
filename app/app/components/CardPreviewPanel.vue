@@ -31,35 +31,22 @@
 
         <p class="font-medium text-sm">{{ detail.name }}</p>
 
-        <div class="space-y-1 text-xs">
-          <div v-if="detail.type" class="flex justify-between">
-            <span class="text-muted">Type</span><span>{{ detail.type }}</span>
-          </div>
-          <div v-if="detail.attribute" class="flex justify-between">
-            <span class="text-muted">Attribute</span><span>{{ detail.attribute }}</span>
-          </div>
-          <div v-if="detail.race" class="flex justify-between">
-            <span class="text-muted">Monster type</span><span>{{ detail.race }}</span>
-          </div>
-          <div v-if="detail.level != null" class="flex justify-between">
-            <span class="text-muted">Level</span><span>{{ detail.level }}</span>
-          </div>
-          <div v-if="detail.rank != null" class="flex justify-between">
-            <span class="text-muted">Rank</span><span>{{ detail.rank }}</span>
-          </div>
-          <div v-if="detail.linkValue != null" class="flex justify-between">
-            <span class="text-muted">Link</span><span>{{ detail.linkValue }}</span>
-          </div>
-          <div v-if="detail.atk != null" class="flex justify-between">
-            <span class="text-muted">ATK</span><span>{{ detail.atk }}</span>
-          </div>
-          <div v-if="detail.def != null" class="flex justify-between">
-            <span class="text-muted">DEF</span><span>{{ detail.def }}</span>
+        <div v-if="detail.facts.length" class="space-y-1 text-xs">
+          <div v-for="f in detail.facts" :key="f.label" class="flex justify-between gap-3">
+            <span class="text-muted">{{ f.label }}</span><span class="text-right">{{ f.value }}</span>
           </div>
         </div>
 
-        <div v-if="detail.banlistTcg" class="flex">
-          <UBadge color="error" variant="soft" size="xs">{{ detail.banlistTcg }} (TCG)</UBadge>
+        <div v-if="detail.badges.length" class="flex flex-wrap gap-1">
+          <UBadge
+            v-for="b in detail.badges"
+            :key="b.label"
+            :color="b.color"
+            variant="soft"
+            size="xs"
+          >
+            {{ b.label }}
+          </UBadge>
         </div>
 
         <div
@@ -74,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { getCardDetail, type YgoCardDetail } from '~/services/card/detail'
+import { getCardDetail, type CardDetail } from '~/services/card/detail'
 
 const props = defineProps<{
   cardId: string | null
@@ -83,7 +70,7 @@ const props = defineProps<{
 
 defineEmits<{ close: [] }>()
 
-const detail = ref<YgoCardDetail | null>(null)
+const detail = ref<CardDetail | null>(null)
 const loading = ref(false)
 
 const img = useCardImage(() => props.cardId ?? '', 'full')

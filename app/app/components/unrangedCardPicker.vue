@@ -62,7 +62,7 @@ const filtered = computed(() => {
 async function load() {
   loading.value = true
   try {
-    items.value = await listUnrangedCards(props.game ?? 'ygo')
+    items.value = await listUnrangedCards(props.game ?? useCurrentGame().game.value)
   } finally {
     loading.value = false
   }

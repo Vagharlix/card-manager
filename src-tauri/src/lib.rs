@@ -91,6 +91,12 @@ pub fn run() {
             sql: include_str!("../migrations/ygo/002_printing_rarities.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "shared card contract views",
+            sql: include_str!("../migrations/ygo/003_card_contract.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default();

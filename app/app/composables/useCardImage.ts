@@ -10,15 +10,19 @@ export function forgetCachedImages(): void {
   resolved.clear()
 }
 
-async function resolveImage(passcode: string, size: CardImageSize): Promise<string> {
-  const path = await invoke<string>('cache_card_image', { passcode, size })
+async function resolveImage(game: string, id: string, size: CardImageSize): Promise<string> {
+  const path = await invoke<string>('cache_card_image', { game, id, size })
   return convertFileSrc(path)
 }
 
+// image d'une carte (téléchargée puis servie depuis le cache disque, cf.
+// image_cache.rs) ; jeu = celui affiché sauf indication contraire
 export function useCardImage(
   passcode: MaybeRefOrGetter<string | number>,
-  size: CardImageSize = 'small'
+  size: CardImageSize = 'small',
+  game?: MaybeRefOrGetter<string>
 ) {
+  const current = useCurrentGame().game
   const src = ref('')
   const loading = ref(true)
   const error = ref(false)
@@ -26,8 +30,9 @@ export function useCardImage(
   async function load() {
     const code = String(toValue(passcode))
     if (!code) return
+    const g = toValue(game) || current.value
 
-    const key = `${size}/${code}`
+    const key = `${g}/${size}/${code}`
     loading.value = true
     error.value = false
 
@@ -38,7 +43,7 @@ export function useCardImage(
     }
 
     if (!inflight.has(key)) {
-      inflight.set(key, resolveImage(code, size))
+      inflight.set(key, resolveImage(g, code, size))
     }
 
     try {
@@ -53,7 +58,7 @@ export function useCardImage(
     }
   }
 
-  watch(() => toValue(passcode), load, { immediate: true })
+  watch(() => [toValue(passcode), toValue(game)], load, { immediate: true })
 
   return { src, loading, error }
 }

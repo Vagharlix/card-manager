@@ -137,6 +137,9 @@
 import { listDecks, createDeck, renameDeck, deleteDeck, type DeckListItem } from '~/services/decks'
 import { applyDeckToDeckbox, type DeckLinkPlan } from '~/services/deckLink'
 
+// jeu affiché (la page est remontée quand il change, cf. app.vue)
+const GAME = useCurrentGame().game.value
+
 const { isMobile } = useResponsive()
 
 const router = useRouter()
@@ -148,7 +151,7 @@ const loading = ref(false)
 async function load() {
   loading.value = true
   try {
-    decks.value = await listDecks('ygo')
+    decks.value = await listDecks(GAME)
   } finally {
     loading.value = false
   }
@@ -172,7 +175,7 @@ async function confirmCreate() {
   if (!createName.value.trim()) return
   creating.value = true
   try {
-    const id = await createDeck('ygo', createName.value)
+    const id = await createDeck(GAME, createName.value)
     createOpen.value = false
     toast.add({ title: 'Deck créé', icon: 'i-lucide-check', color: 'success' })
     router.push(`/decks/${id}`)
@@ -252,7 +255,7 @@ function askRange(d: DeckListItem) {
 async function onRangeConfirm(plan: DeckLinkPlan) {
   rangeApplying.value = true
   try {
-    await applyDeckToDeckbox(rangeDeckId.value, plan.deckboxId, 'ygo')
+    await applyDeckToDeckbox(rangeDeckId.value, plan.deckboxId, GAME)
     rangeOpen.value = false
     toast.add({
       title: `Deck stored in “${plan.deckboxName}”`,

@@ -84,6 +84,15 @@ pub fn prune(dir: &Path, limit: u64) -> io::Result<u64> {
 }
 
 /// Marque un fichier comme récemment utilisé (best-effort).
+/// Nom sûr pour un segment de chemin (jeu, identifiant de carte) : lettres,
+/// chiffres, `-` et `_` seulement, 1 à 64 caractères. Empêche de sortir du
+/// dossier du cache (`..`, `/`, `\\`).
+pub fn is_safe_name(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 64
+        && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 pub fn touch(path: &Path) {
     if let Ok(f) = fs::File::options().write(true).open(path) {
         let _ = f.set_modified(SystemTime::now());
@@ -108,6 +117,20 @@ mod tests {
         let f = fs::File::options().write(true).open(&p).unwrap();
         f.set_modified(SystemTime::now() - Duration::from_secs(age_secs)).unwrap();
         p
+    }
+
+    #[test]
+    fn safe_names() {
+        assert!(is_safe_name("46986414"));
+        assert!(is_safe_name("ygo"));
+        assert!(is_safe_name("FK-001_a"));
+        assert!(!is_safe_name(""));
+        assert!(!is_safe_name(".."));
+        assert!(!is_safe_name("../etc"));
+        assert!(!is_safe_name("a/b"));
+        assert!(!is_safe_name("a\\b"));
+        assert!(!is_safe_name("a.jpg"));
+        assert!(!is_safe_name(&"x".repeat(65)));
     }
 
     #[test]

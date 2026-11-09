@@ -351,7 +351,7 @@ import {
   pruneImageCache,
   formatBytes,
 } from '~/services/imageCache'
-import { syncYgo, localSyncVersion, isSyncing } from '~/services/sync'
+import { syncCardData, localCardDataVersion, isSyncing } from '~/services/cardData'
 import { getShareOwnerName, setShareOwnerName } from '~/services/settings'
 import {
   googleAvailable,
@@ -373,9 +373,9 @@ import {
   type RestorePoint,
 } from '~/services/backup'
 
-// un seul jeu pour l'instant ; quand un 2e arrive, la section Collection
-// gagnera un sélecteur de jeu et GAME deviendra réactif.
-const GAME = 'ygo'
+// réglages par jeu (ajout de cartes, base de cartes) : ceux du jeu affiché ;
+// le sélecteur de jeu (en-tête / collection) remonte la page
+const GAME = useCurrentGame().game.value
 
 const sections = [
   { id: 'devices', label: 'Sync' },
@@ -495,7 +495,7 @@ const localVersion = ref<string | null>(null)
 
 async function refreshVersion() {
   try {
-    localVersion.value = await localSyncVersion()
+    localVersion.value = await localCardDataVersion(GAME)
   } catch {
     localVersion.value = null
   }
@@ -503,7 +503,7 @@ async function refreshVersion() {
 
 async function runSync(force: boolean) {
   try {
-    await syncYgo({ force })
+    await syncCardData(GAME, { force })
     toast.add({ title: 'Card database up to date', icon: 'i-lucide-check', color: 'success' })
   } catch {
     // l'overlay d'app.vue affiche déjà l'erreur avec un bouton « Retry »

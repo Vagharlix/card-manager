@@ -226,7 +226,7 @@ describe('listCollectionCards — toute ma collection', () => {
 
 describe('migration 006 — trade_qty', () => {
   it('ajoute la colonne à 0 sur les piles existantes', () => {
-    const legacy: TestDatabases = { user: new TestDatabase('user', { upTo: 5 }), ygo: dbs.ygo }
+    const legacy: TestDatabases = createTestDatabases({ user: new TestDatabase('user', { upTo: 5 }), ygo: dbs.ygo })
     const id = createSeeder(legacy).owned(DM, 3)
     legacy.user.applyMigration(6)
     const r = legacy.user.raw.prepare(`SELECT trade_qty FROM collection WHERE id = ?`).get(id) as {
@@ -242,7 +242,7 @@ describe('migration 006 — trade_qty', () => {
 
 describe('migration 004 — nettoyage des copies fantômes', () => {
   it('supprime les rangements des entrées déjà soft-deleted, garde les autres', () => {
-    const legacy: TestDatabases = { user: new TestDatabase('user', { upTo: 3 }), ygo: dbs.ygo }
+    const legacy: TestDatabases = createTestDatabases({ user: new TestDatabase('user', { upTo: 3 }), ygo: dbs.ygo })
     const s = createSeeder(legacy)
     const box = s.deckbox('Box')
     const binder = s.binder('Binder')
@@ -299,7 +299,7 @@ describe('rareté et 1re édition', () => {
 
 describe('migration 008 — rareté et 1re édition', () => {
   it('ajoute les colonnes sans toucher aux piles existantes', () => {
-    const legacy: TestDatabases = { user: new TestDatabase('user', { upTo: 7 }), ygo: dbs.ygo }
+    const legacy: TestDatabases = createTestDatabases({ user: new TestDatabase('user', { upTo: 7 }), ygo: dbs.ygo })
     const id = createSeeder(legacy).owned(DM, 2)
     legacy.user.applyMigration(8)
     const r = legacy.user.raw
