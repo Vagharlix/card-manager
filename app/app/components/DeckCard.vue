@@ -68,19 +68,19 @@ const emit = defineEmits<{
 const menuItems = computed(() => [
   [
     {
-      label: 'Renommer',
+      label: 'Rename',
       icon: 'i-lucide-pencil',
       action: 'rename',
       onSelect: () => emit('rename', props.deck),
     },
     {
-      label: 'Ranger dans une deckbox',
+      label: 'Store in a deckbox',
       icon: 'i-lucide-package',
       action: 'range',
       onSelect: () => emit('range', props.deck),
     },
     {
-      label: 'Supprimer',
+      label: 'Delete',
       icon: 'i-lucide-trash-2',
       action: 'delete',
       color: 'error' as const,

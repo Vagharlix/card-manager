@@ -1,18 +1,18 @@
 <template>
-  <UModal :open="open" title="Choisir une carte" @update:open="$emit('update:open', $event)">
+  <UModal :open="open" title="Pick a card" @update:open="$emit('update:open', $event)">
     <template #body>
       <div class="space-y-3">
         <UInput
           id="unranged-picker-search"
           v-model="query"
-          placeholder="Rechercher par nom..."
+          placeholder="Search by name…"
           icon="i-lucide-search"
           class="w-full"
           autofocus
         />
-        <div v-if="loading" class="py-8 text-center text-muted text-sm">Chargement…</div>
+        <div v-if="loading" class="py-8 text-center text-muted text-sm">Loading…</div>
         <div v-else-if="!filtered.length" class="py-8 text-center text-dimmed text-sm">
-          {{ query ? 'Aucune carte ne correspond' : 'Aucune carte non rangée' }}
+          {{ query ? 'No matching cards' : 'No unsorted cards' }}
         </div>
         <div v-else class="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-80 overflow-y-auto">
           <button

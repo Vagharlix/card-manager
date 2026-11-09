@@ -4,12 +4,12 @@
       <div class="space-y-4" data-range-modal-body>
         <!-- sélecteur de deckbox -->
         <div v-if="!deckboxes.length" class="text-sm text-muted text-center py-4">
-          Aucune deckbox. Crée-en un d'abord dans la collection.
+          No deckbox yet. Create one in the collection first.
         </div>
         <template v-else>
           <!-- deckbox actuelle du deck -->
           <p v-if="current" class="text-xs text-muted">
-            Actuellement rangé dans :
+            Currently stored in:
             <span class="text-default font-medium">{{ current.name }}</span>
           </p>
 
@@ -19,7 +19,7 @@
               id="deck-range-select"
               v-model="selectedId"
               :items="deckboxItems"
-              placeholder="Choisir un deckbox"
+              placeholder="Pick a deckbox"
               size="sm"
               class="w-full"
             >
@@ -35,7 +35,7 @@
           </div>
 
           <!-- calcul en cours -->
-          <div v-if="planning" class="text-sm text-muted text-center py-4">Calcul…</div>
+          <div v-if="planning" class="text-sm text-muted text-center py-4">Computing…</div>
 
           <!-- récap du plan -->
           <div v-else-if="plan" class="space-y-3" data-range-plan>
@@ -45,12 +45,11 @@
               color="warning"
               variant="soft"
               icon="i-lucide-package-open"
-              title="Cette deckbox contient d'autres cartes"
+              title="This deckbox holds other cards"
             >
               <template #description>
                 <p class="text-xs mt-0.5">
-                  {{ plan.purgeTotal }} carte(s) absente(s) du deck seront remises en « non rangées
-                  » :
+                  {{ plan.purgeTotal }} card(s) not in the deck will be moved back to unsorted:
                 </p>
                 <ul class="text-xs mt-1 space-y-0.5">
                   <li v-for="(p, i) in plan.purge" :key="i">{{ p.name }} ×{{ p.qty }}</li>
@@ -64,13 +63,13 @@
               color="warning"
               variant="soft"
               icon="i-lucide-triangle-alert"
-              title="Capacité dépassée"
-              :description="`Le deck nécessite ${plan.neededCapacity} places, la deckbox en a ${plan.capacity}. Sa capacité sera augmentée à ${plan.neededCapacity}.`"
+              title="Capacity exceeded"
+              :description="`The deck needs ${plan.neededCapacity} slots, the deckbox has ${plan.capacity}. Its capacity will be raised to ${plan.neededCapacity}.`"
             />
 
             <!-- rien à faire -->
             <p v-if="!plan.lines.length" class="text-sm text-muted text-center py-2">
-              Toutes les cartes possédées sont déjà dans cette deckbox.
+              All owned cards are already in this deckbox.
             </p>
 
             <!-- détail par carte -->
@@ -86,15 +85,15 @@
                 <div class="flex-1 min-w-0">
                   <p class="truncate">{{ l.name }}</p>
                   <p class="text-xs text-muted">
-                    <template v-if="l.toAssign > 0">+{{ l.toAssign }} rangé</template>
+                    <template v-if="l.toAssign > 0">+{{ l.toAssign }} stored</template>
                     <template v-if="l.toMove > 0">
                       <template v-if="l.toAssign > 0"> · </template>
-                      {{ l.toMove }} déplacé depuis
+                      {{ l.toMove }} moved from
                       {{ l.movedFrom.map((m) => `${m.name} ×${m.qty}`).join(', ') }}
                     </template>
                     <template v-if="l.missing > 0">
                       <template v-if="l.toAssign > 0 || l.toMove > 0"> · </template>
-                      <span class="text-warning">{{ l.missing }} non possédé(s)</span>
+                      <span class="text-warning">{{ l.missing }} not owned</span>
                     </template>
                   </p>
                 </div>
@@ -103,7 +102,7 @@
 
             <!-- résumé -->
             <p class="text-xs text-muted" :data-plan-total="plan.totalToPlace">
-              {{ plan.totalToPlace }} carte(s) entreront dans « {{ plan.deckboxName }} ».
+              {{ plan.totalToPlace }} card(s) will go into “{{ plan.deckboxName }}”.
             </p>
           </div>
         </template>
@@ -113,14 +112,14 @@
     <template #footer>
       <div class="flex gap-2 justify-end w-full">
         <UButton
-          label="Annuler"
+          label="Cancel"
           color="neutral"
           variant="ghost"
           @click="$emit('update:open', false)"
         />
         <UButton
           id="deck-range-confirm"
-          label="Confirmer"
+          label="Confirm"
           icon="i-lucide-check"
           :disabled="!canConfirm"
           :loading="applying"
@@ -154,7 +153,7 @@ const current = ref<CurrentDeckbox | null>(null)
 // la deckbox actuelle est grisée et marquée « (actuelle) »
 const deckboxItems = computed(() =>
   deckboxes.value.map((d) => ({
-    label: d.id === current.value?.id ? `${d.name} (actuelle)` : d.name,
+    label: d.id === current.value?.id ? `${d.name} (current)` : d.name,
     value: d.id,
     disabled: d.id === current.value?.id,
   }))
@@ -177,7 +176,7 @@ function confirm() {
   if (plan.value) emit('confirm', plan.value)
 }
 
-const title = computed(() => 'Ranger le deck dans une deckbox')
+const title = computed(() => 'Store the deck in a deckbox')
 
 async function loadDeckboxes() {
   const all = await listContainers()

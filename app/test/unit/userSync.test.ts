@@ -260,6 +260,28 @@ describe('réglages', () => {
   })
 })
 
+describe('synchro sans changement', () => {
+  it('rien de neuf ni ici ni ailleurs : ni téléchargement ni réécriture', async () => {
+    await on(pc, () => addCard({ game: 'ygo', cardId: DM }))
+    await sync(pc)
+    const pull = vi.spyOn(cloud, 'pull')
+    const r = await sync(pc)
+    expect(pull).not.toHaveBeenCalled()
+    expect(cloud.versionChecks).toBeGreaterThan(0)
+    expect(r).toMatchObject({ pushed: false, applied: { inserted: 0, updated: 0, deleted: 0 } })
+  })
+
+  it('un changement local, ou publié ailleurs, relance une vraie synchro', async () => {
+    await on(pc, () => addCard({ game: 'ygo', cardId: DM }))
+    await sync(pc)
+    await sync(phone)
+    await on(pc, () => addCard({ game: 'ygo', cardId: POT })) // changement local
+    expect((await sync(pc)).pushed).toBe(true)
+    const r = await sync(phone) // publié ailleurs
+    expect(r.applied.inserted).toBe(1)
+  })
+})
+
 describe('écriture conditionnelle', () => {
   it('un autre appareil publie pendant la synchro : on refusionne, rien n’est écrasé', async () => {
     await on(pc, () => addCard({ game: 'ygo', cardId: DM }))

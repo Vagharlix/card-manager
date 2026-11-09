@@ -14,7 +14,7 @@
       <div class="flex-1 min-w-0">
         <p class="text-sm truncate" :class="large && 'font-semibold'">{{ item.name }}</p>
         <p class="text-xs text-muted">
-          {{ item.printingId ?? 'impression non détectée'
+          {{ item.printingId ?? 'printing not detected'
           }}<template v-if="item.language"> · {{ languageLabel }}</template>
         </p>
       </div>
@@ -24,7 +24,7 @@
         color="neutral"
         variant="ghost"
         :size="large ? 'lg' : 'xs'"
-        aria-label="Annuler l'ajout"
+        aria-label="Undo"
         @click="$emit('undo')"
       />
     </div>
@@ -37,7 +37,7 @@
         color="neutral"
         size="xs"
         class="rounded-full"
-        label="1re édition"
+        label="1st edition"
         :icon="item.firstEdition ? 'i-lucide-check' : undefined"
         @click="$emit('first-edition', !item.firstEdition)"
       />
@@ -45,7 +45,7 @@
         v-if="item.rarities.length > 1"
         :model-value="item.rarity ?? undefined"
         :items="rarityItems"
-        placeholder="Rareté ?"
+        placeholder="Rarity?"
         size="xs"
         class="min-w-32"
         :color="item.rarity ? 'neutral' : 'warning'"

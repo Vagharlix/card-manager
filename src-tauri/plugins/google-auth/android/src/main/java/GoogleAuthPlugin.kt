@@ -66,7 +66,7 @@ class GoogleAuthPlugin(private val activity: Activity) : Plugin(activity) {
         )
       }
       .addOnFailureListener { error ->
-        invoke.reject(error.localizedMessage ?: "Connexion Google impossible")
+        invoke.reject(error.localizedMessage ?: "Google sign-in failed")
       }
   }
 
@@ -77,7 +77,7 @@ class GoogleAuthPlugin(private val activity: Activity) : Plugin(activity) {
       .clearToken(ClearTokenRequest.builder().setToken(args.accessToken).build())
       .addOnSuccessListener { invoke.resolve() }
       .addOnFailureListener { error ->
-        invoke.reject(error.localizedMessage ?: "Impossible d'oublier le jeton Google")
+        invoke.reject(error.localizedMessage ?: "Could not forget the Google token")
       }
   }
 
@@ -88,7 +88,7 @@ class GoogleAuthPlugin(private val activity: Activity) : Plugin(activity) {
       if (data == null) {
         invoke.reject(
           if (result.resultCode == Activity.RESULT_CANCELED) "cancelled"
-          else "Connexion Google sans réponse"
+          else "Google sign-in returned nothing"
         )
         return
       }
@@ -96,7 +96,7 @@ class GoogleAuthPlugin(private val activity: Activity) : Plugin(activity) {
     } catch (error: ApiException) {
       invoke.reject(
         if (error.statusCode == CommonStatusCodes.CANCELED) "cancelled"
-        else error.localizedMessage ?: "Connexion Google impossible"
+        else error.localizedMessage ?: "Google sign-in failed"
       )
     }
   }
@@ -104,7 +104,7 @@ class GoogleAuthPlugin(private val activity: Activity) : Plugin(activity) {
   private fun resolve(invoke: Invoke, result: AuthorizationResult) {
     val token = result.accessToken
     if (token.isNullOrBlank()) {
-      invoke.reject("Google n'a pas renvoyé de jeton d'accès")
+      invoke.reject("Google returned no access token")
       return
     }
     invoke.resolve(JSObject().apply { put("accessToken", token) })

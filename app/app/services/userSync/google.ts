@@ -116,8 +116,8 @@ async function tokenRequest(fetch: GoogleFetch, fields: Record<string, string>) 
   const json = JSON.parse(res.body || '{}')
   if (res.status !== 200) {
     if (json.error === 'invalid_grant')
-      throw new GoogleError('NOT_CONNECTED', 'Accès Google retiré : reconnecte-toi')
-    throw new GoogleError('HTTP', `Google a refusé (${res.status} ${json.error ?? ''})`)
+      throw new GoogleError('NOT_CONNECTED', 'Google access was removed: sign in again')
+    throw new GoogleError('HTTP', `Google refused (${res.status} ${json.error ?? ''})`)
   }
   return json as { access_token: string; expires_in: number; refresh_token?: string }
 }
@@ -135,14 +135,14 @@ export async function connectGoogle(fetch: GoogleFetch = googleFetch): Promise<s
     const r = await invoke<{ accessToken: string }>('plugin:google-auth|authorize', {
       allowInteraction: true,
     }).catch((e) => {
-      throw String(e).includes('cancelled') ? new GoogleError('CANCELLED', 'Connexion annulée') : e
+      throw String(e).includes('cancelled') ? new GoogleError('CANCELLED', 'Sign-in cancelled') : e
     })
     const email = await fetchEmail(fetch, r.accessToken)
     await saveAccount({ email, accessToken: r.accessToken, expiresAt: Date.now() + 50 * 60_000 })
     return email
   }
 
-  if (!CLIENT_ID) throw new GoogleError('NOT_CONFIGURED', 'Synchro non disponible dans ce build')
+  if (!CLIENT_ID) throw new GoogleError('NOT_CONFIGURED', 'Sync is not available in this build')
   const verifier = randomUrlSafe()
   const state = randomUrlSafe(16)
   const port = await invoke<number>('oauth_loopback_start')
@@ -166,8 +166,8 @@ export async function connectGoogle(fetch: GoogleFetch = googleFetch): Promise<s
     'oauth_loopback_wait',
     { port, timeoutSecs: 300 }
   )
-  if (cb.error) throw new GoogleError('CANCELLED', 'Connexion refusée ou annulée')
-  if (!cb.code || cb.state !== state) throw new GoogleError('HTTP', 'Réponse de Google invalide')
+  if (cb.error) throw new GoogleError('CANCELLED', 'Sign-in refused or cancelled')
+  if (!cb.code || cb.state !== state) throw new GoogleError('HTTP', 'Invalid response from Google')
 
   const t = await tokenRequest(fetch, {
     code: cb.code,
@@ -199,7 +199,7 @@ export async function googleAccount(): Promise<{ email: string | null } | null> 
  */
 export async function accessToken(fetch: GoogleFetch = googleFetch): Promise<string> {
   const a = await loadAccount()
-  if (!a) throw new GoogleError('NOT_CONNECTED', 'Pas de compte Google connecté')
+  if (!a) throw new GoogleError('NOT_CONNECTED', 'No Google account connected')
   if (a.accessToken && a.expiresAt && a.expiresAt - 60_000 > Date.now()) return a.accessToken
 
   if (android()) {
@@ -207,13 +207,13 @@ export async function accessToken(fetch: GoogleFetch = googleFetch): Promise<str
       'plugin:google-auth|authorize',
       { allowInteraction: false }
     )
-    if (!r.accessToken) throw new GoogleError('NOT_CONNECTED', 'Reconnecte-toi à Google')
+    if (!r.accessToken) throw new GoogleError('NOT_CONNECTED', 'Sign in to Google again')
     await saveAccount({ ...a, accessToken: r.accessToken, expiresAt: Date.now() + 50 * 60_000 })
     return r.accessToken
   }
 
   if (!a.refreshToken || !CLIENT_ID)
-    throw new GoogleError('NOT_CONNECTED', 'Reconnecte-toi à Google')
+    throw new GoogleError('NOT_CONNECTED', 'Sign in to Google again')
   try {
     const t = await tokenRequest(fetch, {
       refresh_token: a.refreshToken,

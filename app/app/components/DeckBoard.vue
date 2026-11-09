@@ -68,14 +68,14 @@
         <div
           v-if="flagged?.has(c.cardId)"
           class="absolute top-0.5 left-0.5 size-4 rounded-full bg-error text-inverted flex items-center justify-center pointer-events-none"
-          title="Dépasse la limite du format"
+          title="Over the format limit"
         >
           <UIcon name="i-lucide-ban" class="text-[10px]" />
         </div>
         <div
           v-else-if="c.owned < c.quantity"
           class="absolute top-0.5 left-0.5 size-4 rounded-full bg-warning text-inverted flex items-center justify-center pointer-events-none"
-          :title="`Tu possèdes ${c.owned} / ${c.quantity}`"
+          :title="`You own ${c.owned} / ${c.quantity}`"
         >
           <UIcon name="i-lucide-alert-triangle" class="text-[10px]" />
         </div>
@@ -103,14 +103,14 @@
           v-if="!isMobile"
           :data-move="c.cardId"
           class="absolute bottom-0.5 left-0.5 size-5 rounded bg-elevated/90 border border-default flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-primary hover:text-inverted"
-          :title="isSide ? 'Renvoyer au deck' : 'Envoyer au Side'"
+          :title="isSide ? 'Back to the deck' : 'Move to Side'"
           @click.stop="$emit('move', c)"
         >
           <UIcon :name="isSide ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'" class="text-xs" />
         </button>
       </div>
     </div>
-    <p v-else class="text-xs text-dimmed italic py-2">Vide</p>
+    <p v-else class="text-xs text-dimmed italic py-2">Empty</p>
   </div>
 </template>
 
@@ -149,28 +149,28 @@ const countClass = computed(() => {
 function menuItems(c: DeckCard) {
   return [
     [
-      { label: 'Infos', icon: 'i-lucide-info', action: 'info', onSelect: () => emit('info', c) },
+      { label: 'Details', icon: 'i-lucide-info', action: 'info', onSelect: () => emit('info', c) },
       {
-        label: 'Ajouter (+1)',
+        label: 'Add (+1)',
         icon: 'i-lucide-plus',
         action: 'add',
         onSelect: () => emit('add', c),
       },
       {
-        label: 'Retirer (−1)',
+        label: 'Remove (−1)',
         icon: 'i-lucide-minus',
         action: 'remove',
         onSelect: () => emit('remove', c),
       },
       props.isSide
         ? {
-            label: 'Renvoyer au deck',
+            label: 'Back to the deck',
             icon: 'i-lucide-arrow-up',
             action: 'move',
             onSelect: () => emit('move', c),
           }
         : {
-            label: 'Envoyer au Side',
+            label: 'Move to Side',
             icon: 'i-lucide-arrow-down',
             action: 'move',
             onSelect: () => emit('move', c),

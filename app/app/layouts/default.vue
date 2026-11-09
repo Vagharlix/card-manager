@@ -49,9 +49,9 @@ const fullscreen = computed(() => route.meta.fullscreen === true)
 
 const navItems = [
   { label: 'Collection', to: '/collection' },
-  { label: 'Recherche', to: '/search' },
+  { label: 'Search', to: '/search' },
   { label: 'Decks', to: '/decks' },
-  { label: 'Partage', to: '/share' },
-  { label: 'Réglages', to: '/settings' },
+  { label: 'Share', to: '/share' },
+  { label: 'Settings', to: '/settings' },
 ]
 </script>

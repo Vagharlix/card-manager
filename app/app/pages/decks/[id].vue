@@ -1,9 +1,9 @@
 <template>
   <AppPage
     v-model:sidebar-open="searchOpen"
-    sidebar-label="Ajouter des cartes"
+    sidebar-label="Add cards"
     :title="deck?.name ?? 'Deck'"
-    :subtitle="`${totalCards} cartes`"
+    :subtitle="`${totalCards} cards`"
     :sidebar-button="false"
   >
     <template #leading>
@@ -13,7 +13,7 @@
         variant="ghost"
         size="lg"
         to="/decks"
-        aria-label="Retour aux decks"
+        aria-label="Back to decks"
       />
     </template>
     <template #actions>
@@ -22,7 +22,7 @@
         color="neutral"
         variant="soft"
         size="lg"
-        :aria-label="currentBox ? currentBox.name : 'Ranger'"
+        :aria-label="currentBox ? currentBox.name : 'Store'"
         data-mobile-range-btn
         @click="openRange"
       />
@@ -34,16 +34,16 @@
           <UInput
             id="deck-search-input"
             v-model="query"
-            placeholder="Nom de carte..."
+            placeholder="Card name…"
             icon="i-lucide-search"
             class="flex-1"
             size="sm"
           />
         </div>
         <div class="flex-1 min-h-0 overflow-y-auto">
-          <div v-if="searching" class="text-center text-xs text-muted py-4">Recherche…</div>
+          <div v-if="searching" class="text-center text-xs text-muted py-4">Searching…</div>
           <div v-else-if="!results.length && query" class="text-center text-xs text-dimmed py-4">
-            Aucun résultat
+            No results
           </div>
           <div v-else class="grid grid-cols-3 gap-2">
             <div v-for="r in results" :key="r.id" class="relative group">
@@ -62,7 +62,7 @@
               <div
                 v-if="ownedIds.has(r.id)"
                 class="absolute top-0.5 left-0.5 size-4 rounded-full bg-success text-inverted flex items-center justify-center"
-                title="Tu possèdes cette carte"
+                title="You own this card"
               >
                 <UIcon name="i-lucide-check" class="text-[10px]" />
               </div>
@@ -86,7 +86,7 @@
           />
           <div v-if="!isMobile" class="flex-1">
             <h2 class="font-medium">{{ deck?.name ?? 'Deck' }}</h2>
-            <p class="text-xs text-muted" :data-total-cards="totalCards">{{ totalCards }} cartes</p>
+            <p class="text-xs text-muted" :data-total-cards="totalCards">{{ totalCards }} cards</p>
           </div>
           <!-- sélecteur de format -->
           <USelect
@@ -111,7 +111,7 @@
             color="neutral"
             variant="soft"
             size="sm"
-            :label="currentBox ? currentBox.name : 'Ranger'"
+            :label="currentBox ? currentBox.name : 'Store'"
             @click="openRange"
           />
           <!-- bouton ré-afficher le panneau si masqué (desktop) -->
@@ -157,12 +157,12 @@
             variant="soft"
             icon="i-lucide-ban"
             data-banlist-alert
-            :title="`${validation.violations.length} carte(s) dépassent la banlist ${format.toUpperCase()}`"
+            :title="`${validation.violations.length} card(s) over the ${format.toUpperCase()} banlist`"
           >
             <template #description>
               <ul class="text-xs mt-1 space-y-0.5">
                 <li v-for="v in validation.violations" :key="v.rootId">
-                  {{ v.name }} — {{ v.quantity }} en deck, {{ statusLabel(v) }}
+                  {{ v.name }} — {{ v.quantity }} in deck, {{ statusLabel(v) }}
                 </li>
               </ul>
             </template>
@@ -219,7 +219,7 @@
             block
             size="xl"
             icon="i-lucide-plus"
-            label="Ajouter des cartes"
+            label="Add cards"
             data-mobile-deck-add
             @click="openSearch"
           />
@@ -344,7 +344,7 @@ const totalCards = computed(() =>
 async function loadDeck() {
   deck.value = await getDeck(deckId.value)
   if (!deck.value) {
-    toast.add({ title: 'Deck introuvable', color: 'error' })
+    toast.add({ title: 'Deck not found', color: 'error' })
     router.push('/decks')
     return
   }
@@ -407,9 +407,9 @@ function showInfo(cardId: string) {
 
 // libellé de la limite pour une infraction
 function statusLabel(v: { status: string; limit: number }): string {
-  if (v.status === 'Forbidden') return 'interdite (0)'
-  if (v.status === 'Limited') return 'limitée à 1'
-  if (v.status === 'Semi-Limited') return 'semi-limitée (2)'
+  if (v.status === 'Forbidden') return 'forbidden (0)'
+  if (v.status === 'Limited') return 'limited to 1'
+  if (v.status === 'Semi-Limited') return 'semi-limited (2)'
   return `max ${v.limit}`
 }
 
@@ -419,12 +419,12 @@ async function addCard(r: CardSearchResult) {
   if (!res.ok) {
     const msg =
       res.reason === 'forbidden'
-        ? 'Carte interdite dans ce format'
+        ? 'Card forbidden in this format'
         : res.reason === 'limited'
-          ? 'Carte limitée à 1 exemplaire'
+          ? 'Card limited to 1 copy'
           : res.reason === 'semi'
-            ? 'Carte semi-limitée (2 max)'
-            : 'Limite de 3 exemplaires atteinte'
+            ? 'Card semi-limited (2 max)'
+            : '3-copy limit reached'
     toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }
@@ -457,12 +457,12 @@ async function addExisting(c: DeckCard, board?: Board) {
   if (!res.ok) {
     const msg =
       res.reason === 'forbidden'
-        ? 'Carte interdite dans ce format'
+        ? 'Card forbidden in this format'
         : res.reason === 'limited'
-          ? 'Carte limitée à 1 exemplaire'
+          ? 'Card limited to 1 copy'
           : res.reason === 'semi'
-            ? 'Carte semi-limitée (2 max)'
-            : 'Limite de 3 exemplaires atteinte'
+            ? 'Card semi-limited (2 max)'
+            : '3-copy limit reached'
     toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }
@@ -486,13 +486,13 @@ async function onRangeConfirm(plan: DeckLinkPlan) {
     rangeOpen.value = false
     currentBox.value = await deckCurrentDeckbox(deckId.value)
     toast.add({
-      title: `Deck rangé dans « ${plan.deckboxName} »`,
+      title: `Deck stored in “${plan.deckboxName}”`,
       icon: 'i-lucide-check',
       color: 'success',
     })
     await refreshOwned()
   } catch {
-    toast.add({ title: 'Échec du rangement', color: 'error' })
+    toast.add({ title: 'Could not store the deck', color: 'error' })
   } finally {
     rangeApplying.value = false
   }

@@ -60,5 +60,5 @@ export const useDeviceSync = createGlobalState(() => {
 /** Message lisible pour une erreur de synchro. */
 export function syncErrorMessage(e: unknown): string {
   if (e instanceof GoogleError || e instanceof SyncError) return e.message
-  return 'Synchronisation impossible (réseau ?)'
+  return 'Sync failed (no connection?)'
 }

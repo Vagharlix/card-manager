@@ -1,10 +1,10 @@
 <template>
   <div class="space-y-2">
     <div class="flex items-center justify-between">
-      <p class="text-xs text-muted uppercase tracking-wide">Filtres</p>
+      <p class="text-xs text-muted uppercase tracking-wide">Filters</p>
       <UButton
         v-if="hasActiveFilters"
-        label="Réinitialiser"
+        label="Reset"
         color="neutral"
         variant="ghost"
         size="xs"
@@ -16,18 +16,18 @@
       <template #type-body>
         <div class="space-y-3 pb-2">
           <div>
-            <p class="text-sm text-muted mb-1">Catégorie</p>
+            <p class="text-sm text-muted mb-1">Category</p>
             <USelect
               v-model="local.category"
               :items="categoryItems"
-              placeholder="Toutes"
+              placeholder="All"
               size="sm"
               class="w-full"
             />
           </div>
 
           <div v-if="options.monsterTypes.length">
-            <p class="text-sm text-muted mb-1">Types de monstre</p>
+            <p class="text-sm text-muted mb-1">Monster types</p>
             <div class="flex flex-wrap gap-1.5">
               <UCheckbox
                 v-for="t in options.monsterTypes"
@@ -41,7 +41,7 @@
           </div>
 
           <div v-if="options.spellTrapTypes.length">
-            <p class="text-sm text-muted mb-1">Types magie/piège</p>
+            <p class="text-sm text-muted mb-1">Spell/Trap types</p>
             <div class="flex flex-wrap gap-1.5">
               <UCheckbox
                 v-for="t in options.spellTrapTypes"
@@ -59,31 +59,31 @@
       <template #props-body>
         <div class="space-y-3 pb-2">
           <div>
-            <p class="text-sm text-muted mb-1">Attribut</p>
+            <p class="text-sm text-muted mb-1">Attribute</p>
             <USelect
               v-model="local.attribute"
               :items="options.attributes"
-              placeholder="Tous"
+              placeholder="All"
               size="sm"
               class="w-full"
             />
           </div>
           <div>
-            <p class="text-sm text-muted mb-1">Race / Type</p>
+            <p class="text-sm text-muted mb-1">Monster type</p>
             <USelect
               v-model="local.race"
               :items="options.races"
-              placeholder="Toutes"
+              placeholder="All"
               size="sm"
               class="w-full"
             />
           </div>
           <div>
-            <p class="text-sm text-muted mb-1">Archétype</p>
+            <p class="text-sm text-muted mb-1">Archetype</p>
             <USelect
               v-model="local.archetype"
               :items="options.archetypes"
-              placeholder="Tous"
+              placeholder="All"
               size="sm"
               class="w-full"
               searchable
@@ -94,7 +94,7 @@
             <USelect
               v-model="local.banlist"
               :items="BANLIST"
-              placeholder="Toutes"
+              placeholder="All"
               size="sm"
               class="w-full"
             />
@@ -104,7 +104,7 @@
 
       <template #stats-body>
         <div class="space-y-2 pb-2">
-          <NumericFilterInput label="Niveau" v-model="local.level" />
+          <NumericFilterInput label="Level" v-model="local.level" />
           <NumericFilterInput label="ATK" v-model="local.atk" />
           <NumericFilterInput label="DEF" v-model="local.def" />
           <NumericFilterInput label="Scale" v-model="local.scale" />
@@ -136,8 +136,8 @@ const BANLIST = ['Forbidden', 'Limited', 'Semi-Limited']
 
 const sections = [
   { label: 'Type', value: 'type', slot: 'type' },
-  { label: 'Propriétés', value: 'props', slot: 'props' },
-  { label: 'Statistiques', value: 'stats', slot: 'stats' },
+  { label: 'Properties', value: 'props', slot: 'props' },
+  { label: 'Stats', value: 'stats', slot: 'stats' },
 ]
 
 // coche/décoche une valeur dans un filtre tableau (monsterTypes, spellTrapTypes)

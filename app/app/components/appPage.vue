@@ -72,7 +72,7 @@ withDefaults(
     sidebarButton?: boolean
   }>(),
   {
-    sidebarLabel: 'Filtres',
+    sidebarLabel: 'Filters',
     title: undefined,
     subtitle: undefined,
     mobileSidebar: true,

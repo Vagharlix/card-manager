@@ -1,10 +1,5 @@
 <template>
-  <AppPage
-    sidebar-label="Conteneurs"
-    title="Collection"
-    :subtitle="subtitle"
-    :mobile-sidebar="false"
-  >
+  <AppPage sidebar-label="Storage" title="Collection" :subtitle="subtitle" :mobile-sidebar="false">
     <template #actions>
       <UButton
         id="mobile-settings-btn"
@@ -13,7 +8,7 @@
         color="neutral"
         variant="soft"
         size="lg"
-        aria-label="Réglages"
+        aria-label="Settings"
       />
     </template>
     <template #sidebar>
@@ -65,7 +60,7 @@
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="soft"
-            :aria-label="'Toute ma collection'"
+            :aria-label="'My whole collection'"
             data-mobile-back-all
             @click="selectContainer(ALL_ID)"
           />
@@ -92,14 +87,14 @@
               icon="i-lucide-check-square"
               color="neutral"
               variant="soft"
-              label="Sélectionner"
+              label="Select"
               @click="enterSelectMode"
             />
             <template v-else>
-              <UButton color="neutral" variant="ghost" label="Annuler" @click="exitSelectMode" />
+              <UButton color="neutral" variant="ghost" label="Cancel" @click="exitSelectMode" />
               <UButton
                 icon="i-lucide-folder-input"
-                :label="`Ranger (${selectedCards.size})`"
+                :label="`Store (${selectedCards.size})`"
                 :disabled="selectedCards.size === 0"
                 @click="openBatchPicker"
               />
@@ -110,7 +105,7 @@
             v-if="android && !selectMode && !isMobile"
             id="scan-open-btn"
             icon="i-lucide-scan-line"
-            label="Scanner"
+            label="Scan"
             to="/scan"
             variant="soft"
           />
@@ -136,7 +131,7 @@
           <UInput
             v-model="filters.search"
             icon="i-lucide-search"
-            placeholder="Rechercher dans ma collection"
+            placeholder="Search my collection"
             size="lg"
             class="w-full"
             data-mobile-collection-search
@@ -146,7 +141,7 @@
               :variant="filters.onlyTrade ? 'solid' : 'outline'"
               color="neutral"
               icon="i-lucide-repeat"
-              label="À l'échange"
+              label="For trade"
               class="rounded-full shrink-0"
               data-mobile-only-trade
               @click="toggleOnlyTrade"
@@ -155,7 +150,7 @@
               variant="outline"
               color="neutral"
               icon="i-lucide-inbox"
-              :label="`Non rangées · ${unrangedCount}`"
+              :label="`Unsorted · ${unrangedCount}`"
               class="rounded-full shrink-0"
               @click="selectContainer(UNRANGED_ID)"
             />
@@ -175,7 +170,7 @@
             id="collection-search"
             v-model="filters.search"
             icon="i-lucide-search"
-            placeholder="Rechercher par nom"
+            placeholder="Search by name"
             size="sm"
             class="w-56"
           />
@@ -192,7 +187,7 @@
           </USelect>
           <label class="flex items-center gap-2 text-sm">
             <USwitch id="collection-only-trade" v-model="filters.onlyTrade" size="sm" />
-            À l'échange uniquement
+            For trade only
           </label>
         </div>
 
@@ -284,7 +279,7 @@
                   icon="i-lucide-repeat"
                   color="primary"
                   variant="soft"
-                  :label="`${c.tradeQty} à l'échange`"
+                  :label="`${c.tradeQty} for trade`"
                 />
                 <UBadge color="neutral" variant="soft">×{{ c.totalQty }}</UBadge>
                 <UButton
@@ -312,22 +307,22 @@
       :containers="containersWithCap"
       :max-quantity="null"
       :busy="batchBusy"
-      title="Ranger la sélection dans..."
+      title="Store the selection in…"
       @confirm="onBatchRange"
     />
 
     <!-- sélecteur de carte non rangée pour un slot de binder -->
     <unrangedCardPicker v-model:open="binderPickerOpen" game="ygo" @pick="onBinderCardPick" />
 
-    <UModal v-model:open="unassignOpen" title="Retirer du conteneur ?">
+    <UModal v-model:open="unassignOpen" title="Remove from this storage?">
       <template #body>
         <div class="space-y-3">
           <p class="text-sm text-muted">
-            Retirer « {{ pendingUnassign?.name }} » de ce conteneur. La/les carte(s) redeviendront «
-            non rangées ».
+            Remove “{{ pendingUnassign?.name }}” from this storage. The card(s) will become unsorted
+            again.
           </p>
           <div v-if="(pendingUnassign?.totalQty ?? 0) > 1">
-            <p class="text-sm text-muted mb-1">Quantité à retirer</p>
+            <p class="text-sm text-muted mb-1">Quantity to remove</p>
             <UInput
               v-model.number="unassignQty"
               type="number"
@@ -341,10 +336,10 @@
       </template>
       <template #footer="{ close }">
         <div class="flex gap-2 justify-end w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="close" />
+          <UButton label="Cancel" color="neutral" variant="ghost" @click="close" />
           <UButton
             id="unassign-confirm"
-            label="Retirer"
+            label="Remove"
             color="error"
             icon="i-lucide-folder-minus"
             :loading="unassignBusy"
@@ -383,8 +378,8 @@ const { isMobile } = useResponsive()
 // mobile : la sidebar des conteneurs devient un onglet « Rangements »
 type MobileTab = 'cards' | 'containers'
 const mobileTabs: { id: MobileTab; label: string }[] = [
-  { id: 'cards', label: 'Cartes' },
-  { id: 'containers', label: 'Rangements' },
+  { id: 'cards', label: 'Cards' },
+  { id: 'containers', label: 'Storage' },
 ]
 const mobileTab = ref<MobileTab>('cards')
 function selectFromMobileList(id: string) {
@@ -412,9 +407,9 @@ const cards = ref<(ContainerCard & { tradeQty?: number })[]>([])
 // filtres de la vue « toute ma collection »
 const filters = reactive({ search: '', sort: 'name' as CollectionSort, onlyTrade: false })
 const sortItems = [
-  { label: 'Nom', value: 'name' },
-  { label: 'Quantité', value: 'quantity' },
-  { label: 'Ajout récent', value: 'recent' },
+  { label: 'Name', value: 'name' },
+  { label: 'Quantity', value: 'quantity' },
+  { label: 'Recently added', value: 'recent' },
 ]
 const binderSlots = ref<BinderSlotCard[]>([])
 
@@ -458,24 +453,24 @@ const totalQty = computed(() => cards.value.reduce((s, c) => s + c.totalQty, 0))
 
 const countLabel = computed(() =>
   isBinder.value
-    ? `${binderSlots.value.length} cartes placées`
-    : `${cards.value.length} cartes différentes · ${totalQty.value} au total`
+    ? `${binderSlots.value.length} cards placed`
+    : `${cards.value.length} distinct cards · ${totalQty.value} in total`
 )
-const subtitle = computed(() => `${collectionCount.value} cartes au total`)
+const subtitle = computed(() => `${collectionCount.value} cards in total`)
 
 const currentTitle = computed(() => {
-  if (isAll.value) return 'Toute ma collection'
-  if (isUnranged.value) return 'Non rangées'
-  return currentContainer.value?.name ?? 'Conteneur'
+  if (isAll.value) return 'My whole collection'
+  if (isUnranged.value) return 'Unsorted'
+  return currentContainer.value?.name ?? 'Storage'
 })
 
 const emptyMessage = computed(() => {
   if (isAll.value) {
     return filters.search || filters.onlyTrade
-      ? 'Aucune carte ne correspond'
-      : 'Ta collection est vide : ajoute des cartes depuis la recherche'
+      ? 'No matching cards'
+      : 'Your collection is empty: add cards from Search'
   }
-  return isUnranged.value ? 'Toutes tes cartes sont rangées' : 'Ce conteneur est vide'
+  return isUnranged.value ? 'All your cards are stored' : 'This storage is empty'
 })
 
 async function loadSidebar() {
@@ -595,14 +590,14 @@ async function onBatchRange(payload: {
     batchPickerOpen.value = false
     exitSelectMode()
     toast.add({
-      title: totalPlaced > 0 ? `${totalPlaced} carte(s) rangée(s)` : 'Rien à ranger',
+      title: totalPlaced > 0 ? `${totalPlaced} card(s) stored` : 'Nothing to store',
       icon: 'i-lucide-check',
       color: totalPlaced > 0 ? 'success' : 'warning',
     })
     await reload()
   } catch (e: any) {
     toast.add({
-      title: e?.message === 'BINDER_FULL' ? 'Le classeur est plein' : 'Échec du rangement',
+      title: e?.message === 'BINDER_FULL' ? 'The binder is full' : 'Could not store the cards',
       color: 'error',
     })
   } finally {
@@ -631,13 +626,13 @@ async function confirmUnassign() {
     )
     unassignOpen.value = false
     toast.add({
-      title: removed > 0 ? `${removed} carte(s) retirée(s)` : 'Rien à retirer',
+      title: removed > 0 ? `${removed} card(s) removed` : 'Nothing to remove',
       icon: 'i-lucide-check',
       color: removed > 0 ? 'success' : 'warning',
     })
     await reload()
   } catch {
-    toast.add({ title: 'Échec du retrait', color: 'error' })
+    toast.add({ title: 'Could not remove the card', color: 'error' })
   } finally {
     unassignBusy.value = false
     pendingUnassign.value = null
@@ -653,10 +648,10 @@ function openBinderCard(slot: BinderSlotCard) {
 async function clearBinderCard(slot: BinderSlotCard) {
   try {
     await clearBinderSlotById(slot.slotId)
-    toast.add({ title: 'Carte retirée du classeur', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Card removed from the binder', icon: 'i-lucide-check', color: 'success' })
     await reload()
   } catch {
-    toast.add({ title: 'Échec du retrait', color: 'error' })
+    toast.add({ title: 'Could not remove the card', color: 'error' })
   }
 }
 
@@ -678,15 +673,15 @@ async function onBinderCardPick(card: ContainerCard) {
       pos.col
     )
     binderPickerOpen.value = false
-    toast.add({ title: 'Carte placée', icon: 'i-lucide-check', color: 'success' })
+    toast.add({ title: 'Card placed', icon: 'i-lucide-check', color: 'success' })
     await reload()
   } catch (e: any) {
     const msg =
       e?.message === 'SLOT_TAKEN'
-        ? 'Cet emplacement est déjà occupé'
+        ? 'This slot is already taken'
         : e?.message === 'NO_COPY'
-          ? "Plus d'exemplaire non rangé disponible"
-          : 'Échec du placement'
+          ? 'No unsorted copy left'
+          : 'Could not place the card'
     toast.add({ title: msg, color: 'error' })
   } finally {
     pendingSlot.value = null

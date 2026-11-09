@@ -1,7 +1,7 @@
 <template>
   <nav
     id="mobile-tabbar"
-    aria-label="Navigation principale"
+    aria-label="Main navigation"
     class="shrink-0 border-t border-default bg-elevated/95 backdrop-blur"
     :style="{ paddingBottom: 'var(--safe-bottom)' }"
   >
@@ -50,12 +50,12 @@ interface Tab {
 // le scan n'existe que dans l'app Android
 const tabs: Tab[] = [
   { id: 'collection', label: 'Collection', to: '/collection', icon: 'i-lucide-library' },
-  { id: 'search', label: 'Recherche', to: '/search', icon: 'i-lucide-search' },
+  { id: 'search', label: 'Search', to: '/search', icon: 'i-lucide-search' },
   ...(isAndroid()
-    ? [{ id: 'scan', label: 'Scanner', to: '/scan', icon: 'i-lucide-scan-line', primary: true }]
+    ? [{ id: 'scan', label: 'Scan', to: '/scan', icon: 'i-lucide-scan-line', primary: true }]
     : []),
   { id: 'decks', label: 'Decks', to: '/decks', icon: 'i-lucide-layers' },
-  { id: 'share', label: 'Partage', to: '/share', icon: 'i-lucide-share-2' },
+  { id: 'share', label: 'Share', to: '/share', icon: 'i-lucide-share-2' },
 ]
 
 function isActive(to: string) {

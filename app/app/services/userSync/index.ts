@@ -30,10 +30,19 @@ export interface PublishedState {
   version: string
 }
 
+export type PushResult =
+  | { ok: false } // l'état publié n'est plus `expectedVersion` (un autre appareil a écrit)
+  | { ok: true; version: string | null } // version écrite (null : inconnue)
+
 export interface SyncTransport {
   pull(): Promise<PublishedState | null>
-  /** false si l'état publié n'est plus `expectedVersion` (un autre appareil a écrit) */
-  push(snapshot: Snapshot, expectedVersion: string | null): Promise<boolean>
+  push(snapshot: Snapshot, expectedVersion: string | null): Promise<PushResult>
+  /**
+   * Version publiée, sans télécharger l'état (facultatif) : si elle n'a pas
+   * bougé depuis la dernière synchro et que rien n'a changé ici, la synchro
+   * s'arrête là (pas de téléchargement, pas de réécriture).
+   */
+  version?(): Promise<string | null>
 }
 
 export class SyncError extends Error {
@@ -87,13 +96,13 @@ export async function lastBackup(): Promise<Snapshot | null> {
 /** Oublie la synchro (déconnexion) : la prochaine repart d'une union. */
 export async function forgetSyncBase(): Promise<void> {
   const { user } = await useDatabase()
-  await user.execute(`DELETE FROM sync_state WHERE key IN ('base', 'backup')`)
+  await user.execute(`DELETE FROM sync_state WHERE key IN ('base', 'base_version', 'backup')`)
 }
 
 let running = false
 
 export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promise<SyncReport> {
-  if (running) throw new SyncError('BUSY', 'Une synchronisation est déjà en cours')
+  if (running) throw new SyncError('BUSY', 'A sync is already running')
   running = true
   try {
     const { user } = await useDatabase()
@@ -105,15 +114,24 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const local = await takeSnapshot(user, me)
       const base = await readState<Snapshot>(user, 'base')
+
+      // rien n'a bougé ni ici ni ailleurs depuis la dernière synchro
+      const baseVersion = await readState<string>(user, 'base_version')
+      if (transport.version && base && baseVersion && sameTables(local.tables, base.tables)) {
+        if ((await transport.version()) === baseVersion) {
+          return { pulled: true, pushed: false, applied, conflicts, fixes, attempts: attempt }
+        }
+      }
+
       const remote = await transport.pull()
 
       if (remote) {
         if (remote.snapshot.protocol !== SYNC_PROTOCOL)
-          throw new SyncError('PROTOCOL', 'Format de synchronisation inconnu')
+          throw new SyncError('PROTOCOL', 'Unknown sync format')
         if (remote.snapshot.schema > USER_SCHEMA_VERSION)
           throw new SyncError(
             'REMOTE_NEWER',
-            "Un autre appareil utilise une version plus récente de l'appli : mets-la à jour ici"
+            'Another device uses a newer version of the app: update it here'
           )
       }
 
@@ -140,9 +158,13 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
 
       // rien de neuf à publier : l'état publié est déjà le bon
       const upToDate = remote && sameTables(remote.snapshot.tables, next.tables)
-      const pushed = upToDate ? true : await transport.push(next, remote?.version ?? null)
-      if (pushed) {
-        await writeState(user, 'base', next)
+      const pushed: PushResult = upToDate
+        ? { ok: true, version: remote.version }
+        : await transport.push(next, remote?.version ?? null)
+      if (pushed.ok) {
+        if (!base || !sameTables(base.tables, next.tables)) await writeState(user, 'base', next)
+        if (pushed.version) await writeState(user, 'base_version', pushed.version)
+        else await user.execute(`DELETE FROM sync_state WHERE key = 'base_version'`)
         return {
           pulled: !!remote,
           pushed: !upToDate,
@@ -154,7 +176,7 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
       }
       // un autre appareil a publié entre-temps : on refusionne avec son état
     }
-    throw new SyncError('BUSY', 'Synchronisation impossible : un autre appareil publie en continu')
+    throw new SyncError('BUSY', 'Sync failed: another device keeps publishing')
   } finally {
     running = false
   }
@@ -171,12 +193,20 @@ export class MemoryTransport implements SyncTransport {
     return this.state ? structuredClone(this.state) : null
   }
 
-  async push(snapshot: Snapshot, expectedVersion: string | null): Promise<boolean> {
+  async push(snapshot: Snapshot, expectedVersion: string | null): Promise<PushResult> {
     this.beforePush?.()
-    if ((this.state?.version ?? null) !== expectedVersion) return false
+    if ((this.state?.version ?? null) !== expectedVersion) return { ok: false }
     this.state = { snapshot: structuredClone(snapshot), version: `v${++this.seq}` }
-    return true
+    return { ok: true, version: this.state.version }
   }
+
+  async version(): Promise<string | null> {
+    this.versionChecks++
+    return this.state?.version ?? null
+  }
+
+  /** nombre d'appels à version() (tests) */
+  versionChecks = 0
 
   /** écriture directe (autre appareil, ancienne version…) */
   publish(snapshot: Snapshot) {

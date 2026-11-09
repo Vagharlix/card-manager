@@ -22,7 +22,7 @@
         variant="soft"
         size="xl"
         class="rounded-full bg-black/50 text-white"
-        aria-label="Fermer le scan"
+        aria-label="Close scanner"
         @click="close"
       />
       <div class="flex-1" />
@@ -30,7 +30,7 @@
         class="h-11 px-3 rounded-full bg-black/50 flex items-center gap-2 text-sm font-semibold"
       >
         <USwitch id="scan-auto-add" v-model="autoAdd" />
-        Ajout auto
+        Auto add
       </label>
       <UButton
         icon="i-lucide-bug"
@@ -57,9 +57,9 @@
         <template v-if="current">
           {{ current.name }}<span v-if="current.printingId"> · {{ current.printingId }}</span
           ><span v-if="current.language"> · {{ languageLabel(current.language) }}</span
-          ><span v-if="current.firstEdition"> · 1re éd.</span>
+          ><span v-if="current.firstEdition"> · 1st ed.</span>
         </template>
-        <template v-else>Place une carte dans le cadre</template>
+        <template v-else>Place a card in the frame</template>
       </div>
     </div>
 
@@ -71,12 +71,12 @@
       :style="{ top: 'calc(var(--safe-top) + 4.5rem)' }"
     >
       <p>
-        caméra : {{ camera.active() ? 'active' : 'inactive' }} · images : {{ debug.frames }} · OCR :
+        camera: {{ camera.active() ? 'on' : 'off' }} · frames: {{ debug.frames }} · OCR:
         {{ debug.lastMs }} ms · {{ debug.size }}
       </p>
-      <p>résultat : {{ debug.result || '—' }}</p>
-      <p v-if="debug.error" class="text-error">erreur : {{ debug.error }}</p>
-      <p v-for="(l, i) in debug.lines" :key="i" class="truncate">« {{ l }} »</p>
+      <p>result: {{ debug.result || '—' }}</p>
+      <p v-if="debug.error" class="text-error">error: {{ debug.error }}</p>
+      <p v-for="(l, i) in debug.lines" :key="i" class="truncate">“{{ l }}”</p>
     </div>
 
     <!-- panneau du bas : erreurs, ajout manuel, cartes ajoutées -->
@@ -95,22 +95,22 @@
       />
       <div class="flex items-center gap-2 mb-2 shrink-0">
         <h2 class="flex-1 text-lg font-bold" :data-scan-count="session.length">
-          Ajoutées : {{ session.length }}
+          Added: {{ session.length }}
         </h2>
         <UButton
           v-if="!autoAdd"
           id="scan-add-btn"
-          label="Ajouter"
+          label="Add"
           icon="i-lucide-plus"
           size="lg"
           :disabled="!pending"
           @click="addPending"
         />
-        <UButton label="Terminer" variant="ghost" size="lg" @click="close" />
+        <UButton label="Done" variant="ghost" size="lg" @click="close" />
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto space-y-1.5">
         <p v-if="!session.length" class="text-sm text-muted py-2">
-          Les cartes reconnues s'ajoutent ici, et à ta collection.
+          Recognized cards show up here and in your collection.
         </p>
         <ScanSessionItem
           v-for="item in session"
@@ -127,13 +127,13 @@
   </div>
 
   <!-- AILLEURS (desktop, tests) : pas de caméra, mais la même chaîne de reconnaissance -->
-  <AppPage v-else title="Scanner">
+  <AppPage v-else title="Scan">
     <div id="scan-view" class="h-full flex flex-col gap-3 overflow-hidden max-w-md mx-auto w-full">
       <UAlert
         color="neutral"
         variant="soft"
         icon="i-lucide-smartphone"
-        title="Le scan de cartes est disponible dans l'app Android"
+        title="Card scanning is available in the Android app"
       />
       <p class="text-sm" :data-scan-current="current?.cardId ?? ''">
         {{ current ? current.name : '' }}
@@ -141,12 +141,12 @@
       <div class="flex items-center gap-3 shrink-0">
         <label class="flex items-center gap-2 text-sm flex-1">
           <USwitch id="scan-auto-add" v-model="autoAdd" size="sm" />
-          Ajout automatique
+          Auto add
         </label>
         <UButton
           v-if="!autoAdd"
           id="scan-add-btn"
-          label="Ajouter"
+          label="Add"
           icon="i-lucide-plus"
           size="sm"
           :disabled="!pending"
@@ -158,7 +158,7 @@
           class="text-xs text-muted uppercase tracking-wide mb-2"
           :data-scan-count="session.length"
         >
-          Ajoutées pendant ce scan : {{ session.length }}
+          Added in this session: {{ session.length }}
         </p>
         <div class="space-y-1">
           <ScanSessionItem
@@ -256,7 +256,7 @@ async function add(card: Identified) {
     })
     vibrate()
   } catch {
-    toast.add({ title: "Échec de l'ajout", color: 'error' })
+    toast.add({ title: 'Could not add the card', color: 'error' })
   }
 }
 
@@ -363,7 +363,7 @@ async function tick() {
     }
   } catch (e) {
     debug.error = e instanceof Error ? e.message : String(e)
-    ocrError.value = 'Reconnaissance de texte indisponible'
+    ocrError.value = 'Text recognition unavailable'
   }
   if (running) timer = setTimeout(tick, 250)
 }

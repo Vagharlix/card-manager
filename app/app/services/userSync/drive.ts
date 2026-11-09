@@ -1,4 +1,4 @@
-import type { PublishedState, SyncTransport } from './index'
+import type { PublishedState, PushResult, SyncTransport } from './index'
 import type { Snapshot } from './snapshot'
 import { GoogleError, googleFetch, type GoogleFetch } from './google'
 
@@ -36,13 +36,13 @@ export class DriveTransport implements SyncTransport {
       body
     )
     if (res.status === 401)
-      throw new GoogleError('NOT_CONNECTED', 'Accès Google expiré : reconnecte-toi')
+      throw new GoogleError('NOT_CONNECTED', 'Google access expired: sign in again')
     return res
   }
 
   private ok(res: { status: number; body: string }, what: string) {
     if (res.status < 200 || res.status >= 300)
-      throw new GoogleError('HTTP', `Drive : ${what} impossible (${res.status})`)
+      throw new GoogleError('HTTP', `Drive: ${what} failed (${res.status})`)
     return res
   }
 
@@ -53,7 +53,7 @@ export class DriveTransport implements SyncTransport {
         'GET',
         `${API}/drive/v3/files?spaces=appDataFolder&q=${q}&orderBy=createdTime&fields=files(id,createdTime)`
       ),
-      'lecture'
+      'read'
     )
     return (JSON.parse(res.body).files ?? []) as DriveFile[]
   }
@@ -61,7 +61,7 @@ export class DriveTransport implements SyncTransport {
   private async etag(id: string): Promise<string | null> {
     const res = await this.call('GET', `${API}/drive/v2/files/${id}?fields=etag`)
     if (res.status === 404) return null
-    return JSON.parse(this.ok(res, 'lecture').body).etag as string
+    return JSON.parse(this.ok(res, 'read').body).etag as string
   }
 
   async pull(): Promise<PublishedState | null> {
@@ -73,7 +73,7 @@ export class DriveTransport implements SyncTransport {
       if (!before) return null
       const content = this.ok(
         await this.call('GET', `${API}/drive/v3/files/${file.id}?alt=media`),
-        'téléchargement'
+        'download'
       )
       const after = await this.etag(file.id)
       if (before === after) {
@@ -83,10 +83,17 @@ export class DriveTransport implements SyncTransport {
         }
       }
     }
-    throw new GoogleError('HTTP', 'Le fichier de synchro change sans arrêt : réessaie')
+    throw new GoogleError('HTTP', 'The sync file keeps changing: try again')
   }
 
-  async push(snapshot: Snapshot, expectedVersion: string | null): Promise<boolean> {
+  async version(): Promise<string | null> {
+    const [file] = await this.files()
+    if (!file) return null
+    const etag = await this.etag(file.id)
+    return etag ? `${file.id}|${etag}` : null
+  }
+
+  async push(snapshot: Snapshot, expectedVersion: string | null): Promise<PushResult> {
     const body = JSON.stringify(snapshot)
     if (expectedVersion) {
       const sep = expectedVersion.indexOf('|')
@@ -94,20 +101,22 @@ export class DriveTransport implements SyncTransport {
       const etag = expectedVersion.slice(sep + 1)
       const res = await this.call(
         'PUT',
-        `${API}/upload/drive/v2/files/${id}?uploadType=media`,
+        // fields=etag : la version effectivement écrite (pas celle d'une
+        // écriture concurrente qui arriverait juste après)
+        `${API}/upload/drive/v2/files/${id}?uploadType=media&fields=etag`,
         [
           ['Content-Type', 'application/json'],
           ['If-Match', etag],
         ],
         body
       )
-      if (res.status === 412 || res.status === 404) return false // un autre appareil a écrit
-      this.ok(res, 'enregistrement')
-      return true
+      if (res.status === 412 || res.status === 404) return { ok: false } // un autre appareil a écrit
+      const written = JSON.parse(this.ok(res, 'upload').body || '{}').etag as string | undefined
+      return { ok: true, version: written ? `${id}|${written}` : null }
     }
 
     // aucun fichier lu : on le crée, sauf si un autre appareil vient de le faire
-    if ((await this.files()).length) return false
+    if ((await this.files()).length) return { ok: false }
     const boundary = `cm${crypto.randomUUID().replace(/-/g, '')}`
     const metadata = JSON.stringify({
       name: SYNC_FILE,
@@ -125,15 +134,15 @@ export class DriveTransport implements SyncTransport {
           [['Content-Type', `multipart/related; boundary=${boundary}`]],
           multipart
         ),
-        'création'
+        'create'
       ).body
     ) as { id: string }
     const all = await this.files()
     if (all.length > 1 && all[0]!.id !== created.id) {
       // créé en même temps qu'un autre appareil : le plus ancien gagne
       await this.call('DELETE', `${API}/drive/v3/files/${created.id}`)
-      return false
+      return { ok: false }
     }
-    return true
+    return { ok: true, version: null } // version lue à la prochaine synchro
   }
 }

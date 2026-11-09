@@ -48,9 +48,9 @@ pub fn wait(listener: TcpListener, timeout: Duration) -> Result<Callback, String
     }
 }
 
-const PAGE: &str = "<!doctype html><html lang=\"fr\"><meta charset=\"utf-8\">\
+const PAGE: &str = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">\
 <title>card-manager</title><body style=\"font-family:sans-serif;text-align:center;padding:3em\">\
-<h1>Connexion terminée</h1><p>Tu peux fermer cet onglet et revenir dans card-manager.</p></body></html>";
+<h1>Signed in</h1><p>You can close this tab and go back to card-manager.</p></body></html>";
 
 fn handle(mut stream: TcpStream) -> Result<Option<Callback>, String> {
     stream.set_nonblocking(false).map_err(|e| e.to_string())?;
@@ -161,7 +161,7 @@ mod tests {
         let cb = wait(listener, Duration::from_secs(5)).unwrap();
         let (favicon, page) = t.join().unwrap();
         assert!(favicon.starts_with("HTTP/1.1 404"));
-        assert!(page.starts_with("HTTP/1.1 200") && page.contains("Connexion terminée"));
+        assert!(page.starts_with("HTTP/1.1 200") && page.contains("Signed in"));
         assert_eq!(
             cb,
             Callback { code: Some("4/abc".into()), state: Some("xyz".into()), error: None }
