@@ -106,6 +106,18 @@ export default defineNuxtPlugin(() => {
     )
   }
 
+  // transaction après des requêtes simultanées (comme au démarrage de l'appli) :
+  // export puis réimport d'une sauvegarde = même écriture que la synchro
+  ;(window as any).__txProbe = async () => {
+    const { user } = await useDatabase()
+    await Promise.all(Array.from({ length: 8 }, () => user.select('SELECT 1')))
+    const { exportBackup, importBackup } = await import('~/services/backup')
+    const stats = await importBackup(await exportBackup())
+    await Promise.all(Array.from({ length: 8 }, () => user.select('SELECT 1')))
+    const again = await importBackup(await exportBackup())
+    return { stats, again }
+  }
+
   // expose to the WebView global so WebdriverIO can call it via execute()
   ;(window as unknown as { __resetTestDb: () => Promise<void> }).__resetTestDb = resetTestDb
 })

@@ -26,7 +26,6 @@ use crate::card_sources;
 
 const BATCH: usize = 500;
 const QUEUE: usize = 4; // lots d'avance au plus
-const USER_AGENT: &str = "card-manager/0.1 (+https://github.com/Vagharlix/card-manager)";
 
 type Message = Result<Vec<Value>, String>;
 
@@ -73,7 +72,7 @@ impl<R: Read> Read for Counting<R> {
 
 fn client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
-        .user_agent(USER_AGENT)
+        .user_agent(crate::http::USER_AGENT)
         .build()
         .map_err(|e| e.to_string())
 }

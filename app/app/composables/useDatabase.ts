@@ -28,15 +28,46 @@ export interface DatabaseInstances {
   cards(game: string): Database
 }
 
+// Une requête à la fois par base. tauri-plugin-sql ouvre une connexion de
+// plus dès que deux requêtes partent en même temps (jusqu'à 10) et prête
+// les connexions libres à tour de rôle (file FIFO de sqlx) : les commandes
+// d'une transaction (BEGIN … COMMIT, synchro, sauvegarde, imports de cartes)
+// tombaient alors sur des connexions différentes → « cannot start a
+// transaction within a transaction », « database is locked », « cannot
+// commit - no transaction is active ». En sérialisant, le pool garde une
+// seule connexion. SQLite n'écrit de toute façon qu'une chose à la fois ;
+// le coût est négligeable devant l'aller-retour WebView → Rust.
+// Une requête lancée par ailleurs pendant une transaction passe sur la même
+// connexion, donc dans la transaction (lectures : voient l'état en cours).
+function serialized(db: Database): Database {
+  let tail: Promise<unknown> = Promise.resolve()
+  const run = <T>(fn: () => Promise<T>): Promise<T> => {
+    const next = tail.then(fn, fn)
+    tail = next.catch(() => {})
+    return next
+  }
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === 'select' || prop === 'execute') {
+        const method = Reflect.get(target, prop, receiver) as (...a: unknown[]) => Promise<unknown>
+        return (...args: unknown[]) => run(() => method.apply(target, args))
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+}
+
 let instance: DatabaseInstances | null = null
 let initPromise: Promise<DatabaseInstances> | null = null
 
 async function initDatabases(): Promise<DatabaseInstances> {
   const games = allGames()
-  const [user, ...cardDbs] = await Promise.all([
+  const [rawUser, ...rawCards] = await Promise.all([
     Database.load(DB_NAMES.user),
     ...games.map((g) => Database.load(cardDbName(g.cardDb))),
   ])
+  const user = serialized(rawUser)
+  const cardDbs = rawCards.map(serialized)
 
   // Enforce foreign key constraints at runtime. SQLite defaults this OFF
   // per connection, and it is ignored inside a transaction — so it has to
