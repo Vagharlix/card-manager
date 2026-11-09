@@ -113,6 +113,22 @@ async function deckNeeds(deckId: string): Promise<Map<string, DeckNeed>> {
   return needs
 }
 
+// artworks de plusieurs cartes logiques en une requête : root → passcodes
+async function variantsOfRoots(roots: string[]): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>(roots.map((r) => [r, []]))
+  if (!roots.length) return out
+  const { ygo } = await useDatabase()
+  const ph = roots.map(() => '?').join(', ')
+  const rows = await ygo.select<{ id: string; root: string }[]>(
+    `SELECT c.id, COALESCE(d.alias, c.id) AS root FROM cards c JOIN ygo_details d ON d.card_id = c.id
+     WHERE c.id IN (${ph}) OR d.alias IN (${ph})`,
+    [...roots, ...roots]
+  )
+  for (const r of rows) out.get(r.root)?.push(r.id)
+  for (const [root, ids] of out) if (!ids.length) ids.push(root) // carte absente de la base
+  return out
+}
+
 // all passcodes that share an alias root (the logical card's artworks)
 async function variantsOfRoot(root: string): Promise<string[]> {
   const { ygo } = await useDatabase()
@@ -197,37 +213,77 @@ export async function planDeckToDeckbox(
   const lines: DeckLinkLine[] = []
   let totalToPlace = 0
 
-  for (const need of needs.values()) {
-    const variantIds = await variantsOfRoot(need.root)
-    const vph = variantIds.map(() => '?').join(', ')
+  // Tout ce qu'il faut savoir des cartes du deck, en 4 requêtes quel que
+  // soit le nombre de cartes (chaque requête coûte un aller-retour vers
+  // Rust dans l'appli) : artworks, exemplaires possédés, copies déjà dans
+  // la deckbox, provenance des copies rangées ailleurs.
+  const variants = await variantsOfRoots([...needs.keys()])
+  const rootOf = new Map<string, string>()
+  for (const [root, ids] of variants) for (const id of ids) rootOf.set(id, root)
+  const allIds = [...rootOf.keys()]
+  const aph = allIds.map(() => '?').join(', ')
 
-    // all collection entries (owned) for this logical card, with where they are
-    const entries = await user.select<
-      {
-        id: string
-        card_id: string
-        quantity: number
-        assigned: number
-      }[]
-    >(
-      `SELECT c.id, c.card_id, c.quantity, COALESCE(a.qty, 0) AS assigned
+  const entriesByRoot = new Map<string, { quantity: number; assigned: number }[]>()
+  const hereByRoot = new Map<string, number>()
+  const sourcesByRoot = new Map<string, { container_id: string; name: string; qty: number }[]>()
+  if (allIds.length) {
+    const entries = await user.select<{ card_id: string; quantity: number; assigned: number }[]>(
+      `SELECT c.card_id, c.quantity, COALESCE(a.qty, 0) AS assigned
        FROM collection c
        LEFT JOIN (${ASSIGNED_SUBQUERY}) a ON a.collection_id = c.id
-       WHERE c.deleted_at IS NULL AND c.game = ? AND c.card_id IN (${vph})`,
-      [game, ...variantIds]
+       WHERE c.deleted_at IS NULL AND c.game = ? AND c.card_id IN (${aph})`,
+      [game, ...allIds]
     )
-
-    const owned = entries.reduce((s, e) => s + e.quantity, 0)
+    for (const e of entries) {
+      const root = rootOf.get(e.card_id)!
+      entriesByRoot.set(root, [...(entriesByRoot.get(root) ?? []), e])
+    }
 
     // copies already assigned to THIS deckbox (count toward "alreadyHere")
-    const hereRows = await user.select<{ n: number }[]>(
-      `SELECT COALESCE(SUM(dc.quantity), 0) AS n
+    const here = await user.select<{ card_id: string; n: number }[]>(
+      `SELECT c.card_id, SUM(dc.quantity) AS n
        FROM deckbox_cards dc
        JOIN collection c ON c.id = dc.collection_id AND c.deleted_at IS NULL
-       WHERE dc.deckbox_id = ? AND c.game = ? AND c.card_id IN (${vph})`,
-      [deckboxId, game, ...variantIds]
+       WHERE dc.deckbox_id = ? AND c.game = ? AND c.card_id IN (${aph})
+       GROUP BY c.card_id`,
+      [deckboxId, game, ...allIds]
     )
-    const alreadyHere = hereRows[0]?.n ?? 0
+    for (const r of here) {
+      const root = rootOf.get(r.card_id)!
+      hereByRoot.set(root, (hereByRoot.get(root) ?? 0) + r.n)
+    }
+
+    // copies rangées dans d'autres conteneurs, par conteneur (ordre des noms)
+    const sources = await user.select<
+      { card_id: string; container_id: string; name: string; qty: number }[]
+    >(
+      `SELECT c.card_id, asg.cid AS container_id, ct.name, SUM(asg.qty) AS qty
+       FROM (
+          SELECT dc.collection_id, dc.deckbox_id AS cid, dc.quantity AS qty FROM deckbox_cards dc
+          UNION ALL SELECT bs.collection_id, bs.container_id, 1 AS qty FROM binder_slots bs
+          UNION ALL SELECT bb.collection_id, bb.container_id, bb.quantity AS qty FROM bulk_box_contents bb
+       ) asg
+       JOIN collection c ON c.id = asg.collection_id AND c.deleted_at IS NULL
+       JOIN containers ct ON ct.id = asg.cid AND ct.deleted_at IS NULL
+       WHERE c.game = ? AND c.card_id IN (${aph}) AND ct.id != ?
+       GROUP BY c.card_id, asg.cid, ct.name
+       ORDER BY ct.name`,
+      [game, ...allIds, deckboxId]
+    )
+    for (const r of sources) {
+      const root = rootOf.get(r.card_id)!
+      const list = sourcesByRoot.get(root) ?? []
+      const same = list.find((x) => x.container_id === r.container_id)
+      if (same) same.qty += r.qty
+      else list.push({ container_id: r.container_id, name: r.name, qty: r.qty })
+      sourcesByRoot.set(root, list)
+    }
+  }
+
+  for (const need of needs.values()) {
+    const entries = entriesByRoot.get(need.root) ?? []
+    const owned = entries.reduce((s, e) => s + e.quantity, 0)
+    const alreadyHere = hereByRoot.get(need.root) ?? 0
 
     // unranged copies available to assign directly
     const unranged = entries.reduce((s, e) => s + Math.max(0, e.quantity - e.assigned), 0)
@@ -245,26 +301,12 @@ export async function planDeckToDeckbox(
     // We pick from other containers in a stable order until `toMove` is met.
     const movedFrom: MovedSource[] = []
     if (toMove > 0) {
-      const sources = await user.select<{ container_id: string; name: string; qty: number }[]>(
-        `SELECT asg.cid AS container_id, ct.name, SUM(asg.qty) AS qty
-         FROM (
-            SELECT dc.collection_id, dc.deckbox_id AS cid, dc.quantity AS qty FROM deckbox_cards dc
-            UNION ALL SELECT bs.collection_id, bs.container_id, 1 AS qty FROM binder_slots bs
-            UNION ALL SELECT bb.collection_id, bb.container_id, bb.quantity AS qty FROM bulk_box_contents bb
-         ) asg
-         JOIN collection c ON c.id = asg.collection_id AND c.deleted_at IS NULL
-         JOIN containers ct ON ct.id = asg.cid AND ct.deleted_at IS NULL
-         WHERE c.game = ? AND c.card_id IN (${vph}) AND ct.id != ?
-         GROUP BY asg.cid, ct.name
-         ORDER BY ct.name`,
-        [game, ...variantIds, deckboxId]
-      )
-      let need = toMove
-      for (const s of sources) {
-        if (need <= 0) break
-        const take = Math.min(s.qty, need)
-        movedFrom.push({ containerId: s.container_id, name: s.name, qty: take })
-        need -= take
+      let left = toMove
+      for (const src of sourcesByRoot.get(need.root) ?? []) {
+        if (left <= 0) break
+        const take = Math.min(src.qty, left)
+        movedFrom.push({ containerId: src.container_id, name: src.name, qty: take })
+        left -= take
       }
     }
 

@@ -97,7 +97,7 @@ class FakeGoogle {
       if (ifMatch !== f.etag) return json(412, { error: 'conditionNotMet' })
       f.content = body!
       f.etag = `"e${++this.seq}"`
-      return json(200, { id: m[1] })
+      return json(200, u.searchParams.get('fields') === 'etag' ? { etag: f.etag } : { id: m[1] })
     }
     if (u.pathname === '/upload/drive/v3/files' && method === 'POST') {
       const boundary = /boundary=(\S+)/.exec(headers.find(([k]) => k === 'Content-Type')![1])![1]
@@ -146,7 +146,7 @@ describe('transport Drive', () => {
   it('rien de publié → null ; première publication = un fichier dans le dossier caché', async () => {
     expect(await transport().pull()).toBeNull()
     const snap = { protocol: 1, schema: 9, deviceId: 'a', createdAt: '', tables: {} }
-    expect(await transport().push(snap, null)).toBe(true)
+    expect(await transport().push(snap, null)).toEqual({ ok: true, version: null })
     const [file] = [...g.files.values()]
     expect(file).toMatchObject({ name: SYNC_FILE, parents: ['appDataFolder'] })
     const pulled = await transport().pull()
@@ -160,7 +160,7 @@ describe('transport Drive', () => {
     g.files.get(id)!.content = '{"v":2}' // un autre appareil écrit
     g.files.get(id)!.etag = '"autre"'
     const snap = { protocol: 1, schema: 9, deviceId: 'a', createdAt: '', tables: {} }
-    expect(await transport().push(snap, state!.version)).toBe(false)
+    expect(await transport().push(snap, state!.version)).toEqual({ ok: false })
     expect(g.files.get(id)!.content).toBe('{"v":2}')
   })
 
@@ -174,13 +174,41 @@ describe('transport Drive', () => {
         g.create(SYNC_FILE, '{"autre":true}')
       }
     }
-    expect(await transport().push(snap, null)).toBe(false)
+    expect(await transport().push(snap, null)).toEqual({ ok: false })
     expect([...g.files.values()].map((f) => f.content)).toEqual(['{"autre":true}'])
   })
 
   it('accès expiré ou retiré : erreur NOT_CONNECTED', async () => {
     const stale = new DriveTransport(async () => 'jeton-expire', g.fetch)
     await expect(stale.pull()).rejects.toMatchObject({ code: 'NOT_CONNECTED' })
+  })
+
+  it('l’écriture renvoie la version écrite, celle que relira version()', async () => {
+    const id = g.create(SYNC_FILE, '{}')
+    const state = await transport().pull()
+    const snap = { protocol: 1, schema: 9, deviceId: 'a', createdAt: '', tables: {} }
+    const r = await transport().push(snap, state!.version)
+    expect(r.ok).toBe(true)
+    expect(r.ok && r.version).toBe(await transport().version())
+    expect(r.ok && r.version).toMatch(new RegExp(`^${id}\\|`))
+  })
+
+  it('synchro sans changement nulle part : aucun téléchargement', async () => {
+    await on(pc, () => addCard({ game: 'ygo', cardId: '46986414' }))
+    await on(pc, () => syncNow(transport())) // création
+    await on(pc, () => syncNow(transport())) // lit et retient la version
+    const downloads = () => g.log.filter((r) => r.url.includes('alt=media')).length
+    const before = downloads()
+    const r = await on(pc, () => syncNow(transport()))
+    expect(downloads()).toBe(before)
+    expect(r.applied).toEqual({ inserted: 0, updated: 0, deleted: 0 })
+    // un autre appareil publie : cette fois on télécharge
+    await on(phone, () => syncNow(transport()))
+    await on(phone, () => addCard({ game: 'ygo', cardId: '55144522' }))
+    await on(phone, () => syncNow(transport()))
+    const r2 = await on(pc, () => syncNow(transport()))
+    expect(downloads()).toBeGreaterThan(before)
+    expect(r2.applied.inserted).toBe(1)
   })
 
   it('deux appareils synchronisés par Drive convergent', async () => {

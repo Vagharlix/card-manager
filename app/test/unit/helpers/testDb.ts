@@ -21,6 +21,8 @@ export interface QueryResult {
 
 export class TestDatabase {
   readonly raw: DatabaseSync
+  /** requêtes passées par select/execute (dans l'appli, chacune est un aller-retour vers Rust) */
+  queries = 0
 
   private readonly files: string[]
   private readonly dir: string
@@ -47,10 +49,12 @@ export class TestDatabase {
   }
 
   async select<T>(sql: string, params: unknown[] = []): Promise<T> {
+    this.queries++
     return this.raw.prepare(sql).all(...(params as SQLInputValue[])) as T
   }
 
   async execute(sql: string, params: unknown[] = []): Promise<QueryResult> {
+    this.queries++
     const r = this.raw.prepare(sql).run(...(params as SQLInputValue[]))
     return { rowsAffected: Number(r.changes), lastInsertId: Number(r.lastInsertRowid) }
   }

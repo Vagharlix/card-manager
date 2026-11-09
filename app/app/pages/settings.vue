@@ -175,7 +175,7 @@
       </UModal>
 
       <!-- ── Collection ── -->
-      <section v-if="show('collection')" :class="sectionClass">
+      <section v-if="show('collection')" :class="sectionClass" data-section-body="collection">
         <h2 :class="titleClass">Adding cards</h2>
         <p class="text-xs text-muted">Values used when you quickly add a card ({{ gameLabel }}).</p>
 
@@ -203,7 +203,7 @@
       </section>
 
       <!-- ── Partage ── -->
-      <section v-if="show('share')" :class="sectionClass">
+      <section v-if="show('share')" :class="sectionClass" data-section-body="share">
         <h2 :class="titleClass">Sharing</h2>
         <div class="space-y-1">
           <p class="text-sm font-medium">My name</p>
@@ -220,7 +220,7 @@
       </section>
 
       <!-- ── Apparence ── -->
-      <section v-if="show('appearance')" :class="sectionClass">
+      <section v-if="show('appearance')" :class="sectionClass" data-section-body="appearance">
         <h2 :class="titleClass">Appearance</h2>
         <div class="space-y-1">
           <p class="text-sm font-medium">Theme</p>
@@ -235,7 +235,7 @@
       </section>
 
       <!-- ── Synchronisation ── -->
-      <section v-if="show('sync')" :class="sectionClass">
+      <section v-if="show('sync')" :class="sectionClass" data-section-body="sync">
         <h2 :class="titleClass">Card database</h2>
 
         <div class="space-y-1">
@@ -274,7 +274,7 @@
       </section>
 
       <!-- ── Stockage ── -->
-      <section v-if="show('storage')" :class="sectionClass">
+      <section v-if="show('storage')" :class="sectionClass" data-section-body="storage">
         <h2 :class="titleClass">Storage</h2>
 
         <div class="space-y-1">
@@ -316,7 +316,7 @@
       </section>
 
       <!-- ── Jeux ── -->
-      <section v-if="show('games')" :class="sectionClass">
+      <section v-if="show('games')" :class="sectionClass" data-section-body="games">
         <h2 :class="titleClass">Games</h2>
 
         <div class="space-y-1">
