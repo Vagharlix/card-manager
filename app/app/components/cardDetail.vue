@@ -36,17 +36,30 @@
       <div v-else-if="detail" id="card-detail" class="space-y-5">
         <!-- image en grand : boîte au format carte réservée d'avance, pour que
              le panneau ne change pas de hauteur quand l'image arrive -->
+        <!-- la vignette (déjà en cache) s'affiche tout de suite, la grande
+             image la recouvre dès qu'elle est chargée -->
         <div
-          class="rounded-lg overflow-hidden ring-1 ring-default mx-auto aspect-[0.686]"
+          class="relative rounded-lg overflow-hidden ring-1 ring-default mx-auto aspect-[0.686]"
           :class="isMobile ? 'w-[60%] max-w-64' : 'w-full max-w-xs'"
         >
           <img
+            v-if="smallImage.src.value && !bigLoaded"
+            :src="smallImage.src.value"
+            alt=""
+            aria-hidden="true"
+            class="absolute inset-0 w-full h-full object-contain"
+          />
+          <USkeleton v-else-if="!bigLoaded" class="absolute inset-0 w-full h-full" />
+          <img
             v-if="bigImage.src.value"
+            :key="bigImage.src.value"
             :src="bigImage.src.value"
             :alt="detail.name"
-            class="w-full h-full object-contain"
+            decoding="async"
+            class="relative w-full h-full object-contain transition-opacity duration-150"
+            :class="bigLoaded ? 'opacity-100' : 'opacity-0'"
+            @load="bigLoaded = true"
           />
-          <USkeleton v-else class="w-full h-full" />
         </div>
 
         <!-- sélecteur d'art alternatif -->
@@ -436,7 +449,6 @@ import {
   addCard,
   updateCard,
   removeCard,
-  ownedQuantity,
   entriesForCard,
   type CardCondition,
   type CollectionEntry,
@@ -629,11 +641,16 @@ async function refreshLocations() {
   locations.value = await cardLocations(props.game, activeArtId.value)
 }
 
+// exemplaires de l'artwork actif : la quantité possédée est la somme des
+// exemplaires (une requête de moins), lectures lancées ensemble
 async function refreshOwned() {
-  owned.value = await ownedQuantity(props.game, activeArtId.value)
-  entries.value = await entriesForCard(props.game, activeArtId.value)
-  await refreshUnrangedForCard()
-  await refreshLocations()
+  const [list] = await Promise.all([
+    entriesForCard(props.game, activeArtId.value),
+    refreshUnrangedForCard(),
+    refreshLocations(),
+  ])
+  entries.value = list
+  owned.value = list.reduce((sum, e) => sum + e.quantity, 0)
 }
 
 async function refreshContainers() {
@@ -655,9 +672,11 @@ watch(
     editingId.value = null
     try {
       detail.value = await getCardDetail(props.game, id)
-      activeArtId.value = id
-      await refreshOwned()
-      await refreshContainers()
+      // les exemplaires sont relus par le watcher d'activeArtId (une seule
+      // fois : avant, ils l'étaient deux fois) ; même carte rouverte → ici.
+      // Les rangements ne sont lus qu'à l'ouverture du choix de rangement.
+      if (activeArtId.value === id) await refreshOwned()
+      else activeArtId.value = id
     } finally {
       loading.value = false
     }
@@ -669,7 +688,14 @@ watch(activeArtId, async (id) => {
   if (id) await refreshOwned()
 })
 
-const bigImage = useCardImage(() => activeArtId.value, 'full')
+const bigImage = useCardImage(() => activeArtId.value, 'full', () => props.game)
+const smallImage = useCardImage(() => activeArtId.value, 'small', () => props.game)
+// grande image affichée (chargée) ; remise à zéro à chaque changement d'image
+const bigLoaded = ref(false)
+watch(
+  () => bigImage.src.value,
+  () => (bigLoaded.value = false)
+)
 
 async function quickAdd() {
   adding.value = true

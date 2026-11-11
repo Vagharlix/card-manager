@@ -220,80 +220,42 @@
               v-else-if="view === 'grid'"
               class="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
             >
-              <div
+              <CollectionCard
                 v-for="c in cards"
                 :key="c.rootId"
-                :data-content-card-id="c.displayId"
-                class="container-card group relative"
-              >
-                <CardThumb
-                  :card="{ game: c.game, id: c.displayId, name: c.name, imageUrl: '' }"
-                  :quantity="c.totalQty"
-                  :selectable="selectMode"
-                  :selected="selectedCards.has(c.displayId)"
-                  @select="openCard(c)"
-                  @toggle="toggleCard(c)"
-                />
-                <UBadge
-                  v-if="c.tradeQty"
-                  :data-trade-qty="c.tradeQty"
-                  icon="i-lucide-repeat"
-                  color="primary"
-                  variant="solid"
-                  size="sm"
-                  class="absolute bottom-1.5 left-1.5 z-20"
-                  :label="String(c.tradeQty)"
-                />
-                <UButton
-                  v-if="!isVirtual && !selectMode"
-                  :data-unassign="c.displayId"
-                  icon="i-lucide-folder-minus"
-                  color="error"
-                  variant="solid"
-                  size="xs"
-                  class="absolute top-1.5 right-1.5 transition z-30"
-                  :class="isMobile ? '' : 'opacity-0 group-hover:opacity-100 touch:opacity-100'"
-                  @click="askUnassign(c)"
-                />
-              </div>
+                view="grid"
+                :game="c.game"
+                :display-id="c.displayId"
+                :name="c.name"
+                :total-qty="c.totalQty"
+                :trade-qty="c.tradeQty"
+                :select-mode="selectMode"
+                :selected="selectedCards.has(c.displayId)"
+                :removable="!isVirtual"
+                :always-show-actions="isMobile"
+                @open="openCard(c)"
+                @toggle="toggleCard(c)"
+                @unassign="askUnassign(c)"
+              />
             </div>
 
             <div v-else class="space-y-1">
-              <div
+              <CollectionCard
                 v-for="c in cards"
                 :key="c.rootId"
-                :data-content-card-id="c.displayId"
-                class="container-card group w-full flex items-center gap-3 p-2 rounded-lg hover:bg-elevated"
-              >
-                <button
-                  class="flex items-center gap-3 flex-1 text-left min-w-0"
-                  @click="openCard(c)"
-                >
-                  <div class="w-10 shrink-0 rounded overflow-hidden">
-                    <ArtThumb :passcode="c.displayId" />
-                  </div>
-                  <span class="flex-1 truncate">{{ c.name }}</span>
-                </button>
-                <UBadge
-                  v-if="c.tradeQty"
-                  :data-trade-qty="c.tradeQty"
-                  icon="i-lucide-repeat"
-                  color="primary"
-                  variant="soft"
-                  :label="`${c.tradeQty} for trade`"
-                />
-                <UBadge color="neutral" variant="soft">×{{ c.totalQty }}</UBadge>
-                <UButton
-                  v-if="!isVirtual"
-                  :data-unassign="c.displayId"
-                  icon="i-lucide-folder-minus"
-                  color="error"
-                  variant="ghost"
-                  size="xs"
-                  class="opacity-0 group-hover:opacity-100 touch:opacity-100 transition"
-                  @click="askUnassign(c)"
-                />
-              </div>
+                view="list"
+                :game="c.game"
+                :display-id="c.displayId"
+                :name="c.name"
+                :total-qty="c.totalQty"
+                :trade-qty="c.tradeQty"
+                :select-mode="false"
+                :selected="false"
+                :removable="!isVirtual"
+                :always-show-actions="isMobile"
+                @open="openCard(c)"
+                @unassign="askUnassign(c)"
+              />
             </div>
           </div>
         </div>
@@ -407,7 +369,9 @@ const collectionCount = ref(0)
 const selectedId = ref<string>(ALL_ID)
 
 // tradeQty n'est renseigné que dans la vue « toute ma collection »
-const cards = ref<(ContainerCard & { tradeQty?: number })[]>([])
+// shallowRef : la liste est remplacée d'un bloc, jamais modifiée sur place
+// (pas de proxys réactifs sur des milliers d'objets)
+const cards = shallowRef<(ContainerCard & { tradeQty?: number })[]>([])
 
 // filtres de la vue « toute ma collection »
 const filters = reactive({ search: '', sort: 'name' as CollectionSort, onlyTrade: false })
@@ -416,7 +380,7 @@ const sortItems = [
   { label: 'Quantity', value: 'quantity' },
   { label: 'Recently added', value: 'recent' },
 ]
-const binderSlots = ref<BinderSlotCard[]>([])
+const binderSlots = shallowRef<BinderSlotCard[]>([])
 
 const detailOpen = ref(false)
 const selectedCardId = ref<string | null>(null)
@@ -518,8 +482,7 @@ async function loadContent() {
 }
 
 async function reload() {
-  await loadSidebar()
-  await loadContent()
+  await Promise.all([loadSidebar(), loadContent()])
 }
 
 function selectContainer(id: string) {

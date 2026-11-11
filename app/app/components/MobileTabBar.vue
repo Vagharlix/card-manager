@@ -2,7 +2,7 @@
   <nav
     id="mobile-tabbar"
     aria-label="Main navigation"
-    class="shrink-0 border-t border-default bg-elevated/95 backdrop-blur"
+    class="shrink-0 border-t border-default bg-elevated"
     :style="{ paddingBottom: 'var(--safe-bottom)' }"
   >
     <div

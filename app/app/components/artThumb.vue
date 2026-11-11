@@ -7,9 +7,14 @@
 const props = defineProps<{
   passcode: string
   name?: string // when provided, used as the alt text (accessibility + test targeting)
+  game?: string // jeu de la carte (par défaut : le jeu affiché)
 }>()
 
-const { src } = useCardImage(() => props.passcode, 'small')
+const { src } = useCardImage(
+  () => props.passcode,
+  'small',
+  () => props.game ?? ''
+)
 
 // prefer the real card name for the alt; fall back to the passcode
 const alt = computed(() => props.name ?? `art ${props.passcode}`)
