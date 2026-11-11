@@ -1,5 +1,14 @@
 <template>
-  <img v-if="src" :src="src" class="w-full h-full object-cover" :alt="alt" />
+  <!-- fond neutre tant que l'image n'est pas arrivée (pas d'animation :
+       une par vignette redessinerait la liste en continu) -->
+  <img
+    v-if="src"
+    :src="src"
+    class="w-full h-full object-cover bg-elevated"
+    :alt="alt"
+    loading="lazy"
+    decoding="async"
+  />
   <USkeleton v-else class="w-full h-full" />
 </template>
 

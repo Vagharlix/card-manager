@@ -206,23 +206,29 @@
             @add="onBinderSlotClick"
           />
 
-          <!-- vue grille / liste (non rangées + deckbox + bulk box) -->
-          <div v-else class="h-full overflow-y-auto">
-            <div
-              v-if="!loading && !cards.length"
-              class="flex flex-col items-center justify-center text-center py-20 text-muted"
-            >
-              <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
-              <p>{{ emptyMessage }}</p>
-            </div>
+          <!-- vue grille / liste (non rangées + deckbox + bulk box) : seules les
+               lignes visibles sont dessinées (VirtualGrid). Clé = ce qui est
+               affiché : changer de rangement ou de filtre repart du haut, un
+               rechargement (ajout, retrait) garde la position. -->
+          <div
+            v-else-if="!loading && !cards.length"
+            class="flex flex-col items-center justify-center text-center py-20 text-muted"
+          >
+            <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
+            <p>{{ emptyMessage }}</p>
+          </div>
 
-            <div
-              v-else-if="view === 'grid'"
-              class="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
-            >
+          <VirtualGrid
+            v-else-if="view === 'grid'"
+            :key="`grid:${listKey}`"
+            class="h-full"
+            :items="cards"
+            :item-key="cardKey"
+            :columns="GRID_COLUMNS"
+            :gap="12"
+          >
+            <template #default="{ item: c }">
               <CollectionCard
-                v-for="c in cards"
-                :key="c.rootId"
                 view="grid"
                 :game="c.game"
                 :display-id="c.displayId"
@@ -237,12 +243,20 @@
                 @toggle="toggleCard(c)"
                 @unassign="askUnassign(c)"
               />
-            </div>
+            </template>
+          </VirtualGrid>
 
-            <div v-else class="space-y-1">
+          <VirtualGrid
+            v-else
+            :key="`list:${listKey}`"
+            class="h-full"
+            :items="cards"
+            :item-key="cardKey"
+            :gap="4"
+            :estimate="() => 64"
+          >
+            <template #default="{ item: c }">
               <CollectionCard
-                v-for="c in cards"
-                :key="c.rootId"
                 view="list"
                 :game="c.game"
                 :display-id="c.displayId"
@@ -256,8 +270,8 @@
                 @open="openCard(c)"
                 @unassign="askUnassign(c)"
               />
-            </div>
-          </div>
+            </template>
+          </VirtualGrid>
         </div>
       </template>
     </div>
@@ -358,6 +372,10 @@ function toggleOnlyTrade() {
 }
 
 const view = ref<'grid' | 'list'>('grid')
+// colonnes de la grille selon la largeur de la fenêtre (anciennes classes
+// grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8)
+const GRID_COLUMNS = { base: 3, sm: 4, md: 5, lg: 6, xl: 8 }
+const cardKey = (c: ContainerCard) => c.rootId
 function setView(v: 'grid' | 'list') {
   view.value = v
 }
@@ -403,6 +421,10 @@ const unassignBusy = ref(false)
 const binderPickerOpen = ref(false)
 const pendingSlot = ref<{ page: number; row: number; col: number } | null>(null)
 
+// ce qu'affiche la grille : quand ça change, elle repart du haut
+const listKey = computed(
+  () => `${selectedId.value}|${filters.search}|${filters.sort}|${filters.onlyTrade}`
+)
 const isUnranged = computed(() => selectedId.value === UNRANGED_ID)
 const isAll = computed(() => selectedId.value === ALL_ID)
 const isVirtual = computed(() => isUnranged.value || isAll.value) // pas un vrai conteneur

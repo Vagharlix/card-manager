@@ -14,26 +14,35 @@
         <div v-else-if="!filtered.length" class="py-8 text-center text-dimmed text-sm">
           {{ query ? 'No matching cards' : 'No unsorted cards' }}
         </div>
-        <div v-else class="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-80 overflow-y-auto">
-          <button
-            v-for="c in filtered"
-            :key="c.rootId"
-            :data-picker-card-id="c.displayId"
-            class="unranged-picker-card group relative text-left"
-            @click="$emit('pick', c)"
-          >
-            <div
-              class="aspect-[0.686] rounded-md overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors"
+        <!-- seules les lignes visibles sont dessinées (des milliers de cartes possibles) -->
+        <VirtualGrid
+          v-else
+          :key="query"
+          class="max-h-80"
+          :items="filtered"
+          :item-key="(c) => c.rootId"
+          :columns="{ base: 4, sm: 5 }"
+          :gap="8"
+        >
+          <template #default="{ item: c }">
+            <button
+              :data-picker-card-id="c.displayId"
+              class="unranged-picker-card group relative text-left"
+              @click="$emit('pick', c)"
             >
-              <ArtThumb :passcode="c.displayId" class="w-full h-full object-cover" />
-            </div>
-            <div
-              class="absolute bottom-1 right-1 min-w-4 h-4 px-1 rounded-full bg-primary text-inverted text-[10px] font-medium flex items-center justify-center shadow"
-            >
-              {{ c.totalQty }}
-            </div>
-          </button>
-        </div>
+              <div
+                class="aspect-[0.686] rounded-md overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors"
+              >
+                <ArtThumb :passcode="c.displayId" :game="c.game" class="w-full h-full object-cover" />
+              </div>
+              <div
+                class="absolute bottom-1 right-1 min-w-4 h-4 px-1 rounded-full bg-primary text-inverted text-[10px] font-medium flex items-center justify-center shadow"
+              >
+                {{ c.totalQty }}
+              </div>
+            </button>
+          </template>
+        </VirtualGrid>
       </div>
     </template>
   </UModal>
@@ -51,7 +60,7 @@ defineEmits<{ 'update:open': [value: boolean]; pick: [card: ContainerCard] }>()
 
 const query = ref('')
 const loading = ref(false)
-const items = ref<ContainerCard[]>([])
+const items = shallowRef<ContainerCard[]>([])
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()

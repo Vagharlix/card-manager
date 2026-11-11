@@ -1,11 +1,10 @@
 import { invoke } from '@tauri-apps/api/core'
-import { forgetCachedImages } from '~/composables/useCardImage'
 
 // ============================================================
 // IMAGE CACHE — pilotage du cache disque des images de cartes
-// (commandes Rust de src-tauri/src/image_cache.rs).
-// Après une suppression de fichiers, on oublie aussi les URLs déjà
-// résolues en mémoire, sinon les vignettes pointeraient vers le vide.
+// (commandes Rust de src-tauri/src/image_cache.rs). Les images elles-mêmes
+// passent par le protocole cardimg (useCardImage) : une image supprimée du
+// disque est simplement retéléchargée à sa prochaine demande.
 // ============================================================
 
 export async function imageCacheSize(): Promise<number> {
@@ -14,14 +13,11 @@ export async function imageCacheSize(): Promise<number> {
 
 export async function clearImageCache(): Promise<void> {
   await invoke('clear_image_cache')
-  forgetCachedImages()
 }
 
 // ramène le cache sous la limite ; retourne les octets libérés
 export async function pruneImageCache(limitMb: number): Promise<number> {
-  const freed = await invoke<number>('prune_image_cache', { limitMb })
-  if (freed > 0) forgetCachedImages()
-  return freed
+  return invoke<number>('prune_image_cache', { limitMb })
 }
 
 export function formatBytes(bytes: number): string {

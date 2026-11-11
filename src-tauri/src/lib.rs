@@ -145,13 +145,16 @@ pub fn run() {
                 .add_migrations(&db_name("cards-mtg"), mtg_migrations)
                 .build(),
         )
+        // images de cartes : <img src="cardimg://…"> servies par Rust (cache disque)
+        .register_asynchronous_uri_scheme_protocol("cardimg", |ctx, request, responder| {
+            image_cache::serve(ctx.app_handle().clone(), request, responder)
+        })
         .manage(google::Loopbacks::default())
         .manage(card_data::Streams::default())
         .invoke_handler(tauri::generate_handler![
             google::google_request,
             google::oauth_loopback_start,
             google::oauth_loopback_wait,
-            image_cache::cache_card_image,
             image_cache::image_cache_size,
             image_cache::clear_image_cache,
             image_cache::prune_image_cache,

@@ -1,5 +1,5 @@
 <template>
-  <div class="[content-visibility:auto] [contain-intrinsic-size:auto_180px]">
+  <div>
     <button
       type="button"
       class="card-thumb group relative block w-full text-left focus:outline-none"
@@ -14,16 +14,21 @@
             : 'border-transparent group-hover:border-primary'
         "
       >
-        <USkeleton v-if="loading" class="w-full h-full rounded-lg" />
-        <div v-else-if="error" class="w-full h-full flex items-center justify-center text-dimmed">
+        <!-- squelette tant que l'image n'est pas arrivée (puis retiré : une
+             animation par vignette redessinerait la grille en continu) -->
+        <USkeleton v-if="!loaded && !error" class="absolute inset-0 rounded-md" />
+        <div v-if="error" class="w-full h-full flex items-center justify-center text-dimmed">
           <UIcon name="i-lucide-image-off" class="text-2xl" />
         </div>
         <img
           v-else
           :src="src"
           :alt="card.name"
-          class="w-full h-full object-cover rounded-md"
+          class="relative w-full h-full object-cover rounded-md"
           loading="lazy"
+          decoding="async"
+          @load="loaded = true"
+          @error="error = true"
         />
         <!-- voile + coche en mode sélection -->
         <div
@@ -88,11 +93,17 @@ const emit = defineEmits<{
   select: [card: CardSearchResult]
   toggle: [card: CardSearchResult]
 }>()
-const { src, loading, error } = useCardImage(
+const { src } = useCardImage(
   () => props.card.id,
   'small',
   () => props.card.game
 )
+const loaded = ref(false)
+const error = ref(false)
+watch(src, () => {
+  loaded.value = false
+  error.value = false
+})
 function onClick() {
   if (props.selectable) emit('toggle', props.card)
   else emit('select', props.card)
