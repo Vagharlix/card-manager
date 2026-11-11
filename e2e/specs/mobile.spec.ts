@@ -74,7 +74,9 @@ describe('Interface mobile', () => {
     const before = Number(await attrOf('#card-detail-owned', 'data-owned-count'))
     await click('#btn-quick-add')
     await waitForAttr('#card-detail-owned', 'data-owned-count', (v) => Number(v) === before + 1)
-    await browser.keys('Escape')
+    // (browser.keys n'atteint pas le WebView de test : on ferme par le bouton)
+    await click('#card-detail-close')
+    await browser.waitUntil(async () => (await countOf('#card-detail')) === 0, { timeout: 5000 })
   })
 
   it('deck : onglets Main / Extra / Side, ajout de cartes dans un panneau', async () => {
@@ -96,7 +98,12 @@ describe('Interface mobile', () => {
     await typeInto('#deck-search-input', 'Dark Magician')
     await waitFor('.deck-search-result')
     await click('.deck-search-result')
-    await browser.keys('Escape')
+    await waitForAttr('[data-mobile-board="main"]', 'data-board-count', (v) => v === '1')
+    expect(await countOf('#card-detail')).toBe(0) // l'ajout n'ouvre pas la fiche par-dessus
+    await click('[data-drawer-close]')
+    await browser.waitUntil(async () => (await countOf('#deck-search-input')) === 0, {
+      timeout: 5000,
+    })
     await click('[data-mobile-board="main"]')
     await waitFor('[data-board="main"] .deck-board-card')
   })

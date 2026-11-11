@@ -125,7 +125,7 @@
                 color="neutral"
                 variant="ghost"
                 size="xs"
-                class="opacity-0 group-hover:opacity-100 transition"
+                class="opacity-0 group-hover:opacity-100 touch:opacity-100 transition"
                 @click.stop
               />
               <template #item="{ item }">

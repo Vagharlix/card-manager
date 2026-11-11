@@ -24,6 +24,7 @@ const { addCard, updateCard, removeCard, entriesForCard } = await import('~/serv
 const containers = await import('~/services/containers')
 const decks = await import('~/services/decks')
 const settings = await import('~/services/settings')
+const { noteUserWrite, resetUserWrites } = await import('~/utils/userWrites')
 
 const DM = '46986414'
 const POT = '55144522'
@@ -257,6 +258,51 @@ describe('réglages', () => {
     expect(await on(phone, () => settings.getShareOwnerName())).toBe('Félix')
     expect(await on(phone, () => settings.getDefaultLanguage('ygo'))).toBe('fr')
     expect((await on(phone, () => settings.getGlobalSettings())).imageCacheLimitMb).toBe(200)
+  })
+})
+
+// dans l'appli, useDatabase compte les écritures de user.db : ici, la base
+// de test ne les compte pas, on les note à la main après chaque service
+describe('synchro au retour dans l’appli (compteur d’écritures)', () => {
+  afterEach(() => resetUserWrites(false))
+
+  it('rien écrit ici, rien publié ailleurs : une vérification de version, aucune requête', async () => {
+    resetUserWrites(true)
+    await on(pc, () => addCard({ game: 'ygo', cardId: DM }))
+    noteUserWrite()
+    await sync(pc) // complète (1re de la session)
+    const queries = pc.user.queries
+    const checks = cloud.versionChecks
+    const r = await sync(pc)
+    expect(pc.user.queries).toBe(queries)
+    expect(cloud.versionChecks).toBe(checks + 1)
+    expect(r).toMatchObject({ pushed: false, applied: { inserted: 0, updated: 0, deleted: 0 } })
+  })
+
+  it('une écriture locale relance une vraie synchro', async () => {
+    resetUserWrites(true)
+    await on(pc, () => addCard({ game: 'ygo', cardId: DM }))
+    noteUserWrite()
+    await sync(pc)
+    await on(pc, () => addCard({ game: 'ygo', cardId: POT }))
+    noteUserWrite()
+    expect((await sync(pc)).pushed).toBe(true)
+    resetUserWrites(false)
+    await sync(phone)
+    expect(owned(phone).map((r) => r.card_id)).toEqual([DM, POT].sort())
+  })
+
+  it('une publication d’un autre appareil relance une vraie synchro', async () => {
+    resetUserWrites(true)
+    await on(pc, () => addCard({ game: 'ygo', cardId: DM }))
+    noteUserWrite()
+    await sync(pc)
+    // un autre appareil republie (nouvelle version) ; rien écrit ici
+    const published = await cloud.pull()
+    cloud.publish(published!.snapshot)
+    const queries = pc.user.queries
+    await sync(pc)
+    expect(pc.user.queries).toBeGreaterThan(queries) // relue et comparée
   })
 })
 

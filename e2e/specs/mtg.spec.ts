@@ -86,7 +86,7 @@ describe('Magic: The Gathering', () => {
     await waitForAttr('#card-detail-owned', 'data-owned-count', (v) => v === '0')
     await click('#btn-quick-add')
     await waitForAttr('#card-detail-owned', 'data-owned-count', (v) => v === '1')
-    await browser.keys('Escape')
+    await click('#card-detail-close')
   })
 
   it('collection : la carte est rangée sous Magic, pas sous YGO', async () => {

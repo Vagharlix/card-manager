@@ -27,7 +27,10 @@ pub fn run() {
     // Linux : WebKitGTK peut afficher une fenêtre vide avec son moteur de
     // rendu DMABUF selon le pilote graphique (NVIDIA, certaines sessions
     // Wayland), surtout en AppImage (WebKitGTK d'Ubuntu 22.04 sur un système
-    // plus récent). On le désactive, sauf si l'utilisateur a choisi lui-même.
+    // plus récent). On le désactive, sauf si l'utilisateur a choisi lui-même :
+    // WEBKIT_DISABLE_DMABUF_RENDERER=0 le réactive (à essayer avec un vrai
+    // GPU : peut être plus fluide ; mesuré nov. 2026 sans GPU, sous xvfb :
+    // 2,5× plus lent réactivé, d'où ce choix prudent par défaut).
     // À faire avant la création de la moindre fenêtre (GTK lit la variable à
     // l'initialisation) : premier appel de run(), encore mono-fil.
     #[cfg(target_os = "linux")]
@@ -145,13 +148,16 @@ pub fn run() {
                 .add_migrations(&db_name("cards-mtg"), mtg_migrations)
                 .build(),
         )
+        // images de cartes : <img src="cardimg://…"> servies par Rust (cache disque)
+        .register_asynchronous_uri_scheme_protocol("cardimg", |ctx, request, responder| {
+            image_cache::serve(ctx.app_handle().clone(), request, responder)
+        })
         .manage(google::Loopbacks::default())
         .manage(card_data::Streams::default())
         .invoke_handler(tauri::generate_handler![
             google::google_request,
             google::oauth_loopback_start,
             google::oauth_loopback_wait,
-            image_cache::cache_card_image,
             image_cache::image_cache_size,
             image_cache::clear_image_cache,
             image_cache::prune_image_cache,

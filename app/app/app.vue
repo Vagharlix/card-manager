@@ -37,6 +37,7 @@
 import { syncCardData, syncProgress, syncStatus, syncError, isSyncing } from '~/services/cardData'
 import { getGlobalSettings } from '~/services/settings'
 import { pruneImageCache } from '~/services/imageCache'
+import { FOREGROUND_DELAY_MS } from '~/composables/useDeviceSync'
 
 const { isMobile } = useResponsive()
 const deviceSync = useDeviceSync()
@@ -64,11 +65,22 @@ async function runSync() {
   } catch {}
 }
 
-// applique la limite du cache d'images (réglage Stockage) à chaque lancement
+// applique la limite du cache d'images (réglage Stockage) au lancement, au
+// plus une fois par jour : l'élagage parcourt tous les fichiers du cache
+// (et la limite est aussi appliquée dès qu'on la change dans les réglages)
+const PRUNE_KEY = 'imageCachePrunedAt'
+const DAY_MS = 86_400_000
 async function pruneCache() {
+  try {
+    const last = Number(localStorage.getItem(PRUNE_KEY) ?? 0)
+    if (Date.now() - last < DAY_MS) return
+  } catch {}
   try {
     const { imageCacheLimitMb } = await getGlobalSettings()
     await pruneImageCache(imageCacheLimitMb)
+    try {
+      localStorage.setItem(PRUNE_KEY, String(Date.now()))
+    } catch {}
   } catch {}
 }
 
@@ -80,12 +92,14 @@ onMounted(async () => {
     .ensureLoaded()
     .catch(() => {})
   await runSync()
-  await pruneCache()
-  // synchro entre appareils (si un compte Google est connecté), sans bruit
-  if (import.meta.env.VITE_TEST_MODE !== 'true') {
-    await deviceSync.run(true)
-    deviceSync.watchForeground()
-  }
+  // synchro entre appareils (si un compte Google est connecté), sans bruit,
+  // et nettoyage du cache : un peu après l'ouverture, pour que la première
+  // page lise ses données avant (même file de requêtes)
+  setTimeout(() => {
+    pruneCache()
+    if (import.meta.env.VITE_TEST_MODE !== 'true') deviceSync.run(true)
+  }, FOREGROUND_DELAY_MS)
+  if (import.meta.env.VITE_TEST_MODE !== 'true') deviceSync.watchForeground()
 })
 </script>
 

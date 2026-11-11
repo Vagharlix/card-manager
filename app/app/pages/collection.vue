@@ -1,7 +1,7 @@
 <template>
   <AppPage sidebar-label="Storage" title="Collection" :subtitle="subtitle" :mobile-sidebar="false">
     <template #actions>
-      <GamePicker size="lg" />
+      <GamePicker size="lg" compact />
       <UButton
         id="mobile-settings-btn"
         to="/settings"
@@ -206,96 +206,72 @@
             @add="onBinderSlotClick"
           />
 
-          <!-- vue grille / liste (non rangées + deckbox + bulk box) -->
-          <div v-else class="h-full overflow-y-auto">
-            <div
-              v-if="!loading && !cards.length"
-              class="flex flex-col items-center justify-center text-center py-20 text-muted"
-            >
-              <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
-              <p>{{ emptyMessage }}</p>
-            </div>
-
-            <div
-              v-else-if="view === 'grid'"
-              class="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
-            >
-              <div
-                v-for="c in cards"
-                :key="c.rootId"
-                :data-content-card-id="c.displayId"
-                class="container-card group relative"
-              >
-                <CardThumb
-                  :card="{ game: c.game, id: c.displayId, name: c.name, imageUrl: '' }"
-                  :quantity="c.totalQty"
-                  :selectable="selectMode"
-                  :selected="selectedCards.has(c.displayId)"
-                  @select="openCard(c)"
-                  @toggle="toggleCard(c)"
-                />
-                <UBadge
-                  v-if="c.tradeQty"
-                  :data-trade-qty="c.tradeQty"
-                  icon="i-lucide-repeat"
-                  color="primary"
-                  variant="solid"
-                  size="sm"
-                  class="absolute bottom-1.5 left-1.5 z-20"
-                  :label="String(c.tradeQty)"
-                />
-                <UButton
-                  v-if="!isVirtual && !selectMode"
-                  :data-unassign="c.displayId"
-                  icon="i-lucide-folder-minus"
-                  color="error"
-                  variant="solid"
-                  size="xs"
-                  class="absolute top-1.5 right-1.5 transition z-30"
-                  :class="isMobile ? '' : 'opacity-0 group-hover:opacity-100'"
-                  @click="askUnassign(c)"
-                />
-              </div>
-            </div>
-
-            <div v-else class="space-y-1">
-              <div
-                v-for="c in cards"
-                :key="c.rootId"
-                :data-content-card-id="c.displayId"
-                class="container-card group w-full flex items-center gap-3 p-2 rounded-lg hover:bg-elevated"
-              >
-                <button
-                  class="flex items-center gap-3 flex-1 text-left min-w-0"
-                  @click="openCard(c)"
-                >
-                  <div class="w-10 shrink-0 rounded overflow-hidden">
-                    <ArtThumb :passcode="c.displayId" />
-                  </div>
-                  <span class="flex-1 truncate">{{ c.name }}</span>
-                </button>
-                <UBadge
-                  v-if="c.tradeQty"
-                  :data-trade-qty="c.tradeQty"
-                  icon="i-lucide-repeat"
-                  color="primary"
-                  variant="soft"
-                  :label="`${c.tradeQty} for trade`"
-                />
-                <UBadge color="neutral" variant="soft">×{{ c.totalQty }}</UBadge>
-                <UButton
-                  v-if="!isVirtual"
-                  :data-unassign="c.displayId"
-                  icon="i-lucide-folder-minus"
-                  color="error"
-                  variant="ghost"
-                  size="xs"
-                  class="opacity-0 group-hover:opacity-100 transition"
-                  @click="askUnassign(c)"
-                />
-              </div>
-            </div>
+          <!-- vue grille / liste (non rangées + deckbox + bulk box) : seules les
+               lignes visibles sont dessinées (VirtualGrid). Clé = ce qui est
+               affiché : changer de rangement ou de filtre repart du haut, un
+               rechargement (ajout, retrait) garde la position. -->
+          <div
+            v-else-if="!loading && !cards.length"
+            class="flex flex-col items-center justify-center text-center py-20 text-muted"
+          >
+            <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
+            <p>{{ emptyMessage }}</p>
           </div>
+
+          <VirtualGrid
+            v-else-if="view === 'grid'"
+            :key="`grid:${listKey}`"
+            class="h-full"
+            :items="cards"
+            :item-key="cardKey"
+            :columns="GRID_COLUMNS"
+            :gap="12"
+          >
+            <template #default="{ item: c }">
+              <CollectionCard
+                view="grid"
+                :game="c.game"
+                :display-id="c.displayId"
+                :name="c.name"
+                :total-qty="c.totalQty"
+                :trade-qty="c.tradeQty"
+                :select-mode="selectMode"
+                :selected="selectedCards.has(c.displayId)"
+                :removable="!isVirtual"
+                :always-show-actions="isMobile"
+                @open="openCard(c)"
+                @toggle="toggleCard(c)"
+                @unassign="askUnassign(c)"
+              />
+            </template>
+          </VirtualGrid>
+
+          <VirtualGrid
+            v-else
+            :key="`list:${listKey}`"
+            class="h-full"
+            :items="cards"
+            :item-key="cardKey"
+            :gap="4"
+            :estimate="() => 64"
+          >
+            <template #default="{ item: c }">
+              <CollectionCard
+                view="list"
+                :game="c.game"
+                :display-id="c.displayId"
+                :name="c.name"
+                :total-qty="c.totalQty"
+                :trade-qty="c.tradeQty"
+                :select-mode="false"
+                :selected="false"
+                :removable="!isVirtual"
+                :always-show-actions="isMobile"
+                @open="openCard(c)"
+                @unassign="askUnassign(c)"
+              />
+            </template>
+          </VirtualGrid>
         </div>
       </template>
     </div>
@@ -396,6 +372,10 @@ function toggleOnlyTrade() {
 }
 
 const view = ref<'grid' | 'list'>('grid')
+// colonnes de la grille selon la largeur de la fenêtre (anciennes classes
+// grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8)
+const GRID_COLUMNS = { base: 3, sm: 4, md: 5, lg: 6, xl: 8 }
+const cardKey = (c: ContainerCard) => c.rootId
 function setView(v: 'grid' | 'list') {
   view.value = v
 }
@@ -407,7 +387,9 @@ const collectionCount = ref(0)
 const selectedId = ref<string>(ALL_ID)
 
 // tradeQty n'est renseigné que dans la vue « toute ma collection »
-const cards = ref<(ContainerCard & { tradeQty?: number })[]>([])
+// shallowRef : la liste est remplacée d'un bloc, jamais modifiée sur place
+// (pas de proxys réactifs sur des milliers d'objets)
+const cards = shallowRef<(ContainerCard & { tradeQty?: number })[]>([])
 
 // filtres de la vue « toute ma collection »
 const filters = reactive({ search: '', sort: 'name' as CollectionSort, onlyTrade: false })
@@ -416,7 +398,7 @@ const sortItems = [
   { label: 'Quantity', value: 'quantity' },
   { label: 'Recently added', value: 'recent' },
 ]
-const binderSlots = ref<BinderSlotCard[]>([])
+const binderSlots = shallowRef<BinderSlotCard[]>([])
 
 const detailOpen = ref(false)
 const selectedCardId = ref<string | null>(null)
@@ -439,6 +421,10 @@ const unassignBusy = ref(false)
 const binderPickerOpen = ref(false)
 const pendingSlot = ref<{ page: number; row: number; col: number } | null>(null)
 
+// ce qu'affiche la grille : quand ça change, elle repart du haut
+const listKey = computed(
+  () => `${selectedId.value}|${filters.search}|${filters.sort}|${filters.onlyTrade}`
+)
 const isUnranged = computed(() => selectedId.value === UNRANGED_ID)
 const isAll = computed(() => selectedId.value === ALL_ID)
 const isVirtual = computed(() => isUnranged.value || isAll.value) // pas un vrai conteneur
@@ -518,8 +504,7 @@ async function loadContent() {
 }
 
 async function reload() {
-  await loadSidebar()
-  await loadContent()
+  await Promise.all([loadSidebar(), loadContent()])
 }
 
 function selectContainer(id: string) {
@@ -669,14 +654,7 @@ async function onBinderCardPick(card: ContainerCard) {
   const pos = pendingSlot.value
   if (!pos) return
   try {
-    await assignCardToBinderSlot(
-      GAME,
-      card.displayId,
-      selectedId.value,
-      pos.page,
-      pos.row,
-      pos.col
-    )
+    await assignCardToBinderSlot(GAME, card.displayId, selectedId.value, pos.page, pos.row, pos.col)
     binderPickerOpen.value = false
     toast.add({ title: 'Card placed', icon: 'i-lucide-check', color: 'success' })
     await reload()

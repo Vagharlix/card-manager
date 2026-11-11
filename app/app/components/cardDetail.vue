@@ -1,12 +1,31 @@
 <template>
-  <!-- mobile : panneau qui monte du bas (glisser pour fermer) ; desktop : panneau à droite -->
+  <!-- mobile : panneau qui monte du bas ; desktop : panneau à droite.
+       Mobile : on ne le fait glisser que par sa poignée (handle-only) : un
+       glissé dans le contenu fait défiler le contenu, au lieu de lutter avec
+       la fermeture (saccades) ; on ferme aussi par le bouton ou le fond. -->
   <component
     :is="isMobile ? UDrawer : USlideover"
     :open="open"
-    v-bind="isMobile ? {} : { side: 'right' }"
+    v-bind="isMobile ? { handleOnly: true, ui: { content: DRAWER_MAX_H } } : { side: 'right' }"
     :title="detail?.name ?? 'Card'"
-    @update:open="$emit('update:open', $event)"
+    @update:open="onOpenChange"
   >
+    <template #header>
+      <div class="flex items-center gap-2 w-full">
+        <h2 class="flex-1 min-w-0 truncate text-highlighted font-semibold">
+          {{ detail?.name ?? 'Card' }}
+        </h2>
+        <UButton
+          id="card-detail-close"
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          :size="isMobile ? 'lg' : 'md'"
+          aria-label="Close"
+          @click="close"
+        />
+      </div>
+    </template>
     <template #body>
       <div v-if="loading" class="space-y-4">
         <USkeleton class="w-full aspect-[0.686] rounded-lg" />
@@ -15,18 +34,32 @@
       </div>
 
       <div v-else-if="detail" id="card-detail" class="space-y-5">
-        <!-- image en grand -->
+        <!-- image en grand : boîte au format carte réservée d'avance, pour que
+             le panneau ne change pas de hauteur quand l'image arrive -->
+        <!-- la vignette (déjà en cache) s'affiche tout de suite, la grande
+             image la recouvre dès qu'elle est chargée -->
         <div
-          class="rounded-lg overflow-hidden ring-1 ring-default mx-auto"
-          :class="isMobile ? 'max-w-[60%]' : 'max-w-xs'"
+          class="relative rounded-lg overflow-hidden ring-1 ring-default mx-auto aspect-[0.686]"
+          :class="isMobile ? 'w-[60%] max-w-64' : 'w-full max-w-xs'"
         >
           <img
+            v-if="smallImage.src.value && !bigLoaded"
+            :src="smallImage.src.value"
+            alt=""
+            aria-hidden="true"
+            class="absolute inset-0 w-full h-full object-contain"
+          />
+          <USkeleton v-else-if="!bigLoaded" class="absolute inset-0 w-full h-full" />
+          <img
             v-if="bigImage.src.value"
+            :key="bigImage.src.value"
             :src="bigImage.src.value"
             :alt="detail.name"
-            class="w-full"
+            decoding="async"
+            class="relative w-full h-full object-contain transition-opacity duration-150"
+            :class="bigLoaded ? 'opacity-100' : 'opacity-0'"
+            @load="bigLoaded = true"
           />
-          <USkeleton v-else class="w-full aspect-[0.686]" />
         </div>
 
         <!-- sélecteur d'art alternatif -->
@@ -374,6 +407,8 @@
           </div>
         </div>
       </div>
+      <!-- barre de gestes du téléphone : le bas du contenu reste accessible -->
+      <div v-if="isMobile" aria-hidden="true" :style="{ height: 'var(--safe-bottom)' }" />
     </template>
   </component>
 
@@ -414,7 +449,6 @@ import {
   addCard,
   updateCard,
   removeCard,
-  ownedQuantity,
   entriesForCard,
   type CardCondition,
   type CollectionEntry,
@@ -437,6 +471,22 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ 'update:open': [value: boolean]; added: [] }>()
+
+// fermeture : le clic qui suit le toucher du fond ne doit pas rouvrir une
+// fiche (carte située dessous), cf. useClickShield
+function onOpenChange(value: boolean) {
+  // panneau du bas seulement (pas sur PC), et seulement à la vraie fermeture
+  // (un panneau en train de se fermer signale encore les touchers extérieurs)
+  if (!value && props.open && isMobile.value) shieldClicks()
+  emit('update:open', value)
+}
+function close() {
+  onOpenChange(false)
+}
+// le haut du panneau reste sous la barre d'état / la caméra incrustée
+// et ses côtés évitent la caméra quand le téléphone est couché
+const DRAWER_MAX_H =
+  'max-h-[calc(100dvh-var(--safe-top)-0.75rem)] left-(--safe-left) right-(--safe-right)'
 
 const { isMobile } = useResponsive()
 const UDrawer = resolveComponent('UDrawer')
@@ -591,11 +641,15 @@ async function refreshLocations() {
   locations.value = await cardLocations(props.game, activeArtId.value)
 }
 
+// exemplaires de l'artwork actif : la quantité possédée est la somme des
+// exemplaires (une requête de moins), lectures lancées ensemble
 async function refreshOwned() {
-  owned.value = await ownedQuantity(props.game, activeArtId.value)
-  entries.value = await entriesForCard(props.game, activeArtId.value)
-  await refreshUnrangedForCard()
-  await refreshLocations()
+  // compteur à jour dès la 1re lecture, sans attendre les deux autres
+  const ownedNow = entriesForCard(props.game, activeArtId.value).then((list) => {
+    entries.value = list
+    owned.value = list.reduce((sum, e) => sum + e.quantity, 0)
+  })
+  await Promise.all([ownedNow, refreshUnrangedForCard(), refreshLocations()])
 }
 
 async function refreshContainers() {
@@ -617,9 +671,11 @@ watch(
     editingId.value = null
     try {
       detail.value = await getCardDetail(props.game, id)
-      activeArtId.value = id
-      await refreshOwned()
-      await refreshContainers()
+      // les exemplaires sont relus par le watcher d'activeArtId (une seule
+      // fois : avant, ils l'étaient deux fois) ; même carte rouverte → ici.
+      // Les rangements ne sont lus qu'à l'ouverture du choix de rangement.
+      if (activeArtId.value === id) await refreshOwned()
+      else activeArtId.value = id
     } finally {
       loading.value = false
     }
@@ -631,7 +687,14 @@ watch(activeArtId, async (id) => {
   if (id) await refreshOwned()
 })
 
-const bigImage = useCardImage(() => activeArtId.value, 'full')
+const bigImage = useCardImage(() => activeArtId.value, 'full', () => props.game)
+const smallImage = useCardImage(() => activeArtId.value, 'small', () => props.game)
+// grande image affichée (chargée) ; remise à zéro à chaque changement d'image
+const bigLoaded = ref(false)
+watch(
+  () => bigImage.src.value,
+  () => (bigLoaded.value = false)
+)
 
 async function quickAdd() {
   adding.value = true
