@@ -138,6 +138,7 @@
             role="tab"
             :aria-selected="mobileBoard === b.id"
             :data-mobile-board="b.id"
+            :data-board-count="boardCount(b.id)"
             class="h-11 text-sm border-b-2 -mb-px transition"
             :class="
               mobileBoard === b.id
@@ -397,8 +398,9 @@ async function addCard(r: CardSearchResult) {
     toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
     return
   }
-  // alimente l'aperçu desktop avec la carte ajoutée
-  onCardClick(r.id)
+  // alimente l'aperçu desktop avec la carte ajoutée (sur mobile, la fiche
+  // s'ouvrirait par-dessus le panneau de recherche à chaque ajout)
+  if (!isMobile.value) onCardClick(r.id)
   await refreshContents()
 }
 

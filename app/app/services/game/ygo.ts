@@ -11,6 +11,7 @@ import { TCG_CONDITIONS, DEFAULT_CONDITION, TCG_LANGUAGES, DEFAULT_LANGUAGE } fr
 export const ygoGame: GameDefinition = {
   id: 'ygo',
   label: 'Yu-Gi-Oh!',
+  shortLabel: 'YGO',
   cardDb: 'cards-ygo',
   conditions: TCG_CONDITIONS,
   defaultCondition: DEFAULT_CONDITION,

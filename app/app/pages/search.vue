@@ -11,10 +11,15 @@
           v-model="query"
           placeholder="Card name…"
           icon="i-lucide-search"
-          class="flex-1"
+          class="flex-1 min-w-0"
           :size="isMobile ? 'lg' : 'md'"
         />
-        <USelect v-model="field" :items="fieldItems" class="w-32" :size="isMobile ? 'lg' : 'md'" />
+        <USelect
+          v-model="field"
+          :items="fieldItems"
+          :class="isMobile ? 'w-28 shrink-0' : 'w-32'"
+          :size="isMobile ? 'lg' : 'md'"
+        />
       </div>
       <!-- grille : prend l'espace restant et scrolle dedans -->
       <div id="search-results" class="flex-1 min-h-0 overflow-y-auto">
@@ -23,7 +28,9 @@
       <!-- pagination : fixe en bas -->
       <div
         v-if="total > 0"
-        class="flex items-center justify-between gap-4 pt-4 shrink-0 border-t border-default"
+        class="flex items-center gap-4 pt-4 shrink-0 border-t border-default"
+        :class="isMobile ? 'justify-center pb-2' : 'justify-between'"
+        data-search-pagination
       >
         <p v-if="!isMobile" class="text-sm text-muted">{{ total }} cards</p>
         <UPagination
@@ -36,15 +43,16 @@
         <USelect v-if="!isMobile" v-model="perPage" :items="perPageItems" class="w-28" size="sm" />
       </div>
     </div>
-    <CardDetail v-model:open="detailOpen" :game="GAME" :card-id="selectedId" @added="refreshOwned" />
+    <CardDetail
+      v-model:open="detailOpen"
+      :game="GAME"
+      :card-id="selectedId"
+      @added="refreshOwned"
+    />
   </AppPage>
 </template>
 <script setup lang="ts">
-import {
-  searchCards,
-  countCards,
-  type CardSearchResult,
-} from '~/services/search'
+import { searchCards, countCards, type CardSearchResult } from '~/services/search'
 import { searchFilterPanel } from '~/utils/gameUi'
 import { ownedCardIds } from '~/services/collection'
 
@@ -86,10 +94,7 @@ async function load() {
       limit: perPage.value,
       offset: (page.value - 1) * perPage.value,
     }
-    const [batch, count] = await Promise.all([
-      searchCards(GAME, params),
-      countCards(GAME, params),
-    ])
+    const [batch, count] = await Promise.all([searchCards(GAME, params), countCards(GAME, params)])
     results.value = batch
     total.value = count
   } finally {

@@ -7,7 +7,7 @@
     :model-value="game"
     :items="items"
     :size="size"
-    class="min-w-36"
+    :class="compact ? 'min-w-0' : 'min-w-36'"
     aria-label="Game"
     @update:model-value="onPick"
   >
@@ -18,9 +18,15 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg' }>(), { size: 'sm' })
+// compact : libellés courts (« YGO », « MTG »), pour les petits écrans
+const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg'; compact?: boolean }>(), {
+  size: 'sm',
+  compact: false,
+})
 
 const { game, games, multiGame, setGame } = useCurrentGame()
-const items = computed(() => games.value.map((g) => ({ label: g.label, value: g.id })))
+const items = computed(() =>
+  games.value.map((g) => ({ label: props.compact ? g.shortLabel : g.label, value: g.id }))
+)
 const onPick = (v: string) => setGame(v)
 </script>

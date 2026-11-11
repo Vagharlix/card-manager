@@ -19,6 +19,7 @@ export interface LanguageDef {
 export interface GameDefinition {
   id: string // stored in *.game columns (e.g. 'ygo')
   label: string
+  shortLabel: string // sélecteur de jeu sur petit écran (« YGO »)
   // base de cartes du jeu, sans suffixe ni extension (ex. 'cards-ygo' →
   // cards-ygo.db) ; ses migrations sont enregistrées côté Rust (lib.rs)
   // et doivent fournir le contrat commun (cf. migrations/ygo/003)

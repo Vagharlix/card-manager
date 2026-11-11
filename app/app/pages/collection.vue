@@ -1,7 +1,7 @@
 <template>
   <AppPage sidebar-label="Storage" title="Collection" :subtitle="subtitle" :mobile-sidebar="false">
     <template #actions>
-      <GamePicker size="lg" />
+      <GamePicker size="lg" compact />
       <UButton
         id="mobile-settings-btn"
         to="/settings"
@@ -252,7 +252,7 @@
                   variant="solid"
                   size="xs"
                   class="absolute top-1.5 right-1.5 transition z-30"
-                  :class="isMobile ? '' : 'opacity-0 group-hover:opacity-100'"
+                  :class="isMobile ? '' : 'opacity-0 group-hover:opacity-100 touch:opacity-100'"
                   @click="askUnassign(c)"
                 />
               </div>
@@ -290,7 +290,7 @@
                   color="error"
                   variant="ghost"
                   size="xs"
-                  class="opacity-0 group-hover:opacity-100 transition"
+                  class="opacity-0 group-hover:opacity-100 touch:opacity-100 transition"
                   @click="askUnassign(c)"
                 />
               </div>
@@ -669,14 +669,7 @@ async function onBinderCardPick(card: ContainerCard) {
   const pos = pendingSlot.value
   if (!pos) return
   try {
-    await assignCardToBinderSlot(
-      GAME,
-      card.displayId,
-      selectedId.value,
-      pos.page,
-      pos.row,
-      pos.col
-    )
+    await assignCardToBinderSlot(GAME, card.displayId, selectedId.value, pos.page, pos.row, pos.col)
     binderPickerOpen.value = false
     toast.add({ title: 'Card placed', icon: 'i-lucide-check', color: 'success' })
     await reload()

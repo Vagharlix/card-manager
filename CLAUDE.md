@@ -279,6 +279,16 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - **`AppPage`** : props `title`/`subtitle` (grand titre mobile), slots `#leading`/`#actions` ; la sidebar devient un `UDrawer` (panneau du bas) ouvert par un bouton du titre ; `:mobile-sidebar="false"` = la page affiche elle-même ce contenu ; `:sidebar-button="false"` + `v-model:sidebar-open` = la page ouvre le panneau (deck : « Ajouter des cartes »).
 - **Pages** : Collection = bascule Cartes / Rangements (`[data-mobile-segment]`, `ContainerTree` a une variante mobile en grandes lignes + bouton « Nouveau » flottant) + filtres en puces ; fiche carte = `UDrawer` ; deck = onglets Main/Extra/Side (`[data-mobile-board]`) ; partage = bascule Montrer / Recevoir (`[data-mobile-share-section]`) avec les collections reçues sous « Recevoir » ; réglages = toutes les sections empilées en cartes ; notifications en haut (`UApp :toaster`).
 - **Captures** : `cd e2e && SCREENS_DIR=/tmp/out SCREEN_DARK=1 xvfb-run -a npx wdio run ./wdio.conf.ts --spec ./screens/mobile.spec.ts` (390×844, pas un test).
+- **Panneaux du bas** (`UDrawer` de la fiche carte et de la sidebar d'`AppPage`) : `handle-only` (on ne fait glisser que la poignée : le contenu défile sans fermer le panneau), bouton ✕ dans l'en-tête (`#card-detail-close`, `[data-drawer-close]`), hauteur max sous la caméra (`100dvh - --safe-top`), marges latérales `--safe-left/right`, image de la fiche à taille fixe (`aspect-[0.686]`, pas de saut au chargement).
+- **Bouclier anti clic fantôme** (`composables/useClickShield.ts` + `plugins/click-shield.client.ts`) : un toucher sur le fond grisé ferme le panneau au `pointerdown`, et le `click` du relâchement tombait sur la carte dessous (le panneau se rouvrait : le « glitch » de fermeture). Le clic suivant est avalé **seulement** si un panneau était affiché (`[data-vaul-drawer][data-state=open]`) quand le doigt s'est posé et que le doigt est encore posé à la fermeture ; ✕ / Retour ne bloquent rien. Piège : la librairie signale encore des « touchers extérieurs » juste après une fermeture → sans le test « panneau affiché », le toucher suivant était avalé.
+- Deck mobile : ajouter une carte depuis le panneau de recherche n'ouvre plus la fiche par-dessus (l'aperçu ne sert qu'au PC) ; onglets de zone `[data-mobile-board][data-board-count]`.
+- **Tous appareils** :
+  - `useResponsive().isMobile` = largeur < 768 px **ou** téléphone en paysage (hauteur < 520 px et pointeur grossier). Variantes Tailwind (`main.css`) : `touch:` (`hover: none`, les boutons `opacity-0 group-hover:` sont visibles au doigt) et `short:` (hauteur < 520 px : barre d'onglets réduite, sans libellés).
+  - Barre d'onglets : `composables/useMobileTabs.ts` (onglets + bouton Scan surélevé) ; `RAISED_TAB_OVERLAP` = marge du bas de la page quand le bouton Scan dépasse (la pagination de la recherche, centrée sur mobile, n'est plus dessous).
+  - Caméra incrustée / encoches : la coque bureau applique aussi les quatre `--safe-*` (tablette, paysage).
+  - Pliables / doubles écrans : `composables/useViewportSegments.ts` (+ `utils/segments.ts` pur, testé) lit `window.viewport.segments` (ou `getWindowSegments`) ; deux colonnes → la sidebar d'`AppPage` occupe l'écran de gauche et le contenu commence après la charnière (`[data-dual-screen]`), l'en-tête se cale de même (`GamePicker compact` : `GameDefinition.shortLabel`, ex. « MTG »). Écrans pliés étroits (280 px) : titres réduits.
+  - Indicateurs de test (mode test seulement, `utils/platform.ts` `testFlag`) : `localStorage.__forceAndroid` / `__forceTouch` = `'1'`, `window.__testSegments` = faux segments.
+  - **Captures multi-appareils** : `cd e2e && SCREENS_DIR=/tmp/out xvfb-run -a npx wdio run ./wdio.conf.ts --spec ./screens/devices.spec.ts` (Galaxy A52s portrait/paysage avec fausse caméra incrustée, Galaxy Fold plié / déplié, Surface Duo étalé avec charnière, tablette).
 
 ### Mode test (committé)
 - `src-tauri/src/lib.rs` : `db_name()` gère le mode test (a corrigé au passage un bug prod : migrations enregistrées pour le mauvais nom de base en build test → table settings manquante).
@@ -315,6 +325,7 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - `id` sémantiques kebab-case + `data-*`. **Pas de data-testid.** Inspiration : github.com/Morgawr/kechimochi.
 
 ### Contournements WebKitWebDriver (tout via `browser.execute`)
+`browser.keys` (touche Échap…) n'atteint pas la WebView : fermer un panneau par son bouton ✕.
 `elementSendKeys` KO → `typeInto` (setter du prototype `HTMLInputElement` **ou** `HTMLTextAreaElement` selon l'élément, descend dans le wrapper Nuxt UI si besoin, + dispatch input/change). Actions API KO → pas de scroll/clic natif. Clics natifs interceptés → `click` dispatche une séquence pointer/mouse. `free(): corrupted unsorted chunks` à la fermeture = inoffensif. Éléments `opacity-0 group-hover` → le clic JS marche quand même.
 
 ### `data-*` / `id` posés (committés)
