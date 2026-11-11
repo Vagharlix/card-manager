@@ -76,7 +76,7 @@ card-manager/
 ├── .claude/                  # settings.json + hooks/session-start.sh (sessions cloud : install deps app/)
 ├── src-tauri/
 │   ├── src/lib.rs            # db_name() (test/dev/prod) + enregistrement migrations + commandes
-│   ├── src/image_cache.rs    # commandes cache d'images (télécharger, taille, vider, élaguer)
+│   ├── src/image_cache.rs    # protocole cardimg (images servies depuis le cache disque, téléchargées au besoin) + commandes taille / vider / élaguer
 │   ├── src/card_sources.rs   # (std seul, testé) URL des images par jeu + URL autorisées pour les données de cartes
 │   ├── src/card_data.rs      # téléchargement en flux des données en masse (Magic : JSONL gzip) : jsonl_open/next/close, card_data_get
 │   ├── src/cache_store.rs    # logique disque du cache (std seul, testée par rustc --test)
@@ -119,7 +119,11 @@ card-manager/
 │       ├── components/MtgSearchFilters.vue  # filtres de recherche Magic (searchFilters.vue = YGO)
 │       ├── services/cardData.ts        # mise à jour de la base de cartes d'un jeu (routeur) + cardDataProgress.ts
 │       ├── composables/useCurrentGame.ts, components/GamePicker.vue, GameLaunchModal.vue, utils/gameUi.ts
-│       ├── services/imageCache.ts      # wrappers des commandes Rust du cache d'images
+│       ├── services/imageCache.ts      # wrappers des commandes Rust du cache d'images (taille, vider, élaguer)
+│       ├── composables/useCardImage.ts # adresse cardimg:// d'une image de carte (cardImageUrl)
+│       ├── components/virtualGrid.vue  # grille/liste virtualisée (@tanstack/vue-virtual) des grandes listes
+│       ├── components/collectionCard.vue # carte de la page Collection (props simples : re-rendu ciblé)
+│       ├── utils/userWrites.ts         # compteur d'écritures user.db (raccourci de la synchro au retour dans l'appli)
 │       ├── services/share/             # partage : codec.ts (format CMSHARE1), frames.ts (QR animé), index.ts (service)
 │       ├── pages/share.vue + components/QrScanner.vue   # écran de partage + scanner caméra continu (mobile)
 │       ├── services/backup.ts          # sauvegarde fichier : export/import JSON, export CSV, restauration
@@ -135,6 +139,7 @@ card-manager/
 │   ├── wdio.conf.ts
 │   ├── specs/*.spec.ts
 │   ├── specs/helpers.ts
+│   ├── perf/perf.spec.ts     # OUTIL de mesure (2000 cartes), hors suite : --spec ./perf/perf.spec.ts
 │   └── fixtures/             # cards-ygo.test.db (committée), build-fixture.sh, passcodes.txt
 ├── scripts/android-keystore.sh   # génère la clé de signature APK + affiche les secrets GitHub (cf. §5 Release)
 └── .github/workflows/checks.yml, e2e.yml, release.yml
@@ -195,7 +200,7 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - `services/game/` : registre par jeu (`GameDefinition` : conditions, langues, défauts). Les couches génériques interrogent le registre, jamais de valeurs YGO en dur.
 - `services/settings.ts` (DB + cache) + `composables/useSettings.ts` (store réactif `createGlobalState`, écriture directe, `ensureLoaded()` au boot).
 - Défauts d'ajout en collection résolus par jeu (`services/collection.ts`) ; `settings.vue` branchée ; `cardDetail.vue` consomme le registre.
-- **Stockage** : taille du cache affichée, vidage, limite appliquée (LRU par mtime : un fichier relu est « touché ») à l'enregistrement et à chaque lancement (`app.vue` → `pruneImageCache`). Après suppression de fichiers, `forgetCachedImages()` vide les URLs résolues en mémoire (`useCardImage`).
+- **Stockage** : taille du cache affichée, vidage, limite appliquée (LRU par mtime : un fichier relu est « touché ») à l'enregistrement et au lancement, au plus une fois par jour (`app.vue` → `pruneImageCache`, `localStorage.imageCachePrunedAt`). Une image supprimée du disque est retéléchargée à sa prochaine demande (protocole `cardimg`, cf. « Performances »).
 - **Synchronisation** : version locale affichée, « Vérifier les mises à jour » et « Forcer la resynchronisation » (`syncYgo({ force: true })`, progression dans l'overlay d'`app.vue`).
 - **Partage** (nom affiché, même réglage que la page Partage) et **Apparence** (thème système / clair / sombre, `useColorMode`) : sections ajoutées avec la refonte mobile (plus de bouton de thème dans l'en-tête sur mobile).
 - `favoriteGame` / `showGamePicker` sont consommés par `useCurrentGame` (jeu ouvert au lancement, fenêtre « Which game? ») ; invisibles tant qu'il n'y a qu'un jeu.
@@ -217,7 +222,7 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
 - **Module de jeu** (`services/game/modules/`) : `GameModule { def, deck, search, detail, scan?, cardData? }` ; `registerGameModule` (aussi pour les tests), `gameModule(game)`. Les routeurs (`deckEngine`, `searchCards`, `getCardDetail`, `canScan`/`identifyCard`, `syncCardData`) passent par lui. Checklist « ajouter un jeu » en tête de `modules/index.ts` (définition, migrations + `lib.rs`, module, une branche dans `image_cache.rs`, panneau de filtres facultatif dans `utils/gameUi.ts`).
 - **Contraintes de user.db** à respecter par un jeu : états = sous-ensemble de NM/LP/MP/HP/DMG (CHECK de `collection.condition`, libellés libres), zones de deck parmi main/side/extra/commander/maybe.
 - **Jeu courant** : `useCurrentGame()` (choix de session, sinon jeu favori, sinon le 1er). Les pages lisent `const GAME = useCurrentGame().game.value` ; changer de jeu **remonte la page** (clé de page d'`app.vue`) et relance la mise à jour de sa base de cartes. `GamePicker` (en-tête desktop, titre de Collection mobile, `#game-picker`) et `GameLaunchModal` (`[data-game-choice]`, `#game-launch-remember`) n'apparaissent qu'avec plusieurs jeux.
-- **Génériques** : collection, rangements, decks (zones et limites lues dans le moteur ; `getDeckContents` / `validateDeck` / `planDeckToDeckbox` déduisent le jeu du deck), partage, sauvegarde (CSV : noms par jeu), fiche carte (`CardDetail.facts` / `badges` fournis par le module), images (`cache_card_image(game, id, size)`, ids filtrés par `cache_store::is_safe_name`, YGO garde son dossier de cache historique).
+- **Génériques** : collection, rangements, decks (zones et limites lues dans le moteur ; `getDeckContents` / `validateDeck` / `planDeckToDeckbox` déduisent le jeu du deck), partage, sauvegarde (CSV : noms par jeu), fiche carte (`CardDetail.facts` / `badges` fournis par le module), images (protocole `cardimg://<jeu>/<taille>/<id>`, `cardImageUrl` / `useCardImage`, ids filtrés par `cache_store::parse_image_path` / `is_safe_name`, YGO garde son dossier de cache historique).
 - **Partage v2** : `CMSHARE2:` pour les ids non numériques (ids triés, préfixe commun + reste en UTF-8) ; l'encodeur garde v1 dès que tous les ids sont numériques. QR animé : morceaux = code sans `CMSHARE1:` (v1, compatible avec les versions précédentes) ou sans `CMSHARE` (« 2:… »).
 - **Faux jeu de test** (`helpers/fakeGame.ts` + `fixtures/fake-game/001_cards.sql`, ids texte, variantes sans alias, interdictions par format, héros en zone commander) : `multiGame.test.ts` le fait traverser collection, rangements, decks, rangement deck → deckbox, recherche, fiche, raretés, partage v2 + QR animé, CSV, synchro entre appareils. **Garde** dans le même fichier : aucun `'ygo'` / `ygo_details` / `ygoprodeck` hors des fichiers propres à YGO (liste `YGO_FILES`).
 
@@ -289,6 +294,19 @@ Phases 1–4 ✅ · **Phase 5 (OCR) ✅** (fonctionne sur téléphone ; rareté,
   - Pliables / doubles écrans : `composables/useViewportSegments.ts` (+ `utils/segments.ts` pur, testé) lit `window.viewport.segments` (ou `getWindowSegments`) ; deux colonnes → la sidebar d'`AppPage` occupe l'écran de gauche et le contenu commence après la charnière (`[data-dual-screen]`), l'en-tête se cale de même (`GamePicker compact` : `GameDefinition.shortLabel`, ex. « MTG »). Écrans pliés étroits (280 px) : titres réduits.
   - Indicateurs de test (mode test seulement, `utils/platform.ts` `testFlag`) : `localStorage.__forceAndroid` / `__forceTouch` = `'1'`, `window.__testSegments` = faux segments.
   - **Captures multi-appareils** : `cd e2e && SCREENS_DIR=/tmp/out xvfb-run -a npx wdio run ./wdio.conf.ts --spec ./screens/devices.spec.ts` (Galaxy A52s portrait/paysage avec fausse caméra incrustée, Galaxy Fold plié / déplié, Surface Duo étalé avec charnière, tablette).
+
+### Performances (nov. 2026) — mesuré avec `e2e/perf/perf.spec.ts`
+- **Mesure** : `cd e2e && xvfb-run -a npx wdio run ./wdio.conf.ts --spec ./perf/perf.spec.ts` → tableau (durée jusqu'à l'affichage, pire image, appels JS → Rust). 2000 cartes synthétiques, vignettes en cache (liens durs). Sous xvfb, rendu logiciel : durées pessimistes, comparer avant / après sur la même machine.
+- **Images** : protocole Rust `cardimg` (`image_cache::serve`, `register_asynchronous_uri_scheme_protocol`) : `<img src="cardimg://localhost/ygo%2Fsmall%2F<id>">` (`http://cardimg.localhost/…` sur Android / Windows, `convertFileSrc(…, 'cardimg')`). Lu dans le cache ou téléchargé (6 en parallèle au plus, sémaphore tokio ; `cache_store::write_atomic` = fichier temporaire + renommage). Plus d'appel JS → Rust par vignette (avant : 1958 appels pour ouvrir 2000 cartes), le navigateur ne charge que les images visibles. `cache_card_image` et le protocole `asset` ont été retirés.
+- **Grilles** : `VirtualGrid` (collection grille + liste, collection reçue du Partage, choix d'une carte non rangée) ne dessine que les lignes visibles (+3) ; colonnes par largeur de fenêtre (`columns: { base: 3, sm: 4, md: 5, lg: 6, xl: 8 }`), hauteur des lignes mesurée. Sa `:key` = ce qui est affiché (rangement + filtres) : changer de vue repart du haut, un rechargement garde la position.
+- **Re-rendus** : dans une grande liste, un composant par carte avec des **props simples** (`collectionCard.vue`), jamais un objet construit dans le template (`:card="{…}"` = objet neuf à chaque rendu = toutes les vignettes redessinées) ; objets construits une fois (`thumbCards` dans `share.vue`). Listes en `shallowRef`. Pas de `v-memo` dans un slot appelé par élément (cache partagé).
+- **Fiche carte** : exemplaires lus une fois (le watcher d'`activeArtId` les relisait en double), quantité = somme des exemplaires, rangements lus à l'ouverture du choix de rangement seulement ; vignette affichée tout de suite, grande image par-dessus une fois chargée (`bigLoaded`).
+- **Icônes** : Lucide embarquées (`@iconify-json/lucide`, `icon.clientBundle` dans `nuxt.config.ts` : scan des `.vue` **et** `.ts` + icônes propres à Nuxt UI, liste `NUXT_UI_ICONS`) ; avant, chaque icône venait d'`api.iconify.design` à sa 1re apparition. Nouvelle icône Nuxt UI hors liste → elle repasserait par le réseau (l'outil de mesure compte `NET iconify`).
+- **Decks** : `getDeckState` (contenu + limites par carte logique + validation, une lecture) ; la page applique chaque action à l'écran d'abord (`bump`, validation par `validateContents`), écrit ensuite dans l'ordre des clics (`persist`), relit quand plus rien n'est en cours ; copie de trop refusée sur place (`limitCheck` partagé avec `addCardToDeck`, `deckSearchMeta` pour les résultats). `DeckCard.root` = carte logique.
+- **Synchro au retour dans l'appli** : `useDatabase` compte les `execute` sur user.db (`utils/userWrites`) ; la synchro écrit via `uncounted(db)`. Rien écrit depuis la dernière synchro réussie de la session + version publiée inchangée → une vérification de version, aucune relecture (avant : 17 requêtes). Synchro et élagage du cache démarrent 1,5 s après l'ouverture / le retour (`FOREGROUND_DELAY_MS`).
+- **Mobile** : barre d'onglets sans `backdrop-blur` ; scan : JPEG encodé par `toBlob` (hors du fil principal) au lieu de `toDataURL`, même image.
+- **Linux / DMABUF** : `WEBKIT_DISABLE_DMABUF_RENDERER=1` reste posé par défaut. Mesuré sans GPU (xvfb) : réactivé = 2,5× plus lent. Avec un vrai GPU, peut être plus fluide : `WEBKIT_DISABLE_DMABUF_RENDERER=0 ./card-manager-linux-x86_64` pour essayer.
+- **Chiffres** (2000 cartes, xvfb, avant → après) : collection affichée avec ses images ~4 s → 0,2 s ; défilement moy. 50 ms/image (35-50 % > 50 ms) → 28 ms (1/120) ; fiche 1,2-1,6 s → 0,19 s ; entrer en sélection 0,45-0,6 s → 0,04 s ; cocher 0,1-0,5 s → 0,02 s ; ajout au deck 0,08-0,18 s (18-20 requêtes avant affichage) → 0,02-0,05 s (affiché avant écriture).
 
 ### Mode test (committé)
 - `src-tauri/src/lib.rs` : `db_name()` gère le mode test (a corrigé au passage un bug prod : migrations enregistrées pour le mauvais nom de base en build test → table settings manquante).
@@ -436,4 +454,6 @@ PRAGMA WAL/foreign_keys retirés des deux `001` (échouaient sur base vierge) ; 
 - Soft delete de `collection` : passer par `removeCard` (qui détache des conteneurs), jamais un `UPDATE ... deleted_at` direct. (§6)
 - Transactions SQLite côté front : ne JAMAIS contourner `useDatabase()` (requêtes sérialisées) ; un `Database.load` direct referait des connexions parallèles et casserait `BEGIN`/`COMMIT`. Les tests unitaires (une seule connexion) ne voient pas ce problème : c'est l'E2E `db-transaction` qui le garde.
 - Tests unitaires : Node >= 22 obligatoire (`node:sqlite`) ; le warning « SQLite is an experimental feature » est normal.
+- Grande liste de cartes : props simples par carte (pas d'objet construit dans le template), `shallowRef`, `VirtualGrid` au-delà de ~200 éléments. Images : toujours `useCardImage` / `cardImageUrl` (protocole `cardimg`), jamais d'appel Rust par vignette. (§5 « Performances »)
+- Écriture dans user.db hors `useDatabase()` : le compteur d'écritures ne la voit pas → la synchro au retour dans l'appli pourrait la croire inutile. (§5 « Performances »)
 - Fenêtre vide / plantage EGL sous Linux avec l'AppImage (CachyOS, nov. 2026) : utiliser l'exécutable seul ou le .deb/.rpm (bibliothèques du système, cf. §5 Release). `lib.rs` pose aussi `WEBKIT_DISABLE_DMABUF_RENDERER=1` au démarrage (souci connu de WebKitGTK selon le pilote), sauf si l'utilisateur l'a déjà défini.
