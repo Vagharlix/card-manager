@@ -644,13 +644,12 @@ async function refreshLocations() {
 // exemplaires de l'artwork actif : la quantité possédée est la somme des
 // exemplaires (une requête de moins), lectures lancées ensemble
 async function refreshOwned() {
-  const [list] = await Promise.all([
-    entriesForCard(props.game, activeArtId.value),
-    refreshUnrangedForCard(),
-    refreshLocations(),
-  ])
-  entries.value = list
-  owned.value = list.reduce((sum, e) => sum + e.quantity, 0)
+  // compteur à jour dès la 1re lecture, sans attendre les deux autres
+  const ownedNow = entriesForCard(props.game, activeArtId.value).then((list) => {
+    entries.value = list
+    owned.value = list.reduce((sum, e) => sum + e.quantity, 0)
+  })
+  await Promise.all([ownedNow, refreshUnrangedForCard(), refreshLocations()])
 }
 
 async function refreshContainers() {
