@@ -4,6 +4,8 @@
       type="button"
       class="card-thumb group relative block w-full text-left focus:outline-none"
       :data-card-id="card.id"
+      :data-owned="owned || undefined"
+      :data-selected="(selectable && selected) || undefined"
       @click="onClick"
     >
       <div

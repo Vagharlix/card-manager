@@ -125,7 +125,7 @@ const groups = computed(() => {
 // "3 restantes" / "∞" pour un conteneur non plein
 function capacityLabel(c: ContainerWithCapacity): string {
   if (c.remaining === null) return '∞'
-  return `${c.remaining} libre${c.remaining > 1 ? 's' : ''}`
+  return `${c.remaining} free`
 }
 
 watch(

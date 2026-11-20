@@ -19,7 +19,10 @@
         :card="card"
         :owned="ownedIds?.has(card.id)"
         :show-name="showNames"
+        :selectable="selectable"
+        :selected="selectable && !!selectedIds?.has(card.id)"
         @select="$emit('select', $event)"
+        @toggle="$emit('toggle', $event)"
       />
     </div>
   </div>
@@ -35,15 +38,20 @@ const props = withDefaults(
     ownedIds?: Set<string>
     showNames?: boolean
     emptyMessage?: string
+    // sélection multiple : un clic coche / décoche au lieu d'ouvrir la fiche
+    selectable?: boolean
+    selectedIds?: Set<string>
   }>(),
   {
     loading: false,
     showNames: false,
     emptyMessage: 'No cards found',
+    selectable: false,
+    selectedIds: undefined,
   }
 )
 
-defineEmits<{ select: [card: CardSearchResult] }>()
+defineEmits<{ select: [card: CardSearchResult]; toggle: [card: CardSearchResult] }>()
 
 const gridCols = 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8'
 
