@@ -6,9 +6,10 @@
       <NuxtPage :page-key="pageKey" />
     </NuxtLayout>
     <GameLaunchModal />
+    <!-- 1re installation d'une base de cartes : rien à afficher sans elle -->
     <Transition name="fade">
       <div
-        v-if="isSyncing || syncError"
+        v-if="syncBlocking && (isSyncing || syncError)"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
       >
         <UCard class="w-80 flex flex-col items-center gap-4 p-8">
@@ -30,16 +31,42 @@
         </UCard>
       </div>
     </Transition>
+    <!-- mise à jour d'une base existante : en arrière-plan, cartes consultables -->
+    <Transition name="fade">
+      <div
+        v-if="isSyncing && !syncBlocking"
+        data-card-update
+        :data-progress="syncProgress"
+        class="fixed z-40 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-elevated border border-default shadow text-xs text-muted pointer-events-none"
+        :style="{
+          bottom: isMobile
+            ? 'calc(4.5rem + var(--safe-bottom))'
+            : 'calc(1rem + var(--safe-bottom))',
+        }"
+      >
+        <UIcon name="i-lucide-loader-circle" class="animate-spin shrink-0" />
+        <span class="truncate max-w-64">{{ syncStatus }}</span>
+        <span class="tabular-nums">{{ syncProgress }}%</span>
+      </div>
+    </Transition>
   </UApp>
 </template>
 
 <script setup lang="ts">
-import { syncCardData, syncProgress, syncStatus, syncError, isSyncing } from '~/services/cardData'
+import {
+  syncCardData,
+  syncProgress,
+  syncStatus,
+  syncError,
+  isSyncing,
+  syncBlocking,
+} from '~/services/cardData'
 import { getGlobalSettings } from '~/services/settings'
 import { pruneImageCache } from '~/services/imageCache'
 import { FOREGROUND_DELAY_MS } from '~/composables/useDeviceSync'
 
 const { isMobile } = useResponsive()
+const toast = useToast()
 const deviceSync = useDeviceSync()
 const { game } = useCurrentGame()
 // remontée de la page : après une synchro qui a changé la base, ou au changement de jeu
@@ -53,6 +80,7 @@ const toaster = computed(() =>
 
 async function retry() {
   syncError.value = null
+  syncBlocking.value = false
   await runSync()
 }
 
@@ -62,7 +90,15 @@ async function runSync() {
   if (import.meta.env.VITE_TEST_MODE === 'true') return
   try {
     await syncCardData(game.value, { auto: true })
-  } catch {}
+  } catch (e) {
+    // en arrière-plan (base déjà là) : on le signale, on réessaiera
+    if (!syncBlocking.value)
+      toast.add({
+        title: 'Card update failed',
+        description: `${e instanceof Error ? e.message : String(e)} — it will be retried later.`,
+        color: 'warning',
+      })
+  }
 }
 
 // applique la limite du cache d'images (réglage Stockage) au lancement, au

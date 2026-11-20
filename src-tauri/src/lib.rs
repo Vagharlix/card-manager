@@ -122,14 +122,28 @@ pub fn run() {
             sql: include_str!("../migrations/ygo/003_card_contract.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "card hashes (incremental updates)",
+            sql: include_str!("../migrations/ygo/004_card_hashes.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
-    let mtg_migrations = vec![Migration {
-        version: 1,
-        description: "initial mtg schema",
-        sql: include_str!("../migrations/mtg/001_initial.sql"),
-        kind: MigrationKind::Up,
-    }];
+    let mtg_migrations = vec![
+        Migration {
+            version: 1,
+            description: "initial mtg schema",
+            sql: include_str!("../migrations/mtg/001_initial.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "incremental updates",
+            sql: include_str!("../migrations/mtg/002_incremental.sql"),
+            kind: MigrationKind::Up,
+        },
+    ];
 
     let builder = tauri::Builder::default();
 

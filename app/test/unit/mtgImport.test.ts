@@ -21,7 +21,15 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 const { mapCard, deckLimitOf, betterPrint } = await import('~/services/mtgData/import')
-const { importMtg, syncMtg, recentEnough } = await import('~/services/mtgData/sync')
+const {
+  importMtg,
+  syncMtg,
+  recentEnough,
+  updateMtgIncremental,
+  recentPrintsUrl,
+  recentWindowStart,
+} = await import('~/services/mtgData/sync')
+const { TestDatabase } = await import('./helpers/testDb')
 const { cardMetaOf, legalityOf, variantsOfRoots, printingRarities } =
   await import('~/services/card/meta')
 
@@ -195,6 +203,28 @@ describe('syncMtg', () => {
     expect(calls).toContain('jsonl_open')
   })
 
+  it('ensuite : recherche des nouveautés ; import complet si la base l’exige', async () => {
+    const urls: string[] = []
+    const calls = fakeScryfall('2026-11-08')
+    const inner = h.invoke
+    h.invoke = async (cmd, args) => {
+      if (cmd === 'card_data_get') urls.push(String(args?.url))
+      return inner(cmd, args)
+    }
+    await syncMtg() // installation : import complet
+    calls.length = 0
+    urls.length = 0
+    await syncMtg() // incrémental : une recherche, pas de fichier en masse
+    expect(urls).toHaveLength(1)
+    expect(urls[0]).toContain('/cards/search?')
+    expect(calls).not.toContain('jsonl_open')
+    dbs.mtg.raw.exec(`INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('needs_full', '1')`)
+    calls.length = 0
+    await syncMtg()
+    expect(calls).toContain('jsonl_open')
+    expect(q(`SELECT value FROM sync_meta WHERE key = 'needs_full'`)).toEqual([])
+  })
+
   it('au lancement : base récente → aucune requête', async () => {
     const calls = fakeScryfall('2026-11-08')
     await syncMtg({ auto: true }) // jamais synchronisée : téléchargement
@@ -203,5 +233,123 @@ describe('syncMtg', () => {
     expect(calls).toEqual([])
     expect(recentEnough(new Date(Date.now() - 20 * 86_400_000).toISOString())).toBe(false)
     expect(recentEnough(null)).toBe(false)
+  })
+})
+
+// ============================================================
+// Mise à jour incrémentale : nouvelles impressions (recherche Scryfall),
+// règles et légalités (oracle_cards). Une base mise à jour par incréments
+// doit être identique à une base importée d'un coup.
+// ============================================================
+describe('mise à jour incrémentale', () => {
+  // les impressions les plus récentes arrivent par la recherche
+  const sorted = [...SAMPLE].sort((a, b) =>
+    String(a.released_at).localeCompare(String(b.released_at))
+  )
+  const RECENT = sorted.slice(-10)
+  const OLDER = sorted.slice(0, -10)
+  async function* pages(items: unknown[], size = 4) {
+    for (let i = 0; i < items.length; i += size) yield items.slice(i, i + size) as never
+  }
+  const snapshot = (db: TestDatabase) => ({
+    prints: db.raw.prepare(`SELECT * FROM mtg_prints ORDER BY card_id`).all(),
+    meta: db.raw.prepare(`SELECT * FROM card_meta ORDER BY card_id`).all(),
+    oracle: db.raw
+      .prepare(
+        `SELECT oracle_id, name, default_print, oracle_text, type_line, deck_limit, colors
+         FROM mtg_oracle ORDER BY oracle_id`
+      )
+      .all(),
+    legality: db.raw.prepare(`SELECT * FROM card_legality ORDER BY card_id, format`).all(),
+  })
+
+  it('anciennes + nouvelles impressions = import complet (impressions, cartes logiques, défauts, légalités)', async () => {
+    const full = new TestDatabase('mtg')
+    await importMtg(full as never, batches(SAMPLE), 'full')
+
+    await importMtg(dbs.mtg as never, batches(OLDER), 'old')
+    const stats = await updateMtgIncremental(dbs.mtg as never, {
+      recentPrints: () => pages(RECENT),
+    })
+    expect(stats.newPrints).toBe(RECENT.filter((c) => mapCard(c)).length)
+    expect(stats.oracleRefreshed).toBe(false)
+    expect(snapshot(dbs.mtg)).toEqual(snapshot(full))
+    // index plein texte reconstruit : une carte arrivée par incrément se trouve
+    const name = mapCard(RECENT.find((c) => mapCard(c))!)!.oracle.name.split(' ')[0]!
+    expect(
+      q<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM mtg_oracle_fts WHERE mtg_oracle_fts MATCH ?`,
+        `"${name}"`
+      )[0]!.n
+    ).toBeGreaterThan(0)
+    full.close()
+  })
+
+  it('rien de nouveau : la base ne change pas', async () => {
+    await importMtg(dbs.mtg as never, batches(SAMPLE), 'full')
+    const before = snapshot(dbs.mtg)
+    const stats = await updateMtgIncremental(dbs.mtg as never, { recentPrints: () => pages([]) })
+    expect(stats).toEqual({ newPrints: 0, updatedPrints: 0, oracleRefreshed: false })
+    expect(snapshot(dbs.mtg)).toEqual(before)
+  })
+
+  it('impressions déjà connues : réécrites sans doublon', async () => {
+    await importMtg(dbs.mtg as never, batches(SAMPLE), 'full')
+    const before = snapshot(dbs.mtg)
+    const stats = await updateMtgIncremental(dbs.mtg as never, {
+      recentPrints: () => pages(RECENT),
+    })
+    expect(stats.newPrints).toBe(0)
+    expect(stats.updatedPrints).toBeGreaterThan(0)
+    expect(snapshot(dbs.mtg)).toEqual(before)
+  })
+
+  it('règles et légalités : un bannissement arrive par oracle_cards, le reste ne bouge pas', async () => {
+    await importMtg(dbs.mtg as never, batches(SAMPLE), 'full')
+    const bolt = one('Lightning Bolt')
+    const banned = { ...bolt, legalities: { ...bolt.legalities, modern: 'banned' } }
+    const others = SAMPLE.filter((c) => c.oracle_id !== bolt.oracle_id)
+    const stats = await updateMtgIncremental(dbs.mtg as never, {
+      recentPrints: () => pages([]),
+      oracleBatches: batches([banned, ...others]),
+    })
+    expect(stats.oracleRefreshed).toBe(true)
+    expect(
+      q(`SELECT status FROM card_legality WHERE card_id = ? AND format = 'modern'`, bolt.oracle_id)
+    ).toEqual([{ status: 'banned' }])
+    expect(q(`SELECT value FROM sync_meta WHERE key = 'oracle_at'`)).toHaveLength(1)
+    // la carte logique garde son impression par défaut, la recherche la trouve
+    expect(
+      q<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM mtg_oracle_fts WHERE mtg_oracle_fts MATCH '"Lightning"'`
+      )[0]!.n
+    ).toBe(1)
+  })
+
+  it('recherche Scryfall : impressions papier sorties ou annoncées depuis la date', () => {
+    const url = decodeURIComponent(recentPrintsUrl('2026-09-21'))
+    expect(url).toContain('https://api.scryfall.com/cards/search?q=date>=2026-09-21 game:paper')
+    expect(url).toContain('unique=prints')
+  })
+
+  it('fenêtre : depuis la dernière mise à jour moins 21 jours, au plus 60 jours', () => {
+    const now = new Date('2026-11-20T12:00:00Z')
+    expect(recentWindowStart('2026-11-13T08:00:00Z', now)).toBe('2026-10-23')
+    expect(recentWindowStart('2026-01-01T00:00:00Z', now)).toBe('2026-09-21')
+    expect(recentWindowStart(null, now)).toBe('2026-09-21')
+  })
+
+  it('migration 002 : une base déjà remplie demande un import complet', () => {
+    const legacy = new TestDatabase('mtg', { upTo: 1 })
+    legacy.raw.exec(`INSERT INTO cards (id, name) VALUES ('x', 'X')`)
+    legacy.raw.exec(
+      `INSERT INTO mtg_prints (card_id, oracle_id, set_code, set_name, collector_number)
+       VALUES ('x', 'o', 'set', 'Set', '1')`
+    )
+    legacy.applyMigration(2)
+    expect(
+      legacy.raw.prepare(`SELECT value FROM sync_meta WHERE key = 'needs_full'`).all()
+    ).toEqual([{ value: '1' }])
+    legacy.close()
   })
 })
