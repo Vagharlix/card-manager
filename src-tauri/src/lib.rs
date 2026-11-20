@@ -24,17 +24,19 @@ fn db_name(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Linux : WebKitGTK peut afficher une fenêtre vide avec son moteur de
-    // rendu DMABUF selon le pilote graphique (NVIDIA, certaines sessions
-    // Wayland), surtout en AppImage (WebKitGTK d'Ubuntu 22.04 sur un système
-    // plus récent). On le désactive, sauf si l'utilisateur a choisi lui-même :
-    // WEBKIT_DISABLE_DMABUF_RENDERER=0 le réactive (à essayer avec un vrai
-    // GPU : peut être plus fluide ; mesuré nov. 2026 sans GPU, sous xvfb :
-    // 2,5× plus lent réactivé, d'où ce choix prudent par défaut).
+    // Linux, AppImage seulement : son WebKitGTK (Ubuntu 22.04) peut afficher
+    // une fenêtre vide avec le moteur de rendu DMABUF sur un système plus
+    // récent ; on le désactive. Partout ailleurs (exécutable seul, .deb,
+    // .rpm : WebKitGTK du système), on le garde : nettement plus fluide avec
+    // un vrai GPU (constaté par Félix sur CachyOS, nov. 2026 ; sans GPU, sous
+    // xvfb, c'est l'inverse). Une valeur déjà définie est toujours respectée :
+    // WEBKIT_DISABLE_DMABUF_RENDERER=1 en cas de fenêtre vide.
     // À faire avant la création de la moindre fenêtre (GTK lit la variable à
     // l'initialisation) : premier appel de run(), encore mono-fil.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+    if std::env::var_os("APPIMAGE").is_some()
+        && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+    {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 

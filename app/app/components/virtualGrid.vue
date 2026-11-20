@@ -1,14 +1,14 @@
 <template>
   <!-- conteneur qui défile : seules les lignes visibles (+ une marge) sont
        dessinées, la hauteur totale est réservée pour la barre de défilement -->
-  <div ref="scrollEl" class="overflow-y-auto">
+  <div ref="scrollEl" class="overflow-y-auto overscroll-contain">
     <div class="relative w-full" :style="{ height: `${virtualizer.getTotalSize()}px` }">
       <div
         v-for="row in virtualizer.getVirtualItems()"
         :key="row.key as number"
         :ref="measure"
         :data-index="row.index"
-        class="absolute top-0 left-0 w-full grid"
+        class="absolute top-0 left-0 w-full grid [contain:layout_style]"
         :style="{
           transform: `translateY(${row.start}px)`,
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
