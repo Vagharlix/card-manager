@@ -306,6 +306,25 @@ describe('synchro au retour dans l’appli (compteur d’écritures)', () => {
   })
 })
 
+describe('jeux d’un rangement', () => {
+  it('se synchronisent entre appareils (ajout, retrait)', async () => {
+    const box = await on(pc, () => containers.createDeckbox('Box', null, ['ygo']))
+    await sync(pc)
+    await sync(phone)
+    const gamesOn = async (dbs: TestDatabases) =>
+      (await on(dbs, () => containers.listContainers())).find((c) => c.id === box)?.games
+    expect(await gamesOn(phone)).toEqual(['ygo'])
+    await on(phone, () => containers.setContainerGames(box, ['mtg', 'ygo']))
+    await sync(phone)
+    await sync(pc)
+    expect(await gamesOn(pc)).toEqual(['mtg', 'ygo'])
+    await on(pc, () => containers.setContainerGames(box, []))
+    await sync(pc)
+    await sync(phone)
+    expect(await gamesOn(phone)).toEqual([])
+  })
+})
+
 describe('synchro sans changement', () => {
   it('rien de neuf ni ici ni ailleurs : ni téléchargement ni réécriture', async () => {
     await on(pc, () => addCard({ game: 'ygo', cardId: DM }))

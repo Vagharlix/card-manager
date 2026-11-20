@@ -555,7 +555,7 @@ function toggleCard(c: ContainerCard) {
 
 async function openBatchPicker() {
   if (selectedCards.value.size === 0) return
-  containersWithCap.value = await listContainersWithCapacity()
+  containersWithCap.value = await listContainersWithCapacity(GAME)
   batchPickerOpen.value = true
 }
 

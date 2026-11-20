@@ -653,7 +653,7 @@ async function refreshOwned() {
 }
 
 async function refreshContainers() {
-  containers.value = await listContainersWithCapacity()
+  containers.value = await listContainersWithCapacity(props.game) // rangements de ce jeu
 }
 
 async function openPicker() {
