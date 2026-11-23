@@ -19,6 +19,14 @@ const {
   unassignCardFromContainer,
   unrangedCount,
   listContainerCards,
+  listContainers,
+  listContainersWithCapacity,
+  createBinder,
+  createDeckbox,
+  setContainerGames,
+  containerInGame,
+  encodeGames,
+  decodeGames,
 } = await import('~/services/containers')
 
 const DM = '46986414'
@@ -142,5 +150,74 @@ describe('migration 005 — classeur multi-copies', () => {
       .get() as { n: number }
     expect(locs.n).toBe(2)
     legacy.user.close()
+  })
+})
+
+// un rangement peut être associé à aucun, un ou plusieurs jeux (migration 010)
+describe('jeux d’un rangement', () => {
+  it('encodage : liste triée, sans doublon ; vide = tous les jeux', () => {
+    expect(encodeGames(['mtg', 'ygo', 'mtg'])).toBe('mtg,ygo')
+    expect(encodeGames([])).toBeNull()
+    expect(decodeGames('mtg,ygo')).toEqual(['mtg', 'ygo'])
+    expect(decodeGames(null)).toEqual([])
+    expect(containerInGame({ games: [] }, 'mtg')).toBe(true)
+    expect(containerInGame({ games: ['ygo'] }, 'mtg')).toBe(false)
+    expect(containerInGame({ games: ['ygo', 'mtg'] }, 'mtg')).toBe(true)
+  })
+
+  it('création, modification et listes filtrées par jeu', async () => {
+    const ygo = await createBinder('YGO binder', 1, 3, 3, ['ygo'])
+    const both = await createDeckbox('Both', null, ['ygo', 'mtg'])
+    const any = await createDeckbox('Any box')
+    const names = async (game?: string) => (await listContainers(game)).map((c) => c.name).sort()
+
+    expect(await names()).toEqual(['Any box', 'Both', 'YGO binder'])
+    expect(await names('mtg')).toEqual(['Any box', 'Both'])
+    expect(await names('ygo')).toEqual(['Any box', 'Both', 'YGO binder'])
+    expect((await listContainers()).find((c) => c.id === both)?.games).toEqual(['mtg', 'ygo'])
+    // un id de jeu qui en contient un autre ne doit pas correspondre
+    expect(await names('yg')).toEqual(['Any box'])
+
+    await setContainerGames(ygo, ['mtg'])
+    expect(await names('ygo')).toEqual(['Any box', 'Both'])
+    await setContainerGames(ygo, [])
+    expect(await names('ygo')).toEqual(['Any box', 'Both', 'YGO binder'])
+    expect(any).toBeTruthy()
+
+    // choix d'un rangement pour ranger des cartes : mêmes règles
+    expect((await listContainersWithCapacity('mtg')).map((c) => c.name).sort()).toEqual([
+      'Any box',
+      'Both',
+      'YGO binder',
+    ])
+  })
+
+  it('migration 010 : les rangements existants prennent les jeux de leurs cartes', () => {
+    const legacy: TestDatabases = createTestDatabases({
+      user: new TestDatabase('user', { upTo: 9 }),
+      ygo: dbs.ygo,
+    })
+    const s = createSeeder(legacy)
+    const ygoBox = s.deckbox('YGO box')
+    const mixed = s.bulkBox('Mixed')
+    const empty = s.binder('Empty')
+    const gone = s.deckbox('Deleted entries only')
+    s.inDeckbox(ygoBox, s.owned(DM, 2), 2)
+    s.inBulk(mixed, s.owned(DM, 1), 1)
+    s.inBulk(mixed, s.owned('mtg-1', 1, 'mtg'), 1)
+    const deleted = s.owned('mtg-2', 1, 'mtg')
+    s.inDeckbox(gone, deleted, 1)
+    s.softDeleteCollection(deleted)
+
+    legacy.user.applyMigration(10)
+
+    const games = (id: string) =>
+      (legacy.user.raw.prepare(`SELECT games FROM containers WHERE id = ?`).get(id) as {
+        games: string | null
+      }).games
+    expect(games(ygoBox)).toBe('ygo')
+    expect(games(mixed)).toBe('mtg,ygo')
+    expect(games(empty)).toBeNull()
+    expect(games(gone)).toBeNull()
   })
 })

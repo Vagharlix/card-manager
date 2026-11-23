@@ -1,6 +1,23 @@
 <template>
   <!-- MOBILE : liste à grandes lignes (onglet « Rangements » de la collection) -->
   <div v-if="isMobile" class="flex flex-col gap-2 pb-24">
+    <!-- plusieurs jeux : rangements de ce jeu (et de tous les jeux) ou tous -->
+    <div
+      v-if="multiGame"
+      class="grid grid-cols-2 p-0.5 mb-1 rounded-lg bg-elevated border border-default text-sm"
+    >
+      <button
+        v-for="f in FILTERS"
+        :key="f.id"
+        :data-storage-filter="f.id"
+        :data-active="(f.id === 'all') === showAll || undefined"
+        class="rounded-md py-1.5 font-medium transition"
+        :class="(f.id === 'all') === showAll ? 'bg-default shadow-sm text-highlighted' : 'text-muted'"
+        @click="setShowAll(f.id === 'all')"
+      >
+        {{ f.id === 'all' && hiddenCount ? `${f.label} · +${hiddenCount}` : f.label }}
+      </button>
+    </div>
     <button
       data-container-id="__unranged__"
       class="w-full flex items-center gap-3 p-3 rounded-xl text-left border border-warning/40 bg-warning/10"
@@ -37,7 +54,18 @@
           <UIcon :name="group.icon" class="size-5" />
         </span>
         <span class="flex-1 min-w-0">
-          <span class="block font-semibold truncate">{{ c.name }}</span>
+          <span class="flex items-center gap-1.5 font-semibold">
+            <span class="truncate">{{ c.name }}</span>
+            <UBadge
+              v-if="showBadge(c)"
+              :data-container-games="c.games.join(',')"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              class="shrink-0"
+              :label="gamesLabel(c)"
+            />
+          </span>
           <span class="block text-xs text-muted">{{ describe(c) }}</span>
         </span>
         <UDropdownMenu :items="menuItems(c)" :content="{ align: 'end' }">
@@ -99,6 +127,24 @@
       />
     </div>
 
+    <!-- plusieurs jeux : rangements de ce jeu (et de tous les jeux) ou tous -->
+    <div
+      v-if="multiGame"
+      class="grid grid-cols-2 p-0.5 mb-3 shrink-0 rounded-lg bg-elevated border border-default text-xs"
+    >
+      <button
+        v-for="f in FILTERS"
+        :key="f.id"
+        :data-storage-filter="f.id"
+        :data-active="(f.id === 'all') === showAll || undefined"
+        class="rounded-md py-1 font-medium transition"
+        :class="(f.id === 'all') === showAll ? 'bg-default shadow-sm text-highlighted' : 'text-muted'"
+        @click="setShowAll(f.id === 'all')"
+      >
+        {{ f.id === 'all' && hiddenCount ? `${f.label} · +${hiddenCount}` : f.label }}
+      </button>
+    </div>
+
     <div class="flex-1 min-h-0 overflow-y-auto space-y-4">
       <div v-for="group in groups" :key="group.type">
         <p class="text-[11px] text-muted uppercase tracking-wide mb-1 flex items-center gap-1.5">
@@ -117,6 +163,15 @@
             @click="$emit('select', c.id)"
           >
             <span class="flex-1 truncate">{{ c.name }}</span>
+            <UBadge
+              v-if="showBadge(c)"
+              :data-container-games="c.games.join(',')"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              class="shrink-0"
+              :label="gamesLabel(c)"
+            />
 
             <UDropdownMenu :items="menuItems(c)" :content="{ align: 'end' }">
               <UButton
@@ -125,7 +180,7 @@
                 color="neutral"
                 variant="ghost"
                 size="xs"
-                class="opacity-0 group-hover:opacity-100 transition"
+                class="opacity-0 group-hover:opacity-100 touch:opacity-100 transition"
                 @click.stop
               />
               <template #item="{ item }">
@@ -220,6 +275,7 @@
 import {
   renameContainer,
   deleteContainer,
+  containerInGame,
   type ContainerListItem,
   type ContainerType,
 } from '~/services/containers'
@@ -249,13 +305,55 @@ const TYPE_META: Record<ContainerType, { label: string; icon: string }> = {
   bulk_box: { label: 'Bulk boxes', icon: 'i-lucide-archive' },
 }
 
+// ── jeu des rangements ──
+// Par défaut : ceux du jeu affiché et ceux de tous les jeux. « All games » :
+// tous, ceux du jeu affiché d'abord, puis par jeu (avec leur badge).
+// Choix mémorisé sur cet appareil.
+const { game: currentGame, games, multiGame } = useCurrentGame()
+const SHOW_ALL_KEY = 'storageShowAllGames'
+const FILTERS = [
+  { id: 'game', label: 'This game' },
+  { id: 'all', label: 'All games' },
+] as const
+const showAll = ref(readShowAll())
+function readShowAll(): boolean {
+  try {
+    return localStorage.getItem(SHOW_ALL_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+function setShowAll(value: boolean) {
+  showAll.value = value
+  try {
+    localStorage.setItem(SHOW_ALL_KEY, value ? '1' : '0')
+  } catch {}
+}
+const inGame = (c: ContainerListItem) => containerInGame(c, currentGame.value)
+const visible = computed(() => {
+  if (!multiGame.value) return props.containers
+  if (!showAll.value) return props.containers.filter(inGame)
+  // ceux du jeu affiché (et de tous les jeux) d'abord, puis par jeu
+  const rank = (c: ContainerListItem) => (inGame(c) ? '' : gamesLabel(c))
+  return [...props.containers].sort((a, b) => rank(a).localeCompare(rank(b)))
+})
+const hiddenCount = computed(() => props.containers.length - props.containers.filter(inGame).length)
+// « YGO · MTG » : jeux d'un rangement en libellés courts
+function gamesLabel(c: ContainerListItem): string {
+  return c.games.map((id) => games.value.find((g) => g.id === id)?.shortLabel ?? id).join(' · ')
+}
+// badge des jeux : seulement quand des rangements d'autres jeux sont affichés
+function showBadge(c: ContainerListItem): boolean {
+  return multiGame.value && showAll.value && c.games.length > 0
+}
+
 const groups = computed(() => {
   const order: ContainerType[] = ['deckbox', 'binder', 'bulk_box']
   return order.map((type) => ({
     type,
     label: TYPE_META[type].label,
     icon: TYPE_META[type].icon,
-    items: props.containers.filter((c) => c.type === type),
+    items: visible.value.filter((c) => c.type === type),
   }))
 })
 

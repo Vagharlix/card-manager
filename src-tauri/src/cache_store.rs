@@ -83,7 +83,6 @@ pub fn prune(dir: &Path, limit: u64) -> io::Result<u64> {
     Ok(freed)
 }
 
-/// Marque un fichier comme récemment utilisé (best-effort).
 /// Nom sûr pour un segment de chemin (jeu, identifiant de carte) : lettres,
 /// chiffres, `-` et `_` seulement, 1 à 64 caractères. Empêche de sortir du
 /// dossier du cache (`..`, `/`, `\\`).
@@ -93,10 +92,59 @@ pub fn is_safe_name(s: &str) -> bool {
         && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
+/// Marque un fichier comme récemment utilisé (best-effort).
 pub fn touch(path: &Path) {
     if let Ok(f) = fs::File::options().write(true).open(path) {
         let _ = f.set_modified(SystemTime::now());
     }
+}
+
+/// Écrit `bytes` dans `path` sans jamais laisser d'image à moitié écrite à
+/// sa place : fichier temporaire dans le même dossier, puis renommage
+/// (atomique sur un même disque). Une appli fermée en pleine écriture laisse
+/// au pire un `.part` (élagué comme le reste), jamais une image tronquée
+/// que le cache servirait ensuite indéfiniment.
+pub fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    let tmp = path.with_extension(format!("part{}-{}", std::process::id(), n));
+    fs::write(&tmp, bytes)?;
+    fs::rename(&tmp, path).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        e
+    })
+}
+
+/// Chemin demandé au protocole d'images (`<jeu>/<taille>/<id>`, encodé ou
+/// non : `ygo%2Fsmall%2F46986414`) → (jeu, taille, id). None si le chemin
+/// n'a pas exactement trois segments sûrs (cf. is_safe_name).
+pub fn parse_image_path(path: &str) -> Option<(String, String, String)> {
+    let decoded = percent_decode(path.trim_start_matches('/'))?;
+    let parts: Vec<&str> = decoded.split('/').collect();
+    match parts.as_slice() {
+        [game, size, id] if [game, size, id].iter().all(|p| is_safe_name(p)) => {
+            Some((game.to_string(), size.to_string(), id.to_string()))
+        }
+        _ => None,
+    }
+}
+
+fn percent_decode(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let hex = s.get(i + 1..i + 3)?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
 }
 
 #[cfg(test)]
@@ -176,6 +224,43 @@ mod tests {
         prune(&d, 100).unwrap();
         assert!(old.exists() && !new.exists());
         fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn write_atomic_replaces_without_leftovers() {
+        let d = temp_dir("atomic");
+        let p = d.join("small/a.jpg");
+        write_atomic(&p, b"first").unwrap();
+        write_atomic(&p, b"second").unwrap();
+        assert_eq!(fs::read(&p).unwrap(), b"second");
+        let names: Vec<_> = fs::read_dir(d.join("small")).unwrap().map(|e| e.unwrap().file_name()).collect();
+        assert_eq!(names.len(), 1, "pas de fichier temporaire restant : {names:?}");
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn write_atomic_fails_cleanly_in_a_missing_dir() {
+        assert!(write_atomic(Path::new("/nonexistent/cache-store/a.jpg"), b"x").is_err());
+    }
+
+    #[test]
+    fn image_paths() {
+        let ok = |g: &str, s: &str, i: &str| Some((g.to_string(), s.to_string(), i.to_string()));
+        assert_eq!(parse_image_path("/ygo/small/46986414"), ok("ygo", "small", "46986414"));
+        assert_eq!(parse_image_path("ygo%2Fsmall%2F46986414"), ok("ygo", "small", "46986414"));
+        assert_eq!(parse_image_path("/ygo%2ffull%2f1"), ok("ygo", "full", "1"));
+        assert_eq!(
+            parse_image_path("/mtg%2Fsmall%2F0000579f-7b35-4ed3-b44c-db2a538066fe"),
+            ok("mtg", "small", "0000579f-7b35-4ed3-b44c-db2a538066fe")
+        );
+        assert_eq!(parse_image_path("/ygo/small"), None);
+        assert_eq!(parse_image_path("/ygo/small/1/2"), None);
+        assert_eq!(parse_image_path("/ygo/small/..%2F..%2Fetc"), None);
+        assert_eq!(parse_image_path("/ygo/..%2Fsmall/1"), None);
+        assert_eq!(parse_image_path("/ygo/small/a.jpg"), None);
+        assert_eq!(parse_image_path("/ygo/small/%zz"), None);
+        assert_eq!(parse_image_path("/ygo/small/%2"), None);
+        assert_eq!(parse_image_path(""), None);
     }
 
     #[test]

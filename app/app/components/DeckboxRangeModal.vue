@@ -179,7 +179,8 @@ function confirm() {
 const title = computed(() => 'Store the deck in a deckbox')
 
 async function loadDeckboxes() {
-  const all = await listContainers()
+  // deckbox du jeu du deck (ou de tous les jeux)
+  const all = await listContainers(useCurrentGame().game.value)
   deckboxes.value = all.filter((c) => c.type === 'deckbox')
   current.value = await deckCurrentDeckbox(props.deckId)
 }

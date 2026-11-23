@@ -9,6 +9,9 @@ import { SyncError, type SyncReport } from '~/services/userSync'
 // s'en sert pour remonter la page affichée (elle relit ses données).
 // ============================================================
 
+// délai avant la synchro discrète au lancement et au retour dans l'appli
+export const FOREGROUND_DELAY_MS = 1500
+
 export const useDeviceSync = createGlobalState(() => {
   const syncing = ref(false)
   const epoch = ref(0)
@@ -44,8 +47,17 @@ export const useDeviceSync = createGlobalState(() => {
    * l'autre appareil) : synchro discrète, au plus toutes les 2 minutes.
    */
   function watchForeground() {
+    let timer: ReturnType<typeof setTimeout> | null = null
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && Date.now() - lastRun > 120_000) run(true)
+      if (timer) clearTimeout(timer)
+      timer = null
+      if (document.visibilityState !== 'visible' || Date.now() - lastRun <= 120_000) return
+      // un peu après le retour : les premières actions passent avant la
+      // synchro (ses requêtes attendent leur tour dans la même file)
+      timer = setTimeout(() => {
+        timer = null
+        if (document.visibilityState === 'visible') run(true)
+      }, FOREGROUND_DELAY_MS)
     })
   }
 

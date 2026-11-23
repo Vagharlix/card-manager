@@ -348,6 +348,26 @@ const debug = reactive({
 let timer: ReturnType<typeof setTimeout> | null = null
 let running = false
 
+// JPEG en base64 (ce qu'attend le plugin), encodé sans bloquer l'écran :
+// toBlob travaille hors du fil principal, contrairement à toDataURL qui
+// gelait l'interface à chaque image (1600 px, ~4 fois par seconde).
+// Même image, même qualité.
+function jpegBase64(source: HTMLCanvasElement, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    source.toBlob(
+      (blob) => {
+        if (!blob) return reject(new Error('JPEG encoding failed'))
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+        reader.onerror = () => reject(reader.error ?? new Error('read failed'))
+        reader.readAsDataURL(blob)
+      },
+      'image/jpeg',
+      quality
+    )
+  })
+}
+
 async function tick() {
   if (!running) return
   try {
@@ -355,7 +375,7 @@ async function tick() {
     // la mention « 1st Edition » sont petits sur la carte
     const ctx = camera.grab(canvas, 1600, frameCrop())
     if (ctx) {
-      const image = canvas.toDataURL('image/jpeg', 0.9).split(',')[1] ?? ''
+      const image = await jpegBase64(canvas, 0.9)
       const t0 = performance.now()
       const res = await invoke<{ lines: OcrLine[] }>('plugin:card-scanner|recognize', { image })
       debug.lastMs = Math.round(performance.now() - t0)

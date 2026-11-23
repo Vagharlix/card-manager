@@ -18,6 +18,13 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
+/* écrans tactiles sans survol (téléphone, tablette, pliable) : ce qui
+   n'apparaît qu'au survol de la souris doit y rester visible */
+@custom-variant touch (@media (hover: none));
+
+/* peu de hauteur (téléphone couché) : barre d'onglets plus basse */
+@custom-variant short (@media (max-height: 519.98px));
+
 /* rangées défilantes au doigt (puces de filtres) sans barre visible */
 @utility no-scrollbar {
   scrollbar-width: none;

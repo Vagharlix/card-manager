@@ -1,52 +1,175 @@
 name: Release
 
-# Builds de test installables, publiés sur la pré-release « dev-latest »
-# (page Releases du dépôt) à chaque push sur dev :
-#   - card-manager-linux-x86_64          (exécutable seul : Arch, CachyOS, toute
-#                                         distrib avec webkit2gtk-4.1 installé)
-#   - card-manager-linux-amd64.deb        (Debian, Ubuntu, Mint, Pop!_OS…)
-#   - card-manager-linux-x86_64.rpm       (Fedora, openSUSE…)
-#   - card-manager-linux-x86_64.AppImage  (le reste ; embarque ses bibliothèques,
-#                                         ce qui casse sur certains systèmes
-#                                         récents : EGL_BAD_PARAMETER sur CachyOS)
-#   - card-manager-android-arm64.apk      (téléphones Android 64 bits)
-# L'exécutable, le .deb et le .rpm utilisent les bibliothèques du système
-# (WebKitGTK, pilotes graphiques) : c'est ce qui marche partout.
-# Sur une PR qui touche ce workflow : build seul, sans publication.
+# Versions publiées comme CardStudio et Mango : une release GitHub par version
+# (tag vX.Y.Z), avec les fichiers de chaque système et des notes de version.
+# Une release part :
+#  - quand un push sur dev modifie .github/release-notes.md : la version est
+#    celle de src-tauri/tauri.conf.json (« v » + version) ; rien ne se passe si
+#    elle est déjà publiée (penser à monter la version avec les notes) ;
+#  - quand un tag vX.Y.Z est poussé ;
+#  - depuis l'onglet Actions (« Run workflow ») : cocher les systèmes et
+#    donner un tag (ex. v0.2.1, ou v0.3.0-beta.1 → pré-release) ; sans tag,
+#    les fichiers sont seulement construits (artefacts du run).
+# Sur une PR qui touche ce workflow : tout est construit, rien n'est publié.
+#
+# Fichiers :
+#   Card-Manager-<v>-linux-x86_64             exécutable seul (Arch, CachyOS…,
+#                                             nécessite webkit2gtk-4.1)
+#   Card-Manager-<v>-linux-amd64.deb          Debian, Ubuntu, Mint…
+#   Card-Manager-<v>-linux-x86_64.rpm         Fedora, openSUSE…
+#   Card-Manager-<v>-linux-x86_64.AppImage    le reste (embarque ses bibliothèques,
+#                                             peut casser sur un système récent)
+#   Card-Manager-<v>-windows-x64-setup.exe / .msi
+#   Card-Manager-<v>-macos-arm64.dmg          Mac Apple Silicon (non signée)
+#   Card-Manager-<v>-android-arm64.apk        signé avec la clé du dépôt
 on:
-  push:
-    branches: [dev]
   workflow_dispatch:
+    inputs:
+      release:
+        description: Tag à publier (ex. v0.2.1 ; « -beta.1 » = pré-release). Vide = construire seulement
+        type: string
+        default: ''
+      linux:
+        description: Linux (exécutable / .deb / .rpm / .AppImage)
+        type: boolean
+        default: true
+      windows:
+        description: Windows (.exe / .msi)
+        type: boolean
+        default: true
+      macos:
+        description: macOS Apple Silicon (.dmg)
+        type: boolean
+        default: true
+      android:
+        description: Android (.apk)
+        type: boolean
+        default: true
+  push:
+    tags: ['v*']
+    branches: [dev]
+    paths:
+      - .github/release-notes.md
   pull_request:
     paths:
       - .github/workflows/release.yml
 
+permissions:
+  contents: write
+
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  # version croissante → l'APK et l'AppImage se mettent à jour par-dessus
-  APP_VERSION: 0.1.${{ github.run_number }}
+  cancel-in-progress: false
 
 jobs:
-  linux:
-    runs-on: ubuntu-22.04 # glibc ancienne = AppImage compatible avec les distribs récentes
-    timeout-minutes: 40
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      publish: ${{ steps.plan.outputs.publish }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      desktop: ${{ steps.plan.outputs.desktop }}
+      android: ${{ steps.plan.outputs.android }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Tauri system dependencies
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_RELEASE: ${{ inputs.release }}
+          LINUX: ${{ inputs.linux }}
+          WINDOWS: ${{ inputs.windows }}
+          MACOS: ${{ inputs.macos }}
+          ANDROID: ${{ inputs.android }}
+        run: |
+          CONF_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          TAG=""
+          PUBLISH=false
+          SKIP=false
+          if [ "$EVENT" = workflow_dispatch ]; then
+            TAG="$INPUT_RELEASE"
+          elif [ "$EVENT" = push ] && [ "$REF_TYPE" = tag ]; then
+            TAG="$REF_NAME"
+          elif [ "$EVENT" = push ]; then
+            TAG="v$CONF_VERSION"
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+              echo "$TAG est déjà publiée : rien à faire (monter la version dans src-tauri/tauri.conf.json)."
+              TAG=""
+              SKIP=true
+            fi
+          fi
+          if [ -n "$TAG" ]; then
+            if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+              echo "::error::Tag invalide « $TAG » : attendu vX.Y.Z ou vX.Y.Z-beta.N"
+              exit 1
+            fi
+            PUBLISH=true
+            VERSION="${TAG#v}"
+          else
+            VERSION="$CONF_VERSION"
+          fi
+          case "$TAG" in *-*) PRE=true ;; *) PRE=false ;; esac
+
+          # systèmes : tous, sauf choix dans l'onglet Actions ; aucun si rien à publier
+          ALL=true
+          [ "$EVENT" = workflow_dispatch ] && ALL=false
+          # .msi : WiX refuse une version de pré-release (« -beta.1 ») → .exe seul
+          if [ "$PRE" = true ]; then WIN_BUNDLES=nsis; else WIN_BUNDLES=nsis,msi; fi
+          items=()
+          if [ "$SKIP" = false ]; then
+            if [ "$ALL" = true ] || [ "$LINUX" = true ]; then items+=('{"name":"Linux","os":"ubuntu-22.04","args":"--bundles appimage,deb,rpm"}'); fi
+            if [ "$ALL" = true ] || [ "$WINDOWS" = true ]; then items+=("{\"name\":\"Windows\",\"os\":\"windows-latest\",\"args\":\"--bundles $WIN_BUNDLES\"}"); fi
+            if [ "$ALL" = true ] || [ "$MACOS" = true ]; then items+=('{"name":"macOS","os":"macos-latest","args":"--target aarch64-apple-darwin --bundles dmg"}'); fi
+            if [ "$ALL" = true ] || [ "$ANDROID" = true ]; then ANDROID_ON=true; else ANDROID_ON=false; fi
+          else
+            ANDROID_ON=false
+          fi
+          joined=$(IFS=,; echo "${items[*]}")
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "publish=$PUBLISH"
+            echo "prerelease=$PRE"
+            echo "desktop={\"include\":[${joined}]}"
+            echo "android=$ANDROID_ON"
+          } >> "$GITHUB_OUTPUT"
+          echo "Tag : ${TAG:-aucun (construction seule)} · version $VERSION · publication $PUBLISH"
+
+  desktop:
+    name: Desktop (${{ matrix.name }})
+    needs: plan
+    if: needs.plan.outputs.desktop != '{"include":[]}'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.desktop) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      FILE: Card-Manager-${{ needs.plan.outputs.tag || format('v{0}', needs.plan.outputs.version) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file \
             libxdo-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: release-linux
+          key: release-${{ matrix.name }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -69,32 +192,54 @@ jobs:
         run: pnpm --ignore-workspace generate
         # synchro Google Drive : identifiants du client OAuth « bureau »
         # (Google ne considère pas ce secret comme confidentiel pour une appli
-        # installée ; il reste hors du dépôt). Android n'en a pas besoin :
-        # l'appli y est reconnue par son paquet et sa clé de signature.
+        # installée ; il reste hors du dépôt).
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
-      - name: Build Linux packages
-        run: pnpm tauri build --bundles appimage,deb,rpm --config "{\"version\":\"$APP_VERSION\"}"
+      - name: Build
+        run: pnpm tauri build ${{ matrix.args }} --config "{\"version\":\"$VERSION\"}"
 
-      - name: Collect
+      - name: Collect files
         run: |
-          mkdir out
-          cp src-tauri/target/release/card-manager out/card-manager-linux-x86_64
-          cp src-tauri/target/release/bundle/deb/*.deb out/card-manager-linux-amd64.deb
-          cp src-tauri/target/release/bundle/rpm/*.rpm out/card-manager-linux-x86_64.rpm
-          cp src-tauri/target/release/bundle/appimage/*.AppImage out/card-manager-linux-x86_64.AppImage
+          mkdir -p dist
+          case "$RUNNER_OS" in
+            Linux)
+              cp src-tauri/target/release/card-manager "dist/$FILE-linux-x86_64"
+              cp src-tauri/target/release/bundle/deb/*.deb "dist/$FILE-linux-amd64.deb"
+              cp src-tauri/target/release/bundle/rpm/*.rpm "dist/$FILE-linux-x86_64.rpm"
+              cp src-tauri/target/release/bundle/appimage/*.AppImage "dist/$FILE-linux-x86_64.AppImage"
+              ;;
+            Windows)
+              cp src-tauri/target/release/bundle/nsis/*-setup.exe "dist/$FILE-windows-x64-setup.exe"
+              for f in src-tauri/target/release/bundle/msi/*.msi; do
+                [ -e "$f" ] && cp "$f" "dist/$FILE-windows-x64.msi"
+              done
+              ;;
+            macOS)
+              cp src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg "dist/$FILE-macos-arm64.dmg"
+              ;;
+          esac
+          ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
-          path: out/
-          retention-days: 7
+          name: card-manager-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
 
   android:
+    name: Android
+    needs: plan
+    if: needs.plan.outputs.android == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      FILE: Card-Manager-${{ needs.plan.outputs.tag || format('v{0}', needs.plan.outputs.version) }}
+      PUBLISH: ${{ needs.plan.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
 
@@ -137,13 +282,6 @@ jobs:
       - name: Build frontend
         working-directory: app
         run: pnpm --ignore-workspace generate
-        # synchro Google Drive : identifiants du client OAuth « bureau »
-        # (Google ne considère pas ce secret comme confidentiel pour une appli
-        # installée ; il reste hors du dépôt). Android n'en a pas besoin :
-        # l'appli y est reconnue par son paquet et sa clé de signature.
-        env:
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
       # src-tauri/gen/ n'est pas versionné : on génère le projet Android ici,
       # puis les icônes de l'app dans ses ressources.
@@ -153,12 +291,13 @@ jobs:
           pnpm tauri icon src-tauri/icons/icon.png
 
       - name: Build APK (arm64)
-        run: pnpm tauri android build --apk --target aarch64 --ci --config "{\"version\":\"$APP_VERSION\"}"
+        run: pnpm tauri android build --apk --target aarch64 --ci --config "{\"version\":\"$VERSION\"}"
 
       # Signature : la clé vit dans les secrets du dépôt (jamais dans git, le
-      # dépôt est public). Générer la clé et les secrets : scripts/android-keystore.sh.
-      # Sans secret (ex. PR de fork) : clé jetable, l'APK s'installe mais ne
-      # pourra pas se mettre à jour par-dessus un APK signé autrement.
+      # dépôt est public ; scripts/android-keystore.sh pour en refaire une).
+      # Une release DOIT être signée avec cette clé, sinon elle ne se met pas
+      # à jour par-dessus l'appli installée : sans les secrets, la publication
+      # s'arrête ici. Construction seule (PR, run sans tag) : clé jetable.
       - name: Sign APK
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -169,10 +308,13 @@ jobs:
           echo "APK non signé : $apk"
           bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
           ks="$RUNNER_TEMP/release.keystore"
-          if [ -n "$KEYSTORE_B64" ]; then
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$ks"
+          elif [ "$PUBLISH" = true ]; then
+            echo "::error::Secrets ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS absents : impossible de publier un APK qui mette à jour l'appli installée."
+            exit 1
           else
-            echo "::warning::Secret ANDROID_KEYSTORE_BASE64 absent : APK signé avec une clé jetable (pas de mise à jour par-dessus un APK précédent)."
+            echo "::warning::Secrets de signature absents : APK signé avec une clé jetable (construction seule)."
             KEYSTORE_PASSWORD=$(openssl rand -hex 16)
             KEY_ALIAS=ephemeral
             keytool -genkeypair -storetype PKCS12 -keystore "$ks" -alias "$KEY_ALIAS" \
@@ -180,46 +322,55 @@ jobs:
               -dname "CN=card-manager ephemeral" > /dev/null
           fi
           export KEYSTORE_PASSWORD
-          mkdir out
+          mkdir -p dist
           "$bt/zipalign" -p -f 4 "$apk" aligned.apk
           "$bt/apksigner" sign --ks "$ks" --ks-pass env:KEYSTORE_PASSWORD --ks-key-alias "$KEY_ALIAS" \
-            --out out/card-manager-android-arm64.apk aligned.apk
-          "$bt/apksigner" verify out/card-manager-android-arm64.apk
+            --out "dist/$FILE-android-arm64.apk" aligned.apk
+          "$bt/apksigner" verify "dist/$FILE-android-arm64.apk"
           rm -f "$ks"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: android
-          path: out/
-          retention-days: 7
+          name: card-manager-Android
+          path: dist/*.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
 
-  publish:
-    if: github.event_name != 'pull_request'
-    needs: [linux, android]
+  # une seule publication, une fois tous les fichiers construits (des jobs en
+  # parallèle qui créent la même release peuvent se marcher dessus)
+  release:
+    name: Publish release
+    needs: [plan, desktop, android]
+    if: >-
+      needs.plan.outputs.publish == 'true' && github.event_name != 'pull_request' && !cancelled()
+      && (needs.desktop.result == 'success' || needs.desktop.result == 'skipped')
+      && (needs.android.result == 'success' || needs.android.result == 'skipped')
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Publish dev-latest
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+      - name: Release notes
         run: |
-          gh release delete dev-latest --cleanup-tag --yes || true
-          gh release create dev-latest dist/* \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Build de test $APP_VERSION" \
-            --notes "Build automatique de \`${GITHUB_SHA::7}\` (branche ${GITHUB_REF_NAME}).
+          ls -la dist
+          {
+            cat .github/release-notes.md
+            echo
+            echo '---'
+            echo
+            cat .github/release-install.md
+          } > notes.md
 
-          **PC (Linux)**, au choix selon la distribution :
-          - Arch, CachyOS, Manjaro… : \`card-manager-linux-x86_64\` (nécessite le paquet \`webkit2gtk-4.1\`), puis \`chmod +x card-manager-linux-x86_64\` et le lancer.
-          - Debian, Ubuntu, Mint… : \`card-manager-linux-amd64.deb\` (\`sudo apt install ./card-manager-linux-amd64.deb\`).
-          - Fedora, openSUSE… : \`card-manager-linux-x86_64.rpm\` (\`sudo dnf install ./card-manager-linux-x86_64.rpm\`).
-          - Sinon : l'AppImage (\`chmod +x\` puis la lancer).
-          **Android** : télécharger l'APK depuis le téléphone et l'installer (autoriser les sources inconnues)."
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.plan.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Card Manager ${{ needs.plan.outputs.tag }}
+          prerelease: ${{ needs.plan.outputs.prerelease == 'true' }}
+          files: dist/*
+          body_path: notes.md

@@ -206,8 +206,13 @@
       </div>
 
       <!-- ── Collection reçue ── -->
-      <div v-else-if="active === 'view' && viewing" id="shared-view" class="space-y-4">
-        <div class="flex items-start gap-3">
+      <!-- hauteur de la page : la grille défile seule (VirtualGrid) -->
+      <div
+        v-else-if="active === 'view' && viewing"
+        id="shared-view"
+        class="h-full flex flex-col gap-4"
+      >
+        <div class="flex items-start gap-3 shrink-0">
           <div class="flex-1">
             <h2 class="text-lg font-medium">{{ viewing.owner || 'No name' }}'s collection</h2>
             <p class="text-xs text-muted">
@@ -226,7 +231,7 @@
           />
         </div>
 
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3 shrink-0">
           <UInput
             id="shared-search"
             v-model="viewFilters.search"
@@ -252,43 +257,48 @@
           <UIcon name="i-lucide-inbox" class="text-4xl mb-3" />
           <p>No matching cards</p>
         </div>
-        <div
+        <VirtualGrid
           v-else
-          class="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
+          :key="`${viewingId}|${viewFilters.search}|${viewFilters.onlyTrade}|${viewFilters.onlyMissing}`"
+          class="flex-1 min-h-0"
+          :items="filteredCards"
+          :item-key="(c) => c.rootId"
+          :columns="{ base: 3, sm: 4, md: 5, lg: 6, xl: 8 }"
+          :gap="12"
         >
-          <div
-            v-for="c in filteredCards"
-            :key="c.rootId"
-            :data-shared-card-id="c.displayId"
-            :data-shared-qty="c.qty"
-            :data-shared-trade="c.trade"
-            :data-shared-mine="c.mine"
-            class="shared-card relative"
-          >
-            <CardThumb
-              :card="{ game: viewing.game, id: c.displayId, name: c.name, imageUrl: '' }"
-              :quantity="c.qty"
-              @select="openCard(c.displayId)"
-            />
-            <UBadge
-              v-if="c.trade"
-              icon="i-lucide-repeat"
-              color="primary"
-              variant="solid"
-              size="sm"
-              class="absolute bottom-1.5 left-1.5 z-20"
-              :label="String(c.trade)"
-            />
-            <UBadge
-              :color="c.mine ? 'success' : 'warning'"
-              variant="solid"
-              size="sm"
-              class="absolute top-1.5 left-1.5 z-20"
-              :icon="c.mine ? 'i-lucide-check' : 'i-lucide-circle-dashed'"
-              :label="c.mine ? `×${c.mine}` : ''"
-            />
-          </div>
-        </div>
+          <template #default="{ item: c }">
+            <div
+              :data-shared-card-id="c.displayId"
+              :data-shared-qty="c.qty"
+              :data-shared-trade="c.trade"
+              :data-shared-mine="c.mine"
+              class="shared-card relative"
+            >
+              <CardThumb
+                :card="thumbCards.get(c.rootId)!"
+                :quantity="c.qty"
+                @select="openCard(c.displayId)"
+              />
+              <UBadge
+                v-if="c.trade"
+                icon="i-lucide-repeat"
+                color="primary"
+                variant="solid"
+                size="sm"
+                class="absolute bottom-1.5 left-1.5 z-20"
+                :label="String(c.trade)"
+              />
+              <UBadge
+                :color="c.mine ? 'success' : 'warning'"
+                variant="solid"
+                size="sm"
+                class="absolute top-1.5 left-1.5 z-20"
+                :icon="c.mine ? 'i-lucide-check' : 'i-lucide-circle-dashed'"
+                :label="c.mine ? `×${c.mine}` : ''"
+              />
+            </div>
+          </template>
+        </VirtualGrid>
       </div>
     </div>
 
@@ -421,7 +431,18 @@ async function importCode(code: string) {
 const saved = ref<SavedShare[]>([])
 const viewingId = ref<string | null>(null)
 const viewing = ref<SharePayload | null>(null)
-const viewCards = ref<SharedCardView[]>([])
+const viewCards = shallowRef<SharedCardView[]>([])
+// objets carte des vignettes, construits une fois par collection affichée
+// (un objet neuf à chaque rendu redessinerait chaque vignette)
+const thumbCards = computed(
+  () =>
+    new Map(
+      viewCards.value.map((c) => [
+        c.rootId,
+        { game: viewing.value?.game ?? GAME, id: c.displayId, name: c.name, imageUrl: '' },
+      ])
+    )
+)
 const viewFilters = reactive({ search: '', onlyTrade: false, onlyMissing: false })
 
 async function refreshSaved() {

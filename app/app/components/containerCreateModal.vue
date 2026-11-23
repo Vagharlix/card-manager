@@ -36,6 +36,9 @@
           />
         </div>
 
+        <!-- jeux (facultatif, plusieurs possibles) -->
+        <ContainerGameSelect v-model="games" />
+
         <!-- options binder -->
         <div v-if="type === 'binder'" class="grid grid-cols-3 gap-2">
           <div>
@@ -133,6 +136,9 @@ const rows = ref(3)
 const cols = ref(3)
 const maxCapacity = ref<number | null>(null)
 const creating = ref(false)
+// jeux associés : le jeu affiché par défaut (aucun = tous les jeux)
+const currentGame = useCurrentGame().game
+const games = ref<string[]>([currentGame.value])
 
 // validation en amont : bouton désactivé si saisie invalide
 const canCreate = computed(() => {
@@ -149,6 +155,7 @@ function resetForm() {
   pageCount.value = 0
   rows.value = 3
   cols.value = 3
+  games.value = [currentGame.value]
 }
 
 async function create() {
@@ -157,11 +164,17 @@ async function create() {
   try {
     let id: string
     if (type.value === 'binder') {
-      id = await createBinder(name.value.trim(), pageCount.value, rows.value, cols.value)
+      id = await createBinder(
+        name.value.trim(),
+        pageCount.value,
+        rows.value,
+        cols.value,
+        games.value
+      )
     } else if (type.value === 'deckbox') {
-      id = await createDeckbox(name.value.trim(), maxCapacity.value)
+      id = await createDeckbox(name.value.trim(), maxCapacity.value, games.value)
     } else {
-      id = await createBulkBox(name.value.trim(), maxCapacity.value)
+      id = await createBulkBox(name.value.trim(), maxCapacity.value, games.value)
     }
     toast.add({ title: 'Storage created', icon: 'i-lucide-check', color: 'success' })
     resetForm()

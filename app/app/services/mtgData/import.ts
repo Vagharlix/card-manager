@@ -298,6 +298,8 @@ export function printColumns(p: PrintRow): {
       p.finishes,
       p.artist,
       p.illustrationId,
+      p.promo ? 1 : 0,
+      p.variation ? 1 : 0,
     ],
     meta: [p.id, p.oracleId, p.typeLine],
   }

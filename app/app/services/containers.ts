@@ -6,9 +6,10 @@ import { cardMetaOf } from '~/services/card/meta'
 // CRUD over containers (CTI: containers + *_details tables) plus
 // card assignment across deckbox / binder / bulk_box.
 //
-// Multi-TCG: containers themselves are game-agnostic (a physical
-// box can hold any game). The game lives on the cards inside,
-// via collection.game.
+// Multi-TCG: the game lives on the cards inside (collection.game). A
+// container may also be associated with games (containers.games,
+// migration 010, optional, comma-separated): it is then only offered in
+// those games. NULL / empty = all games (a physical box can hold anything).
 // ============================================================
 
 export type ContainerType = 'deckbox' | 'binder' | 'bulk_box'
@@ -17,6 +18,7 @@ export interface Container {
   id: string
   type: ContainerType
   name: string
+  games: string[] // jeux associés ; vide = tous les jeux
   maxCapacity?: number | null
   pageCount?: number
   rowsPerPage?: number
@@ -55,6 +57,24 @@ export const ASSIGNED_SUBQUERY = `
   GROUP BY collection_id
 `
 
+// rangement proposé dans ce jeu : associé à ce jeu, ou à aucun
+export function containerInGame(c: { games: string[] }, game: string): boolean {
+  return c.games.length === 0 || c.games.includes(game)
+}
+
+// colonne containers.games ⇄ liste (triée, sans doublon ; vide → NULL)
+export function encodeGames(games: string[]): string | null {
+  const list = [...new Set(games.filter(Boolean))].sort()
+  return list.length ? list.join(',') : null
+}
+
+export function decodeGames(value: string | null | undefined): string[] {
+  return value ? value.split(',').filter(Boolean) : []
+}
+
+// filtre SQL « proposé dans ce jeu » (paramètre : le jeu)
+const IN_GAME_SQL = `(c.games IS NULL OR c.games = '' OR ',' || c.games || ',' LIKE '%,' || ? || ',%')`
+
 // ============================================================
 // VALIDATION
 // ============================================================
@@ -91,7 +111,8 @@ function assertCapacity(maxCapacity: number | null) {
 
 export async function createDeckbox(
   name: string,
-  maxCapacity: number | null = null
+  maxCapacity: number | null = null,
+  games: string[] = []
 ): Promise<string> {
   assertName(name)
   assertCapacity(maxCapacity)
@@ -101,8 +122,8 @@ export async function createDeckbox(
   const id = uuid()
   const ts = now()
   await user.execute(
-    `INSERT INTO containers (id, type, name, created_at, updated_at) VALUES (?, 'deckbox', ?, ?, ?)`,
-    [id, name.trim(), ts, ts]
+    `INSERT INTO containers (id, type, name, games, created_at, updated_at) VALUES (?, 'deckbox', ?, ?, ?, ?)`,
+    [id, name.trim(), encodeGames(games), ts, ts]
   )
   await user.execute(`INSERT INTO deckbox_details (container_id, max_capacity) VALUES (?, ?)`, [
     id,
@@ -115,7 +136,8 @@ export async function createBinder(
   name: string,
   pageCount = 0,
   rowsPerPage = 3,
-  colsPerPage = 3
+  colsPerPage = 3,
+  games: string[] = []
 ): Promise<string> {
   assertName(name)
   if (rowsPerPage < 1 || colsPerPage < 1 || pageCount < 0) throw new Error('INVALID_LAYOUT')
@@ -125,8 +147,8 @@ export async function createBinder(
   const id = uuid()
   const ts = now()
   await user.execute(
-    `INSERT INTO containers (id, type, name, created_at, updated_at) VALUES (?, 'binder', ?, ?, ?)`,
-    [id, name.trim(), ts, ts]
+    `INSERT INTO containers (id, type, name, games, created_at, updated_at) VALUES (?, 'binder', ?, ?, ?, ?)`,
+    [id, name.trim(), encodeGames(games), ts, ts]
   )
   await user.execute(
     `INSERT INTO binder_details (container_id, page_count, rows_per_page, cols_per_page)
@@ -138,7 +160,8 @@ export async function createBinder(
 
 export async function createBulkBox(
   name: string,
-  maxCapacity: number | null = null
+  maxCapacity: number | null = null,
+  games: string[] = []
 ): Promise<string> {
   assertName(name)
   assertCapacity(maxCapacity)
@@ -148,8 +171,8 @@ export async function createBulkBox(
   const id = uuid()
   const ts = now()
   await user.execute(
-    `INSERT INTO containers (id, type, name, created_at, updated_at) VALUES (?, 'bulk_box', ?, ?, ?)`,
-    [id, name.trim(), ts, ts]
+    `INSERT INTO containers (id, type, name, games, created_at, updated_at) VALUES (?, 'bulk_box', ?, ?, ?, ?)`,
+    [id, name.trim(), encodeGames(games), ts, ts]
   )
   await user.execute(`INSERT INTO bulk_box_details (container_id, max_capacity) VALUES (?, ?)`, [
     id,
@@ -168,6 +191,17 @@ export async function renameContainer(id: string, name: string): Promise<void> {
   const { user } = await useDatabase()
   await user.execute(`UPDATE containers SET name = ?, updated_at = ? WHERE id = ?`, [
     name.trim(),
+    now(),
+    id,
+  ])
+}
+
+// jeux associés à un rangement (vide = tous les jeux). Les cartes déjà
+// rangées restent où elles sont, même d'un autre jeu.
+export async function setContainerGames(id: string, games: string[]): Promise<void> {
+  const { user } = await useDatabase()
+  await user.execute(`UPDATE containers SET games = ?, updated_at = ? WHERE id = ?`, [
+    encodeGames(games),
     now(),
     id,
   ])
@@ -274,12 +308,14 @@ export async function deleteContainer(id: string): Promise<void> {
 // READ — sidebar list with live card counts
 // ============================================================
 
-export async function listContainers(): Promise<ContainerListItem[]> {
+// tous les rangements, ou seulement ceux proposés dans un jeu
+// (associés à ce jeu ou à aucun) si `game` est donné
+export async function listContainers(game?: string): Promise<ContainerListItem[]> {
   const { user } = await useDatabase()
 
   const rows = await user.select<any[]>(
     `SELECT
-        c.id, c.type, c.name,
+        c.id, c.type, c.name, c.games,
         dd.max_capacity      AS deckbox_cap,
         bd.page_count, bd.rows_per_page, bd.cols_per_page,
         bbd.max_capacity     AS bulk_cap
@@ -287,8 +323,9 @@ export async function listContainers(): Promise<ContainerListItem[]> {
      LEFT JOIN deckbox_details  dd  ON dd.container_id  = c.id
      LEFT JOIN binder_details   bd  ON bd.container_id  = c.id
      LEFT JOIN bulk_box_details bbd ON bbd.container_id = c.id
-     WHERE c.deleted_at IS NULL
-     ORDER BY c.type, c.name COLLATE NOCASE`
+     WHERE c.deleted_at IS NULL ${game ? `AND ${IN_GAME_SQL}` : ''}
+     ORDER BY c.type, c.name COLLATE NOCASE`,
+    game ? [game] : []
   )
 
   const counts = await containerCounts()
@@ -297,6 +334,7 @@ export async function listContainers(): Promise<ContainerListItem[]> {
     id: r.id,
     type: r.type,
     name: r.name,
+    games: decodeGames(r.games),
     maxCapacity: r.type === 'deckbox' ? r.deckbox_cap : r.type === 'bulk_box' ? r.bulk_cap : null,
     pageCount: r.page_count ?? undefined,
     rowsPerPage: r.rows_per_page ?? undefined,
@@ -327,8 +365,8 @@ export interface ContainerWithCapacity extends ContainerListItem {
   isFull: boolean
 }
 
-export async function listContainersWithCapacity(): Promise<ContainerWithCapacity[]> {
-  const list = await listContainers()
+export async function listContainersWithCapacity(game?: string): Promise<ContainerWithCapacity[]> {
+  const list = await listContainers(game)
 
   return Promise.all(
     list.map(async (c) => {

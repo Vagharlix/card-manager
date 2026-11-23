@@ -138,6 +138,7 @@
             role="tab"
             :aria-selected="mobileBoard === b.id"
             :data-mobile-board="b.id"
+            :data-board-count="boardCount(b.id)"
             class="h-11 text-sm border-b-2 -mb-px transition"
             :class="
               mobileBoard === b.id
@@ -236,17 +237,23 @@ import { searchCards, type CardSearchResult } from '~/services/search'
 import { ownedCardIds } from '~/services/collection'
 import {
   getDeck,
-  getDeckContents,
+  getDeckState,
+  deckSearchMeta,
   addCardToDeck,
   removeCardFromDeck,
   updateDeckMeta,
   deckEngine,
-  validateDeck,
   moveCardBoard,
+  limitCheck,
+  validateContents,
+  byName,
   type Deck,
   type DeckContents,
   type DeckCard,
   type DeckValidation,
+  type RootLimit,
+  type SearchCardMeta,
+  type AddResult,
 } from '~/services/decks'
 import {
   deckCurrentDeckbox,
@@ -255,7 +262,6 @@ import {
   type DeckLinkPlan,
 } from '~/services/deckLink'
 import type { Board } from '~/services/deck/types'
-import { cardMetaOf } from '~/services/card/meta'
 
 // jeu affiché (la page est remontée quand il change, cf. app.vue)
 const GAME = useCurrentGame().game.value
@@ -285,6 +291,8 @@ const deck = ref<Deck | null>(null)
 const contents = ref<DeckContents>({ main: [], extra: [], side: [] })
 const ownedIds = ref<Set<string>>(new Set())
 const validation = ref<DeckValidation>({ valid: true, violations: [], flagged: new Set() })
+// limite de chaque carte logique du deck dans le format (validation locale)
+let limits = new Map<string, RootLimit>()
 
 // format du deck
 const format = ref<string>(engine.rules.defaultFormat)
@@ -336,19 +344,97 @@ async function onFormatChange(value: string) {
   format.value = value
   await updateDeckMeta(deckId.value, { format: value })
   // un changement de format peut rendre le deck invalide → revalider
-  validation.value = await validateDeck(deckId.value, GAME)
+  await refreshContents()
   toast.add({ title: `Format : ${value.toUpperCase()}`, icon: 'i-lucide-check', color: 'success' })
 }
 
-async function refreshContents() {
-  contents.value = await getDeckContents(deckId.value, GAME)
-  validation.value = await validateDeck(deckId.value, GAME)
+// ── état du deck : affiché tout de suite, écrit ensuite ──────────────
+// Chaque action (ajout, retrait, déplacement) modifie d'abord l'affichage
+// (contenu + validation recalculée sur place), puis l'écriture part en
+// arrière-plan, dans l'ordre des clics. Une relecture complète suit
+// (exemplaires possédés, ordre…) quand plus rien n'est en cours. Si la base
+// refuse ou échoue, la relecture remet l'état réel et un message l'explique.
+let pendingWrites = 0
+let localVersion = 0
+let writeChain: Promise<void> = Promise.resolve()
+
+async function refreshContents(): Promise<void> {
+  if (pendingWrites > 0) return // la dernière écriture relancera la relecture
+  const version = localVersion
+  const state = await getDeckState(deckId.value, GAME, format.value)
+  // un clic est arrivé pendant la lecture : elle est déjà dépassée
+  if (version !== localVersion || pendingWrites > 0) {
+    scheduleRefresh()
+    return
+  }
+  contents.value = state.contents
+  limits = state.limits
+  validation.value = state.validation
+}
+const scheduleRefresh = useDebounceFn((): Promise<void> => refreshContents(), 250)
+
+function persist(write: () => Promise<AddResult | void>) {
+  pendingWrites++
+  writeChain = writeChain.then(async () => {
+    try {
+      const res = await write()
+      if (res && !res.ok) {
+        const msg = engine.limitMessage(res.limit ?? 0, res.formatStatus ?? null)
+        toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
+      }
+    } catch {
+      toast.add({ title: 'Could not update the deck', color: 'error' })
+    } finally {
+      pendingWrites--
+      scheduleRefresh()
+    }
+  })
+}
+
+// +delta copies d'une carte dans une zone, à l'écran seulement
+function bump(
+  board: Board,
+  cardId: string,
+  delta: number,
+  info?: Omit<DeckCard, 'cardId' | 'quantity'>
+) {
+  localVersion++
+  const list = [...(contents.value[board] ?? [])]
+  const i = list.findIndex((c) => c.cardId === cardId)
+  if (i >= 0) {
+    const q = list[i]!.quantity + delta
+    if (q <= 0) list.splice(i, 1)
+    else list[i] = { ...list[i]!, quantity: q }
+  } else if (delta > 0 && info) {
+    list.push({ cardId, quantity: delta, ...info })
+    list.sort(byName)
+  }
+  contents.value = { ...contents.value, [board]: list }
+  validation.value = validateContents(contents.value, limits)
+}
+
+// copies d'une carte logique dans tout le deck (toutes zones)
+function copiesOf(root: string): number {
+  let n = 0
+  for (const list of Object.values(contents.value)) {
+    for (const c of list ?? []) if (c.root === root) n += c.quantity
+  }
+  return n
+}
+
+// refus d'une copie de trop : même message que le service
+function refuse(res: AddResult) {
+  const msg = engine.limitMessage(res.limit ?? 0, res.formatStatus ?? null)
+  toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
 }
 
 async function refreshOwned() {
   ownedIds.value = await ownedCardIds(GAME)
   await refreshContents()
 }
+
+// ce qu'il faut savoir des résultats de recherche pour les ajouter sur place
+let searchMeta = new Map<string, SearchCardMeta>()
 
 watchDebounced(
   query,
@@ -363,6 +449,10 @@ watchDebounced(
     } finally {
       searching.value = false
     }
+    const ids = results.value.map((r) => r.id)
+    deckSearchMeta(GAME, ids)
+      .then((m) => (searchMeta = m))
+      .catch(() => {})
   },
   { debounce: 300 }
 )
@@ -390,35 +480,62 @@ function statusLabel(v: { formatStatus: string | null; limit: number }): string 
 }
 
 async function addCard(r: CardSearchResult) {
-  const type = await fetchType(r.id)
-  const res = await addCardToDeck(deckId.value, GAME, r.id, type)
-  if (!res.ok) {
-    const msg = engine.limitMessage(res.limit ?? 0, res.formatStatus ?? null)
-    toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
-    return
+  const meta = searchMeta.get(r.id)
+  if (!meta) {
+    // pas encore d'informations sur ce résultat : ajout classique
+    const res = await addCardToDeck(deckId.value, GAME, r.id, undefined, undefined, {
+      format: format.value,
+    })
+    if (!res.ok) return refuse(res)
+    if (!isMobile.value) onCardClick(r.id)
+    return refreshContents()
   }
-  // alimente l'aperçu desktop avec la carte ajoutée
-  onCardClick(r.id)
-  await refreshContents()
+  const check = limitCheck(
+    engine,
+    format.value,
+    { cardId: r.id, type: meta.type, banlist: meta.banlist },
+    copiesOf(meta.root)
+  )
+  if (!check.ok) return refuse(check)
+  if (!limits.has(meta.root)) {
+    limits.set(meta.root, {
+      limit: engine.maxCopiesForCard({ cardId: meta.root, banlist: meta.banlist }, format.value),
+      formatStatus: meta.banlist[format.value] ?? null,
+    })
+  }
+  const board = engine.boardForCard({ cardId: r.id, type: meta.type })
+  bump(board, r.id, 1, { root: meta.root, name: r.name, type: meta.type, owned: meta.owned })
+  // alimente l'aperçu desktop avec la carte ajoutée (sur mobile, la fiche
+  // s'ouvrirait par-dessus le panneau de recherche à chaque ajout)
+  if (!isMobile.value) onCardClick(r.id)
+  persist(() =>
+    addCardToDeck(deckId.value, GAME, r.id, meta.type, undefined, { format: format.value })
+  )
 }
 
-async function removeCard(c: DeckCard, board: Board) {
-  await removeCardFromDeck(deckId.value, c.cardId, board)
-  await refreshContents()
+function removeCard(c: DeckCard, board: Board) {
+  bump(board, c.cardId, -1)
+  persist(() => removeCardFromDeck(deckId.value, c.cardId, board))
+}
+
+// déplace une copie d'une zone à une autre (jamais bloqué par la limite :
+// le total ne change pas)
+function move(c: DeckCard, from: Board, to: Board) {
+  if (from === to) return
+  bump(from, c.cardId, -1)
+  bump(to, c.cardId, 1, { root: c.root, name: c.name, type: c.type, owned: c.owned })
+  persist(() => moveCardBoard(deckId.value, GAME, c.cardId, c.type, from, to))
 }
 
 // envoie une carte du Main/Extra vers le Side
-async function moveToSide(c: DeckCard, from: Board) {
-  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, from, 'side')
-  await refreshContents()
+function moveToSide(c: DeckCard, from: Board) {
+  move(c, from, 'side')
 }
 
 // renvoie une carte du Side (ou d'une zone choisie à la main) vers le deck
 // (Main ou Extra selon son type)
-async function moveBack(c: DeckCard, from: Board) {
-  const target = engine.boardForCard({ cardId: c.cardId, type: c.type })
-  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, from, target)
-  await refreshContents()
+function moveBack(c: DeckCard, from: Board) {
+  move(c, from, engine.boardForCard({ cardId: c.cardId, type: c.type }))
 }
 
 // zones à la main (commandant) proposées depuis les autres zones
@@ -428,24 +545,25 @@ function moveTargets(from: Board) {
     .map((b) => ({ id: b.id, label: b.label }))
 }
 
-async function moveTo(c: DeckCard, from: Board, to: Board) {
-  await moveCardBoard(deckId.value, GAME, c.cardId, c.type, from, to)
-  await refreshContents()
+function moveTo(c: DeckCard, from: Board, to: Board) {
+  move(c, from, to)
 }
 
 // +1 d'une carte déjà dans le deck (menu mobile). board explicite pour le Side.
-async function addExisting(c: DeckCard, board?: Board) {
-  const res = await addCardToDeck(deckId.value, GAME, c.cardId, c.type, board)
-  if (!res.ok) {
-    const msg = engine.limitMessage(res.limit ?? 0, res.formatStatus ?? null)
-    toast.add({ title: msg, color: 'warning', icon: 'i-lucide-ban' })
-    return
+function addExisting(c: DeckCard, board?: Board) {
+  const lim = limits.get(c.root)
+  if (lim && copiesOf(c.root) >= lim.limit) {
+    return refuse({ ok: false, limit: lim.limit, formatStatus: lim.formatStatus })
   }
-  await refreshContents()
-}
-
-async function fetchType(cardId: string): Promise<string | null> {
-  return (await cardMetaOf(GAME, [cardId])).get(cardId)?.type ?? null
+  bump(board ?? engine.boardForCard({ cardId: c.cardId, type: c.type }), c.cardId, 1, {
+    root: c.root,
+    name: c.name,
+    type: c.type,
+    owned: c.owned,
+  })
+  persist(() =>
+    addCardToDeck(deckId.value, GAME, c.cardId, c.type, board, { format: format.value })
+  )
 }
 
 // applique le rangement du deck dans le deckbox choisi

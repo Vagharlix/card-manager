@@ -2,13 +2,16 @@
   <UModal :open="open" title="Edit storage" @update:open="$emit('update:open', $event)">
     <template #body>
       <div v-if="container" class="space-y-4">
+        <!-- jeux (facultatif, plusieurs possibles) -->
+        <ContainerGameSelect v-model="games" />
+
         <!-- binder : nombre de pages (dimensions figées) -->
         <template v-if="container.type === 'binder'">
           <div>
             <p class="text-sm text-muted mb-1.5">Number of pages</p>
             <UInput v-model.number="pageCount" type="number" min="0" size="sm" class="w-32" />
             <p class="text-xs text-dimmed mt-1">
-              Format fixe : {{ container.rowsPerPage }} × {{ container.colsPerPage }} par page
+              Fixed layout: {{ container.rowsPerPage }} × {{ container.colsPerPage }} per page
             </p>
           </div>
           <div v-if="willOrphan" class="text-xs text-warning flex items-start gap-1.5">
@@ -55,6 +58,7 @@
           @click="$emit('update:open', false)"
         />
         <UButton
+          id="container-edit-save"
           label="Save"
           icon="i-lucide-check"
           :loading="saving"
@@ -70,6 +74,8 @@
 import {
   setContainerCapacity,
   setBinderPageCount,
+  setContainerGames,
+  encodeGames,
   type ContainerListItem,
 } from '~/services/containers'
 
@@ -84,6 +90,7 @@ const toast = useToast()
 
 const capacity = ref<number | null>(null)
 const pageCount = ref(0)
+const games = ref<string[]>([])
 const saving = ref(false)
 
 // pré-remplit à l'ouverture
@@ -93,6 +100,7 @@ watch(
     if (o && props.container) {
       capacity.value = props.container.maxCapacity ?? null
       pageCount.value = props.container.pageCount ?? 0
+      games.value = [...props.container.games]
     }
   }
 )
@@ -123,11 +131,12 @@ async function save() {
   if (!c || !canSave.value) return
   saving.value = true
   try {
+    if (encodeGames(games.value) !== encodeGames(c.games)) await setContainerGames(c.id, games.value)
     if (c.type === 'binder') {
       const freed = await setBinderPageCount(c.id, pageCount.value)
       toast.add({
         title:
-          freed > 0 ? `Pages updated · ${freed} card(s) moved back to unsorted` : 'Pages updated',
+          freed > 0 ? `Storage updated · ${freed} card(s) moved back to unsorted` : 'Storage updated',
         icon: 'i-lucide-check',
         color: 'success',
       })
@@ -136,8 +145,8 @@ async function save() {
       toast.add({
         title:
           freed > 0
-            ? `Capacity updated · ${freed} card(s) moved back to unsorted`
-            : 'Capacity updated',
+            ? `Storage updated · ${freed} card(s) moved back to unsorted`
+            : 'Storage updated',
         icon: 'i-lucide-check',
         color: 'success',
       })

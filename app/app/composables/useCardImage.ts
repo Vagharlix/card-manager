@@ -1,64 +1,29 @@
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { convertFileSrc } from '@tauri-apps/api/core'
 
 type CardImageSize = 'full' | 'small' | 'cropped'
 
-const resolved = new Map<string, string>()
-const inflight = new Map<string, Promise<string>>()
-
-// à appeler quand des fichiers du cache disque ont été supprimés
-export function forgetCachedImages(): void {
-  resolved.clear()
+// ============================================================
+// IMAGES DE CARTES — adresse servie par le protocole `cardimg` de Rust
+// (image_cache.rs) : lue dans le cache disque, ou téléchargée puis mise en
+// cache. Aucun appel JS → Rust : le navigateur ne charge que les images
+// visibles (loading="lazy") et les garde en mémoire.
+// Forme : cardimg://localhost/<jeu>%2F<taille>%2F<id> (Linux, macOS),
+// http://cardimg.localhost/… (Android, Windows) — convertFileSrc choisit.
+// ============================================================
+export function cardImageUrl(game: string, id: string, size: CardImageSize = 'small'): string {
+  return convertFileSrc(`${game}/${size}/${id}`, 'cardimg')
 }
 
-async function resolveImage(game: string, id: string, size: CardImageSize): Promise<string> {
-  const path = await invoke<string>('cache_card_image', { game, id, size })
-  return convertFileSrc(path)
-}
-
-// image d'une carte (téléchargée puis servie depuis le cache disque, cf.
-// image_cache.rs) ; jeu = celui affiché sauf indication contraire
+// image d'une carte ; jeu = celui affiché sauf indication contraire
 export function useCardImage(
   passcode: MaybeRefOrGetter<string | number>,
   size: CardImageSize = 'small',
   game?: MaybeRefOrGetter<string>
 ) {
   const current = useCurrentGame().game
-  const src = ref('')
-  const loading = ref(true)
-  const error = ref(false)
-
-  async function load() {
-    const code = String(toValue(passcode))
-    if (!code) return
-    const g = toValue(game) || current.value
-
-    const key = `${g}/${size}/${code}`
-    loading.value = true
-    error.value = false
-
-    if (resolved.has(key)) {
-      src.value = resolved.get(key)!
-      loading.value = false
-      return
-    }
-
-    if (!inflight.has(key)) {
-      inflight.set(key, resolveImage(g, code, size))
-    }
-
-    try {
-      const url = await inflight.get(key)!
-      resolved.set(key, url)
-      src.value = url
-    } catch {
-      error.value = true
-    } finally {
-      loading.value = false
-      inflight.delete(key)
-    }
-  }
-
-  watch(() => [toValue(passcode), toValue(game)], load, { immediate: true })
-
-  return { src, loading, error }
+  const src = computed(() => {
+    const id = String(toValue(passcode) ?? '')
+    return id ? cardImageUrl(toValue(game) || current.value, id, size) : ''
+  })
+  return { src }
 }

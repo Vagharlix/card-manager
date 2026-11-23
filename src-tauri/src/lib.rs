@@ -24,14 +24,19 @@ fn db_name(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Linux : WebKitGTK peut afficher une fenêtre vide avec son moteur de
-    // rendu DMABUF selon le pilote graphique (NVIDIA, certaines sessions
-    // Wayland), surtout en AppImage (WebKitGTK d'Ubuntu 22.04 sur un système
-    // plus récent). On le désactive, sauf si l'utilisateur a choisi lui-même.
+    // Linux, AppImage seulement : son WebKitGTK (Ubuntu 22.04) peut afficher
+    // une fenêtre vide avec le moteur de rendu DMABUF sur un système plus
+    // récent ; on le désactive. Partout ailleurs (exécutable seul, .deb,
+    // .rpm : WebKitGTK du système), on le garde : nettement plus fluide avec
+    // un vrai GPU (constaté par Félix sur CachyOS, nov. 2026 ; sans GPU, sous
+    // xvfb, c'est l'inverse). Une valeur déjà définie est toujours respectée :
+    // WEBKIT_DISABLE_DMABUF_RENDERER=1 en cas de fenêtre vide.
     // À faire avant la création de la moindre fenêtre (GTK lit la variable à
     // l'initialisation) : premier appel de run(), encore mono-fil.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+    if std::env::var_os("APPIMAGE").is_some()
+        && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+    {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
@@ -90,6 +95,12 @@ pub fn run() {
             sql: include_str!("../migrations/user/009_sync_state.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 10,
+            description: "container games",
+            sql: include_str!("../migrations/user/010_container_games.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ygo_migrations = vec![
@@ -111,14 +122,28 @@ pub fn run() {
             sql: include_str!("../migrations/ygo/003_card_contract.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "card hashes (incremental updates)",
+            sql: include_str!("../migrations/ygo/004_card_hashes.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
-    let mtg_migrations = vec![Migration {
-        version: 1,
-        description: "initial mtg schema",
-        sql: include_str!("../migrations/mtg/001_initial.sql"),
-        kind: MigrationKind::Up,
-    }];
+    let mtg_migrations = vec![
+        Migration {
+            version: 1,
+            description: "initial mtg schema",
+            sql: include_str!("../migrations/mtg/001_initial.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "incremental updates",
+            sql: include_str!("../migrations/mtg/002_incremental.sql"),
+            kind: MigrationKind::Up,
+        },
+    ];
 
     let builder = tauri::Builder::default();
 
@@ -145,13 +170,16 @@ pub fn run() {
                 .add_migrations(&db_name("cards-mtg"), mtg_migrations)
                 .build(),
         )
+        // images de cartes : <img src="cardimg://…"> servies par Rust (cache disque)
+        .register_asynchronous_uri_scheme_protocol("cardimg", |ctx, request, responder| {
+            image_cache::serve(ctx.app_handle().clone(), request, responder)
+        })
         .manage(google::Loopbacks::default())
         .manage(card_data::Streams::default())
         .invoke_handler(tauri::generate_handler![
             google::google_request,
             google::oauth_loopback_start,
             google::oauth_loopback_wait,
-            image_cache::cache_card_image,
             image_cache::image_cache_size,
             image_cache::clear_image_cache,
             image_cache::prune_image_cache,

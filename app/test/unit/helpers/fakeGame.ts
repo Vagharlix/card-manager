@@ -91,6 +91,7 @@ export const fakeModule: GameModule = {
   def: {
     id: FAKE,
     label: 'Fake Game',
+    shortLabel: 'FKG',
     cardDb: 'cards-fkg',
     // sous-ensemble de l'échelle commune (imposée par la base), libellés à lui
     conditions: [

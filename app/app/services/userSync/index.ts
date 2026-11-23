@@ -10,6 +10,7 @@ import {
   type SyncDb,
 } from './snapshot'
 import { USER_SCHEMA_VERSION } from './tables'
+import { uncounted, userWrites } from '~/utils/userWrites'
 
 // ============================================================
 // SYNCHRO ENTRE APPAREILS (PC ↔ téléphone) — orchestration
@@ -93,8 +94,15 @@ export async function lastBackup(): Promise<Snapshot | null> {
   return readState<Snapshot>(user, 'backup')
 }
 
+// dernière synchro réussie de cette session : nombre d'écritures locales à
+// son début et version publiée qu'elle a laissée. Si rien n'a été écrit ici
+// depuis et que la version publiée n'a pas bougé, il n'y a rien à faire :
+// une seule vérification de version, sans relire toutes les tables.
+let clean: { writes: number; version: string } | null = null
+
 /** Oublie la synchro (déconnexion) : la prochaine repart d'une union. */
 export async function forgetSyncBase(): Promise<void> {
+  clean = null
   const { user } = await useDatabase()
   await user.execute(`DELETE FROM sync_state WHERE key IN ('base', 'base_version', 'backup')`)
 }
@@ -105,7 +113,23 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
   if (running) throw new SyncError('BUSY', 'A sync is already running')
   running = true
   try {
-    const { user } = await useDatabase()
+    // les écritures de la synchro elle-même ne comptent pas comme des
+    // changements locaux (cf. utils/userWrites)
+    const user = uncounted((await useDatabase()).user)
+    const writesAtStart = userWrites()
+    if (clean && transport.version && writesAtStart !== null && writesAtStart === clean.writes) {
+      if ((await transport.version()) === clean.version) {
+        return {
+          pulled: true,
+          pushed: false,
+          applied: { inserted: 0, updated: 0, deleted: 0 },
+          conflicts: [],
+          fixes: 0,
+          attempts: 1,
+        }
+      }
+    }
+    clean = null
     const me = await deviceId(user)
     const applied: ApplyStats = { inserted: 0, updated: 0, deleted: 0 }
     const conflicts: SyncConflict[] = []
@@ -119,6 +143,7 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
       const baseVersion = await readState<string>(user, 'base_version')
       if (transport.version && base && baseVersion && sameTables(local.tables, base.tables)) {
         if ((await transport.version()) === baseVersion) {
+          if (writesAtStart !== null) clean = { writes: writesAtStart, version: baseVersion }
           return { pulled: true, pushed: false, applied, conflicts, fixes, attempts: attempt }
         }
       }
@@ -165,6 +190,8 @@ export async function syncNow(transport: SyncTransport, maxAttempts = 4): Promis
         if (!base || !sameTables(base.tables, next.tables)) await writeState(user, 'base', next)
         if (pushed.version) await writeState(user, 'base_version', pushed.version)
         else await user.execute(`DELETE FROM sync_state WHERE key = 'base_version'`)
+        if (writesAtStart !== null && pushed.version)
+          clean = { writes: writesAtStart, version: pushed.version }
         return {
           pulled: !!remote,
           pushed: !upToDate,

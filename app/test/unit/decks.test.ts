@@ -13,8 +13,17 @@ vi.mock('~/composables/useDatabase', () => ({
   resetDatabaseInstance: () => {},
 }))
 
-const { addCardToDeck, moveCardBoard, validateDeck, getDeckContents, deckEngine } =
-  await import('~/services/decks')
+const {
+  addCardToDeck,
+  moveCardBoard,
+  validateDeck,
+  getDeckContents,
+  getDeckState,
+  deckSearchMeta,
+  limitCheck,
+  validateContents,
+  deckEngine,
+} = await import('~/services/decks')
 const { getYgoFilterOptions } = await import('~/services/search')
 
 const DM = '46986414'
@@ -178,6 +187,75 @@ describe('getDeckContents', () => {
     const c = await getDeckContents(deck)
     expect(c.main).toMatchObject([{ cardId: DM, quantity: 2, owned: 3 }])
     expect(c.extra).toMatchObject([{ cardId: ZEUS, quantity: 1, owned: 0 }])
+  })
+})
+
+// la page d'un deck affiche un changement avant de l'écrire : ses contrôles
+// locaux doivent donner exactement ce que donne la base
+describe('état du deck et contrôles locaux', () => {
+  it('getDeckState : contenu (avec carte logique), limites du format, validation', async () => {
+    const deck = seed.deck('Deck', 'ygo', 'tcg')
+    seed.deckCard(deck, DM, 2)
+    seed.deckCard(deck, DM_ALT, 2, 'side')
+    seed.deckCard(deck, SANGAN, 1)
+    seed.owned(DM_ALT, 1)
+
+    const st = await getDeckState(deck)
+    expect(st.format).toBe('tcg')
+    expect(st.contents.main).toMatchObject([
+      { cardId: DM, root: DM, quantity: 2, owned: 1 },
+      { cardId: SANGAN, root: SANGAN, quantity: 1 },
+    ])
+    expect(st.contents.side).toMatchObject([{ cardId: DM_ALT, root: DM, quantity: 2 }])
+    expect(st.limits.get(DM)).toEqual({ limit: 3, formatStatus: null })
+    expect(st.limits.get(SANGAN)).toEqual({ limit: 1, formatStatus: 'Limited' })
+    expect(st.validation).toEqual(await validateDeck(deck))
+    expect(st.validation.violations).toMatchObject([{ rootId: DM, quantity: 4, limit: 3 }])
+  })
+
+  it('validateContents recalcule la validation après un changement local', async () => {
+    const deck = seed.deck('Deck', 'ygo', 'tcg')
+    seed.deckCard(deck, DM, 3)
+    const st = await getDeckState(deck)
+    expect(st.validation.valid).toBe(true)
+    // une copie de plus en Side, à l'écran seulement
+    const side = [{ ...st.contents.main[0]!, cardId: DM_ALT, quantity: 1 }]
+    const local = validateContents({ ...st.contents, side }, st.limits)
+    expect(local.violations).toMatchObject([{ rootId: DM, quantity: 4, status: 'Over' }])
+    expect([...local.flagged].sort()).toEqual([DM, DM_ALT].sort())
+  })
+
+  it('limitCheck refuse comme addCardToDeck (même raison, même limite)', async () => {
+    const deck = seed.deck('Deck', 'ygo', 'tcg')
+    seed.deckCard(deck, SANGAN, 1)
+    const engine = deckEngine('ygo')
+    const meta = (await deckSearchMeta('ygo', [SANGAN, POT_ALT, DM])).get(SANGAN)!
+    const local = limitCheck(
+      engine,
+      'tcg',
+      { cardId: SANGAN, type: meta.type, banlist: meta.banlist },
+      1
+    )
+    expect(local).toEqual(await addCardToDeck(deck, 'ygo', SANGAN, undefined, undefined, { format: 'tcg' }))
+    expect(local).toMatchObject({ ok: false, reason: 'limited', limit: 1 })
+    expect(limitCheck(engine, 'tcg', { cardId: SANGAN, type: null, banlist: meta.banlist }, 0)).toEqual({
+      ok: true,
+    })
+  })
+
+  it('deckSearchMeta : carte logique, type, statuts, exemplaires possédés (tous artworks)', async () => {
+    seed.owned(DM, 2)
+    seed.owned(DM_ALT, 1)
+    const m = await deckSearchMeta('ygo', [DM_ALT, POT_ALT, ZEUS])
+    expect(m.get(DM_ALT)).toEqual({ root: DM, type: EFFECT, banlist: {}, owned: 3 })
+    expect(m.get(POT_ALT)).toMatchObject({ root: POT, banlist: { tcg: 'Forbidden' }, owned: 0 })
+    expect(m.get(ZEUS)).toMatchObject({ root: ZEUS, type: XYZ })
+  })
+
+  it('addCardToDeck sans type le lit dans la base (placement Extra)', async () => {
+    const deck = seed.deck()
+    expect(await addCardToDeck(deck, 'ygo', ZEUS)).toEqual({ ok: true })
+    expect(boards(deck)).toEqual({ [`${ZEUS}@extra`]: 1 })
   })
 })
 

@@ -10,6 +10,7 @@ import { TCG_CONDITIONS, DEFAULT_CONDITION, TCG_LANGUAGES, DEFAULT_LANGUAGE } fr
 export const mtgGame: GameDefinition = {
   id: 'mtg',
   label: 'Magic: The Gathering',
+  shortLabel: 'MTG',
   cardDb: 'cards-mtg',
   conditions: TCG_CONDITIONS,
   defaultCondition: DEFAULT_CONDITION,

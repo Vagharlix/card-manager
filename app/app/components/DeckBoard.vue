@@ -84,7 +84,7 @@
         <UDropdownMenu v-if="!isMobile" :items="menuItems(c)" :content="{ align: 'end' }">
           <button
             :data-menu-trigger="c.cardId"
-            class="absolute top-0.5 right-0.5 size-5 rounded bg-elevated/90 border border-default flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-primary hover:text-inverted"
+            class="absolute top-0.5 right-0.5 size-5 rounded bg-elevated/90 border border-default flex items-center justify-center opacity-0 group-hover:opacity-100 touch:opacity-100 transition hover:bg-primary hover:text-inverted"
             title="Actions"
             @click.stop
           >
@@ -102,7 +102,7 @@
         <button
           v-if="!isMobile"
           :data-move="c.cardId"
-          class="absolute bottom-0.5 left-0.5 size-5 rounded bg-elevated/90 border border-default flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-primary hover:text-inverted"
+          class="absolute bottom-0.5 left-0.5 size-5 rounded bg-elevated/90 border border-default flex items-center justify-center opacity-0 group-hover:opacity-100 touch:opacity-100 transition hover:bg-primary hover:text-inverted"
           :title="isSide ? 'Back to the deck' : 'Move to Side'"
           @click.stop="$emit('move', c)"
         >

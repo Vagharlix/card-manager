@@ -1,5 +1,5 @@
 import { useDatabase } from '~/composables/useDatabase'
-import { cardMetaOf, legalityOf, logicalVariants, variantsOfRoots } from '~/services/card/meta'
+import { cardMetaOf, legalityOf, variantsOfRoots } from '~/services/card/meta'
 import type { DeckEngine, Board } from './deck/types'
 import { gameModule } from '~/services/game/modules'
 
@@ -209,6 +209,7 @@ export async function getDeck(id: string): Promise<Deck | null> {
 
 export interface DeckCard {
   cardId: string
+  root: string // carte logique (les artworks d'une même carte la partagent)
   name: string
   type: string | null
   quantity: number
@@ -222,19 +223,82 @@ export type DeckContents = Partial<Record<Board, DeckCard[]>> & {
   side: DeckCard[]
 }
 
-// full contents of a deck, grouped by board, enriched with name/type
-// (from the game's card database) and owned quantity (from collection in user.db).
-export async function getDeckContents(deckId: string, game?: string): Promise<DeckContents> {
+// limite de copies d'une carte logique dans le format du deck, et statut
+// brut du jeu pour ce format (card_legality) — pour les messages
+export interface RootLimit {
+  limit: number
+  formatStatus: string | null
+}
+
+// tout ce qu'affiche la page d'un deck, lu en une fois : contenu par zone
+// (noms, types, cartes logiques, exemplaires possédés), limites de chaque
+// carte logique dans le format, et validation qui en découle.
+export interface DeckState {
+  format: string
+  contents: DeckContents
+  limits: Map<string, RootLimit>
+  validation: DeckValidation
+}
+
+function emptyContents(): DeckContents {
+  return { main: [], extra: [], side: [] }
+}
+
+// exemplaires possédés par carte logique (tous artworks : posséder n'importe
+// lequel compte, comme pour le rangement deck ↔ deckbox)
+async function ownedByRoots(game: string, roots: string[]): Promise<Map<string, number>> {
+  const { user } = await useDatabase()
+  const variants = await variantsOfRoots(game, roots)
+  const rootById = new Map<string, string>()
+  for (const [root, ids] of variants) for (const id of ids) rootById.set(id, root)
+  const variantIds = [...rootById.keys()]
+  const out = new Map<string, number>()
+  if (!variantIds.length) return out
+  const owned = await user.select<{ card_id: string; n: number }[]>(
+    `SELECT card_id, SUM(quantity) AS n FROM collection
+     WHERE deleted_at IS NULL AND game = ? AND card_id IN (${variantIds.map(() => '?').join(', ')})
+     GROUP BY card_id`,
+    [game, ...variantIds]
+  )
+  for (const o of owned) {
+    const root = rootById.get(o.card_id) ?? o.card_id
+    out.set(root, (out.get(root) ?? 0) + o.n)
+  }
+  return out
+}
+
+// limite de copies d'une carte logique (banlist du format comprise)
+function rootLimit(
+  engine: DeckEngine,
+  format: string,
+  root: string,
+  banlist: Record<string, string>
+): RootLimit {
+  return {
+    limit: engine.maxCopiesForCard({ cardId: root, banlist }, format),
+    formatStatus: banlist[format] ?? null,
+  }
+}
+
+export async function getDeckState(
+  deckId: string,
+  game?: string,
+  format?: string
+): Promise<DeckState> {
   const { user } = await useDatabase()
   game ??= await deckGame(deckId)
+  const engine = deckEngine(game)
+  format ??= await deckFormat(deckId, engine.rules.defaultFormat)
 
   const rows = await user.select<{ card_id: string; quantity: number; board: Board }[]>(
     `SELECT card_id, quantity, board FROM deck_cards WHERE deck_id = ?`,
     [deckId]
   )
-
-  const empty: DeckContents = { main: [], extra: [], side: [] }
-  if (!rows.length) return empty
+  const limits = new Map<string, RootLimit>()
+  if (!rows.length) {
+    const contents = emptyContents()
+    return { format, contents, limits, validation: validateContents(contents, limits) }
+  }
 
   // names + types + logical card
   const metaById = await cardMetaOf(
@@ -242,46 +306,77 @@ export async function getDeckContents(deckId: string, game?: string): Promise<De
     rows.map((r) => r.card_id)
   )
   const rootOfId = (id: string) => metaById.get(id)?.root ?? id
-
-  // owned quantity per LOGICAL card (all artworks sharing the root),
-  // like deck ↔ deckbox ranging: owning any artwork counts.
-  const variants = await variantsOfRoots(
-    game,
-    rows.map((r) => rootOfId(r.card_id))
-  )
-  const rootById = new Map<string, string>()
-  for (const [root, ids] of variants) for (const id of ids) rootById.set(id, root)
-  const variantIds = [...rootById.keys()]
-  const vph = variantIds.map(() => '?').join(', ')
-  const owned = await user.select<{ card_id: string; n: number }[]>(
-    `SELECT card_id, SUM(quantity) AS n FROM collection
-     WHERE deleted_at IS NULL AND game = ? AND card_id IN (${vph})
-     GROUP BY card_id`,
-    [game, ...variantIds]
-  )
-  const ownedByRoot = new Map<string, number>()
-  for (const o of owned) {
-    const root = rootById.get(o.card_id) ?? o.card_id
-    ownedByRoot.set(root, (ownedByRoot.get(root) ?? 0) + o.n)
+  const roots = [...new Set(rows.map((r) => rootOfId(r.card_id)))]
+  const knownRoots = [...new Set([...metaById.values()].map((m) => m.root))]
+  const [ownedByRoot, legality] = await Promise.all([
+    ownedByRoots(game, roots),
+    legalityOf(game, knownRoots),
+  ])
+  // limites des seules cartes connues de la base (une carte absente n'est
+  // jamais signalée, comme avant)
+  for (const root of knownRoots) {
+    limits.set(root, rootLimit(engine, format, root, legality.get(root) ?? {}))
   }
 
-  const result: DeckContents = { main: [], extra: [], side: [] }
+  const contents = emptyContents()
   for (const r of rows) {
     const m = metaById.get(r.card_id)
-    const card: DeckCard = {
+    const root = rootOfId(r.card_id)
+    ;(contents[r.board] ??= []).push({
       cardId: r.card_id,
+      root,
       name: m?.name ?? r.card_id,
       type: m?.type ?? null,
       quantity: r.quantity,
-      owned: ownedByRoot.get(rootOfId(r.card_id)) ?? 0,
-    }
-    ;(result[r.board] ??= []).push(card)
+      owned: ownedByRoot.get(root) ?? 0,
+    })
   }
 
   // stable display order: by name
-  for (const list of Object.values(result)) list?.sort((a, b) => a.name.localeCompare(b.name))
+  for (const list of Object.values(contents)) list?.sort(byName)
 
-  return result
+  return { format, contents, limits, validation: validateContents(contents, limits) }
+}
+
+export function byName(a: DeckCard, b: DeckCard): number {
+  return a.name.localeCompare(b.name)
+}
+
+// full contents of a deck, grouped by board, enriched with name/type
+// (from the game's card database) and owned quantity (from collection in user.db).
+export async function getDeckContents(deckId: string, game?: string): Promise<DeckContents> {
+  return (await getDeckState(deckId, game)).contents
+}
+
+// ce que la page d'un deck sait d'une carte de la recherche avant de l'ajouter :
+// carte logique, type (zone), statuts par format, exemplaires possédés.
+// Permet d'afficher l'ajout tout de suite et de refuser sur place une copie
+// de trop, avec le même message que le service.
+export interface SearchCardMeta {
+  root: string
+  type: string | null
+  banlist: Record<string, string>
+  owned: number
+}
+
+export async function deckSearchMeta(
+  game: string,
+  cardIds: string[]
+): Promise<Map<string, SearchCardMeta>> {
+  const out = new Map<string, SearchCardMeta>()
+  if (!cardIds.length) return out
+  const meta = await cardMetaOf(game, cardIds)
+  const roots = [...new Set([...meta.values()].map((m) => m.root))]
+  const [legality, owned] = await Promise.all([legalityOf(game, roots), ownedByRoots(game, roots)])
+  for (const [id, m] of meta) {
+    out.set(id, {
+      root: m.root,
+      type: m.type,
+      banlist: legality.get(m.root) ?? {},
+      owned: owned.get(m.root) ?? 0,
+    })
+  }
+  return out
 }
 
 // result of an add attempt — lets the UI show a precise message
@@ -292,25 +387,54 @@ export interface AddResult {
   formatStatus?: string | null // statut brut du jeu pour ce format (card_legality)
 }
 
+// contrôle d'une copie de plus (pur) : utilisé par addCardToDeck et par la
+// page du deck avant l'écriture (mêmes refus, mêmes messages)
+export function limitCheck(
+  engine: DeckEngine,
+  format: string,
+  card: { cardId: string; type: string | null; banlist: Record<string, string> },
+  current: number
+): AddResult {
+  const max = engine.maxCopiesForCard(card, format)
+  if (current < max) return { ok: true }
+  // precise reason based on the limit / banlist status
+  const status = card.banlist[format]
+  let reason: AddResult['reason'] = 'max'
+  if (status === 'Forbidden') reason = 'forbidden'
+  else if (status === 'Limited') reason = 'limited'
+  else if (status === 'Semi-Limited') reason = 'semi'
+  return { ok: false, reason, limit: max, formatStatus: status ?? null }
+}
+
 // add one copy of a card to a deck. The board is decided by the
 // engine (auto-placement) unless `board` is given explicitly (e.g.
 // moving to side). Respects the per-card copy limit across boards.
+// cardType undefined → lu dans la base ; format connu de l'appelant → passé.
 export async function addCardToDeck(
   deckId: string,
   game: string,
   cardId: string,
-  cardType: string | null,
-  board?: Board
+  cardType?: string | null,
+  board?: Board,
+  opts: { format?: string } = {}
 ): Promise<AddResult> {
   const { user } = await useDatabase()
   const engine = deckEngine(game)
 
-  const targetBoard = board ?? engine.boardForCard({ cardId, type: cardType })
+  // carte logique (+ type si l'appelant ne le connaît pas)
+  const meta = (await cardMetaOf(game, [cardId])).get(cardId)
+  const root = meta?.root ?? cardId
+  const type = cardType === undefined ? (meta?.type ?? null) : cardType
+  const targetBoard = board ?? engine.boardForCard({ cardId, type })
 
   // Resolve every passcode that is the SAME logical card (shared alias
   // root), so the copy limit counts all artworks together — not per
   // passcode. Otherwise 3× art-A + 3× art-B would bypass the limit.
-  const variantIds = await logicalVariants(game, cardId)
+  const [variants, legality] = await Promise.all([
+    variantsOfRoots(game, [root]),
+    legalityOf(game, [root]),
+  ])
+  const variantIds = variants.get(root) ?? [root]
 
   // current total copies of this logical card across all boards
   const ph = variantIds.map(() => '?').join(', ')
@@ -323,19 +447,14 @@ export async function addCardToDeck(
   const current = totals[0]?.n ?? 0
 
   // deck format + card banlist → format-aware copy limit
-  const format = await deckFormat(deckId, engine.rules.defaultFormat)
-  const banlist = await cardBanlist(game, cardId)
-  const max = engine.maxCopiesForCard({ cardId, type: cardType, banlist }, format)
-
-  if (current >= max) {
-    // precise reason based on the limit / banlist status
-    const status = banlist[format]
-    let reason: AddResult['reason'] = 'max'
-    if (status === 'Forbidden') reason = 'forbidden'
-    else if (status === 'Limited') reason = 'limited'
-    else if (status === 'Semi-Limited') reason = 'semi'
-    return { ok: false, reason, limit: max, formatStatus: status ?? null }
-  }
+  const format = opts.format ?? (await deckFormat(deckId, engine.rules.defaultFormat))
+  const check = limitCheck(
+    engine,
+    format,
+    { cardId, type, banlist: legality.get(root) ?? {} },
+    current
+  )
+  if (!check.ok) return check
 
   // existing row for THIS exact artwork on this board?
   const existing = await user.select<{ id: string; quantity: number }[]>(
@@ -365,13 +484,6 @@ async function deckFormat(deckId: string, fallback: string): Promise<string> {
     [deckId]
   )
   return rows[0]?.format ?? fallback
-}
-
-// status of a card per format (card_legality), read on its logical
-// card so all artworks share the same restrictions.
-async function cardBanlist(game: string, cardId: string): Promise<Record<string, string>> {
-  const root = (await cardMetaOf(game, [cardId])).get(cardId)?.root ?? cardId
-  return (await legalityOf(game, [root])).get(root) ?? {}
 }
 
 // remove one copy of a card from a specific board (deletes row at 0)
@@ -459,71 +571,37 @@ export interface DeckValidation {
 }
 
 export async function validateDeck(deckId: string, game?: string): Promise<DeckValidation> {
-  const { user } = await useDatabase()
-  game ??= await deckGame(deckId)
-  const engine = deckEngine(game)
-  const format = await deckFormat(deckId, engine.rules.defaultFormat)
+  return (await getDeckState(deckId, game)).validation
+}
 
-  // all deck rows
-  const rows = await user.select<{ card_id: string; quantity: number }[]>(
-    `SELECT card_id, quantity FROM deck_cards WHERE deck_id = ?`,
-    [deckId]
-  )
-  if (!rows.length) return { valid: true, violations: [], flagged: new Set() }
-
-  // resolve each card to its logical root + name, then the root's legality
-  const metaById = await cardMetaOf(
-    game,
-    rows.map((r) => r.card_id)
-  )
-  const legality = await legalityOf(
-    game,
-    [...metaById.values()].map((m) => m.root)
-  )
-
-  // sum quantities per logical root
-  interface Agg {
-    root: string
-    name: string
-    qty: number
-    banlist: Record<string, string>
-    passcodes: string[]
-  }
-  const byRoot = new Map<string, Agg>()
-  for (const r of rows) {
-    const m = metaById.get(r.card_id)
-    if (!m) continue
-    const agg = byRoot.get(m.root) ?? {
-      root: m.root,
-      name: m.name,
-      qty: 0,
-      banlist: legality.get(m.root) ?? {},
-      passcodes: [],
+// validation (pure) d'un contenu de deck, d'après les limites de chaque carte
+// logique : la page la recalcule aussitôt après un changement local
+export function validateContents(
+  contents: DeckContents,
+  limits: Map<string, RootLimit>
+): DeckValidation {
+  // sum quantities per logical root (all boards)
+  const byRoot = new Map<string, { name: string; qty: number; passcodes: string[] }>()
+  for (const list of Object.values(contents)) {
+    for (const c of list ?? []) {
+      if (!limits.has(c.root)) continue
+      const agg = byRoot.get(c.root) ?? { name: c.name, qty: 0, passcodes: [] }
+      agg.qty += c.quantity
+      agg.passcodes.push(c.cardId)
+      byRoot.set(c.root, agg)
     }
-    agg.qty += r.quantity
-    agg.passcodes.push(r.card_id)
-    byRoot.set(m.root, agg)
   }
 
   const violations: CardViolation[] = []
   const flagged = new Set<string>()
-
-  for (const agg of byRoot.values()) {
-    const limit = engine.maxCopiesForCard({ cardId: agg.root, banlist: agg.banlist }, format)
+  for (const [root, agg] of byRoot) {
+    const { limit, formatStatus } = limits.get(root)!
     if (agg.qty > limit) {
       const status =
         limit === 0 ? 'Forbidden' : limit === 1 ? 'Limited' : limit === 2 ? 'Semi-Limited' : 'Over'
-      violations.push({
-        rootId: agg.root,
-        name: agg.name,
-        quantity: agg.qty,
-        limit,
-        status,
-        formatStatus: agg.banlist[format] ?? null,
-      })
+      violations.push({ rootId: root, name: agg.name, quantity: agg.qty, limit, status, formatStatus })
       for (const p of agg.passcodes) flagged.add(p)
     }
   }
-
   return { valid: violations.length === 0, violations, flagged }
 }

@@ -22,6 +22,11 @@ const DATA_DIR = join(homedir(), '.config', 'com.card-manager.app')
 // default locally). See e2e/fixtures/build-fixture.sh to (re)generate.
 const FIXTURE = join(REPO, 'e2e', 'fixtures', 'cards-ygo.test.db')
 
+// E2E sous xvfb, sans GPU : le moteur de rendu DMABUF de WebKitGTK y est
+// ~2,5× plus lent (mesuré nov. 2026) ; l'appli ne le désactive plus d'elle-même
+// (cf. lib.rs), on le fait ici pour l'appli lancée par tauri-driver.
+process.env.WEBKIT_DISABLE_DMABUF_RENDERER ??= '1'
+
 let tauriDriver: ChildProcess
 
 // kill any leftover driver/app processes (avoids "port in use" / "max sessions")

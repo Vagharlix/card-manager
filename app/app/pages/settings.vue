@@ -241,7 +241,7 @@
         <div class="space-y-1">
           <p class="text-sm font-medium">{{ gameLabel }} card database</p>
           <p class="text-xs text-muted" :data-sync-version="localVersion ?? ''">
-            {{ localVersion ? `Version ${localVersion}` : 'Never downloaded' }}
+            {{ versionLabel }}
           </p>
         </div>
 
@@ -267,9 +267,13 @@
             @click="forceResync"
           />
         </div>
+        <p v-if="isSyncing" class="text-xs text-muted" data-sync-status>
+          {{ syncStatus }} · {{ syncProgress }}%
+        </p>
         <p class="text-xs text-muted">
-          Downloads all cards again (needs a connection, a few minutes). Your collection and decks
-          are not touched.
+          Updates only download and write what changed, in the background. “Download everything
+          again” rebuilds the whole card database (needs a connection, a few minutes). Your
+          collection and decks are never touched.
         </p>
       </section>
 
@@ -351,7 +355,13 @@ import {
   pruneImageCache,
   formatBytes,
 } from '~/services/imageCache'
-import { syncCardData, localCardDataVersion, isSyncing } from '~/services/cardData'
+import {
+  syncCardData,
+  localCardDataVersion,
+  isSyncing,
+  syncStatus,
+  syncProgress,
+} from '~/services/cardData'
 import { getShareOwnerName, setShareOwnerName } from '~/services/settings'
 import {
   googleAvailable,
@@ -501,16 +511,36 @@ async function refreshVersion() {
   }
 }
 
+// mise à jour en arrière-plan (indicateur d'app.vue) : bilan en notification
 async function runSync(force: boolean) {
   try {
-    await syncCardData(GAME, { force })
-    toast.add({ title: 'Card database up to date', icon: 'i-lucide-check', color: 'success' })
-  } catch {
-    // l'overlay d'app.vue affiche déjà l'erreur avec un bouton « Retry »
+    const r = await syncCardData(GAME, { force })
+    if (!r) return // une mise à jour était déjà en cours
+    const changes = r.changed + r.removed
+    toast.add({
+      title: changes
+        ? `Card database updated: ${r.changed.toLocaleString('en')} new or changed${r.removed ? `, ${r.removed} removed` : ''}`
+        : 'Card database up to date',
+      icon: 'i-lucide-check',
+      color: 'success',
+    })
+  } catch (e) {
+    toast.add({
+      title: 'Card update failed',
+      description: e instanceof Error ? e.message : String(e),
+      color: 'error',
+    })
   } finally {
     await refreshVersion()
   }
 }
+
+// version : numéro de la source (YGO) ou date de la dernière mise à jour (Magic)
+const versionLabel = computed(() => {
+  const v = localVersion.value
+  if (!v) return 'Never downloaded'
+  return /^\d{4}-\d{2}-\d{2}T/.test(v) ? `Updated ${formatDateTime(v)}` : `Version ${v}`
+})
 const checkUpdates = () => runSync(false)
 const forceResync = () => runSync(true)
 

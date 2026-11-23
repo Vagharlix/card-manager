@@ -30,10 +30,18 @@ import { mtgModule } from './mtg'
 export interface CardDataSource {
   // version locale (null = jamais synchronisée)
   localVersion(): Promise<string | null>
-  // met la base à jour (force : retélécharge même si rien n'a changé ;
+  // met la base à jour (force : retélécharge et réécrit tout ;
   // auto : lancement de l'appli, la source peut espacer ses vérifications) ;
-  // progression dans services/cardDataProgress
-  sync(options?: { force?: boolean; auto?: boolean }): Promise<void>
+  // progression dans services/cardDataProgress. Mise à jour incrémentale :
+  // seules les cartes nouvelles / modifiées sont écrites (null = rien fait,
+  // une mise à jour était déjà en cours)
+  sync(options?: { force?: boolean; auto?: boolean }): Promise<CardDataReport | null>
+}
+
+// bilan d'une mise à jour (affiché dans les réglages)
+export interface CardDataReport {
+  changed: number // cartes / impressions ajoutées ou modifiées
+  removed: number // retirées de la source
 }
 
 export interface GameModule {

@@ -78,7 +78,7 @@ export const SYNC_TABLES: SyncTable[] = [
  * est accepté (ses colonnes manquantes sont considérées comme inchangées).
  * Un test vérifie qu'elle suit les migrations.
  */
-export const USER_SCHEMA_VERSION = 9
+export const USER_SCHEMA_VERSION = 10
 
 export const keyOf = (t: SyncTable, row: Row) => t.key.map((c) => String(row[c])).join('\u0001')
 
