@@ -3,7 +3,7 @@
     <div class="flex items-center gap-2 mb-2 sticky top-0 bg-default py-1 z-10">
       <h3 class="text-sm font-medium">{{ label }}</h3>
       <span class="text-xs px-1.5 py-0.5 rounded" :class="countClass" :data-board-count="count">
-        {{ count }}<template v-if="showMax"> / {{ max }}</template>
+        {{ count }}<template v-if="showMax"> / {{ max >= UNBOUNDED ? `${min}+` : max }}</template>
       </span>
     </div>
 
@@ -18,13 +18,20 @@
         :data-deck-card-id="c.cardId"
         :data-quantity="c.quantity"
         :data-flagged="flagged?.has(c.cardId) ? 'true' : 'false'"
+        :data-warned="warned?.has(c.cardId) ? 'true' : undefined"
       >
         <!-- ── MOBILE : tap ouvre le menu d'actions ── -->
         <UDropdownMenu v-if="isMobile" :items="menuItems(c)" :content="{ align: 'center' }">
           <button class="block w-full">
             <div
               class="aspect-[0.686] rounded overflow-hidden border-2 transition-colors"
-              :class="flagged?.has(c.cardId) ? 'border-error' : 'border-transparent'"
+              :class="
+                flagged?.has(c.cardId)
+                  ? 'border-error'
+                  : warned?.has(c.cardId)
+                    ? 'border-warning'
+                    : 'border-transparent'
+              "
             >
               <ArtThumb :passcode="c.cardId" class="w-full h-full object-cover" />
             </div>
@@ -49,7 +56,9 @@
             :class="
               flagged?.has(c.cardId)
                 ? 'border-error'
-                : 'border-transparent group-hover:border-primary'
+                : warned?.has(c.cardId)
+                  ? 'border-warning'
+                  : 'border-transparent group-hover:border-primary'
             "
           >
             <ArtThumb :passcode="c.cardId" class="w-full h-full object-cover" />
@@ -125,6 +134,8 @@ const props = defineProps<{
   max: number
   showMax?: boolean
   flagged?: Set<string>
+  // cartes en cause dans une règle du deck entier (DeckEngine.deckIssues)
+  warned?: Set<string>
   isSide?: boolean
   // autres zones où placer la carte à la main (Magic : commandant)
   moveTargets?: { id: string; label: string }[]
@@ -141,6 +152,9 @@ const emit = defineEmits<{
 const { isMobile } = useResponsive()
 
 const count = computed(() => props.cards.reduce((s, c) => s + c.quantity, 0))
+
+// au-delà : pas de maximum affiché (« 39+ »)
+const UNBOUNDED = 999
 
 const countClass = computed(() => {
   const n = count.value

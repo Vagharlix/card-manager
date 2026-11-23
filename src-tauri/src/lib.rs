@@ -101,6 +101,12 @@ pub fn run() {
             sql: include_str!("../migrations/user/010_container_games.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 11,
+            description: "deck boards of every game",
+            sql: include_str!("../migrations/user/011_deck_boards.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     let ygo_migrations = vec![
@@ -145,6 +151,13 @@ pub fn run() {
         },
     ];
 
+    let riftbound_migrations = vec![Migration {
+        version: 1,
+        description: "initial riftbound schema",
+        sql: include_str!("../migrations/riftbound/001_initial.sql"),
+        kind: MigrationKind::Up,
+    }];
+
     let builder = tauri::Builder::default();
 
     // scan de QR codes (partage de collection) : caméra, mobile uniquement
@@ -168,6 +181,7 @@ pub fn run() {
                 .add_migrations(&db_name("user"), user_migrations)
                 .add_migrations(&db_name("cards-ygo"), ygo_migrations)
                 .add_migrations(&db_name("cards-mtg"), mtg_migrations)
+                .add_migrations(&db_name("cards-riftbound"), riftbound_migrations)
                 .build(),
         )
         // images de cartes : <img src="cardimg://…"> servies par Rust (cache disque)
@@ -183,6 +197,8 @@ pub fn run() {
             image_cache::image_cache_size,
             image_cache::clear_image_cache,
             image_cache::prune_image_cache,
+            image_cache::image_sources_set,
+            image_cache::image_sources_count,
             card_data::card_data_get,
             card_data::jsonl_open,
             card_data::jsonl_next,

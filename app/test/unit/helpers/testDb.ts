@@ -29,7 +29,7 @@ export class TestDatabase {
 
   /** `upTo` : n'applique que les migrations <= ce numéro (tester une migration sur données). */
   constructor(
-    migrationSet: 'user' | 'ygo' | 'mtg' | { dir: string },
+    migrationSet: 'user' | 'ygo' | 'mtg' | 'riftbound' | { dir: string },
     opts: { upTo?: number } = {}
   ) {
     this.raw = new DatabaseSync(':memory:')
@@ -72,6 +72,7 @@ export interface TestDatabases {
   user: TestDatabase
   ygo: TestDatabase
   mtg: TestDatabase
+  riftbound: TestDatabase
   // bases de cartes par jeu, comme useDatabase().cards(game)
   games: Map<string, TestDatabase>
   cards(game: string): TestDatabase
@@ -79,18 +80,21 @@ export interface TestDatabases {
 
 /** `user` / `ygo` : bases déjà créées (ex. une base user à une migration donnée). */
 export function createTestDatabases(
-  opts: { user?: TestDatabase; ygo?: TestDatabase; mtg?: TestDatabase } = {}
+  opts: { user?: TestDatabase; ygo?: TestDatabase; mtg?: TestDatabase; riftbound?: TestDatabase } = {}
 ): TestDatabases {
   const ygo = opts.ygo ?? new TestDatabase('ygo')
   const mtg = opts.mtg ?? new TestDatabase('mtg')
+  const riftbound = opts.riftbound ?? new TestDatabase('riftbound')
   const games = new Map<string, TestDatabase>([
     ['ygo', ygo],
     ['mtg', mtg],
+    ['riftbound', riftbound],
   ])
   return {
     user: opts.user ?? new TestDatabase('user'),
     ygo,
     mtg,
+    riftbound,
     games,
     cards(game: string) {
       const db = games.get(game)

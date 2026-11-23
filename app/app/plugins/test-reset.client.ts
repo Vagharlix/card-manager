@@ -106,6 +106,13 @@ export default defineNuxtPlugin(() => {
     )
   }
 
+  // base Riftbound : écrit un échantillon RiftHunt (fichier en masse +
+  // objets « carte ») avec le vrai importeur, sans réseau
+  ;(window as any).__seedRiftbound = async (sample: { bulk: unknown; prints: unknown[] }) => {
+    const { seedRiftbound } = await import('~/services/riftboundData/sync')
+    return seedRiftbound(sample.bulk as never, sample.prints as never)
+  }
+
   // transaction après des requêtes simultanées (comme au démarrage de l'appli) :
   // export puis réimport d'une sauvegarde = même écriture que la synchro
   ;(window as any).__txProbe = async () => {

@@ -1,0 +1,3124 @@
+{
+ "bulk": {
+  "fetched": "2026-11-19T16:23:38.864Z",
+  "sets": [
+   {
+    "id": "VEN",
+    "name": "Vendetta",
+    "count": 249,
+    "released": "2026-07-31"
+   },
+   {
+    "id": "OGN",
+    "name": "Origins",
+    "count": 358,
+    "released": "2025-10-31"
+   },
+   {
+    "id": "SFD",
+    "name": "Spiritforged",
+    "count": 306,
+    "released": "2026-02-13"
+   },
+   {
+    "id": "OGS",
+    "name": "Proving Grounds",
+    "count": 24,
+    "released": "2025-10-31"
+   },
+   {
+    "id": "PR",
+    "name": "Riftbound Promotional Cards",
+    "count": 11,
+    "released": "2025-10-31"
+   },
+   {
+    "id": "OPP",
+    "name": "Riftbound Organized Play Promotional Cards",
+    "count": 204,
+    "released": "2025-10-31"
+   },
+   {
+    "id": "KDA",
+    "name": "Riftbound x K/DA: Couture Collection",
+    "count": 5,
+    "released": "2026-11-11"
+   }
+  ],
+  "cards": [
+   {
+    "printing_id": "124c76db-dd01-42ad-8cf8-1d69ffdb32c9",
+    "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+    "variant": "base",
+    "riftboundId": "ogn-251-298",
+    "name": "Jinx, Loose Cannon",
+    "cleanName": "Jinx, Loose Cannon",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Rare",
+    "domains": [
+     "Fury",
+     "Chaos"
+    ],
+    "text": "At start of your Beginning Phase, draw 1 if you have one or fewer cards in your hand.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx"
+    ],
+    "artist": "Sugar Free",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "19accf75-a000-408a-8a36-94a7130c6760",
+    "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+    "variant": "overnumbered",
+    "riftboundId": "ogn-301-298",
+    "name": "Jinx, Loose Cannon (Overnumbered)",
+    "cleanName": "Jinx, Loose Cannon",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Showcase",
+    "domains": [
+     "Fury",
+     "Chaos"
+    ],
+    "text": "At start of your Beginning Phase, draw 1 if you have one or fewer cards in your hand.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx"
+    ],
+    "artist": "Sean Yang",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "3f8a7c17-eaad-4b60-8f1e-083360887b85",
+    "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+    "variant": "signature",
+    "riftboundId": "ogn-301*-298",
+    "name": "Jinx, Loose Cannon (Signature)",
+    "cleanName": "Jinx, Loose Cannon",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Showcase",
+    "domains": [
+     "Fury",
+     "Chaos"
+    ],
+    "text": "At start of your Beginning Phase, draw 1 if you have one or fewer cards in your hand.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx"
+    ],
+    "artist": "Sean Yang",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "3e2b0002-45cf-4b9d-a29f-90870c41f188",
+    "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+    "variant": null,
+    "riftboundId": "opp-251-298",
+    "name": "Jinx, Loose Cannon",
+    "cleanName": "Jinx, Loose Cannon",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Promo",
+    "domains": [
+     "Fury",
+     "Chaos"
+    ],
+    "text": "At start of your Beginning Phase, draw 1 if you have one or fewer cards in your hand.",
+    "flavour": null,
+    "set": "OPP",
+    "setName": "Riftbound Organized Play Promotional Cards",
+    "tags": [
+     "Jinx"
+    ],
+    "artist": "Sugar Free",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "c46a2a18-9f99-4c95-a849-01431a4d5302",
+    "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+    "variant": null,
+    "riftboundId": "opp-251-298",
+    "name": "Jinx, Loose Cannon (Metal)",
+    "cleanName": "Jinx, Loose Cannon",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Promo",
+    "domains": [
+     "Fury",
+     "Chaos"
+    ],
+    "text": "At start of your Beginning Phase, draw 1 if you have one or fewer cards in your hand.",
+    "flavour": null,
+    "set": "OPP",
+    "setName": "Riftbound Organized Play Promotional Cards",
+    "tags": [
+     "Jinx"
+    ],
+    "artist": "Sugar Free",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "fc2d658d-c429-4da0-8037-e3e9b8421ce4",
+    "oracle_id": "3c9f75ec-5bb4-4a1d-9280-342e08ac6e78",
+    "variant": "base",
+    "riftboundId": "ogn-030-298",
+    "name": "Jinx, Demolitionist",
+    "cleanName": "Jinx, Demolitionist",
+    "energy": 3,
+    "might": 4,
+    "power": 1,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Rare",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Accelerate] (You may pay :rb_energy_1::rb_rune_fury: as an additional cost to have me enter ready.)\n[Assault 2] (+2 :rb_might: while I'm an attacker.)\nWhen you play me, discard 2.",
+    "flavour": "\"I really need a new gun. But don't tell my other guns.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx",
+     "Zaun"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "7bbd2e93-3b09-4ceb-880f-755964372781",
+    "oracle_id": "3c9f75ec-5bb4-4a1d-9280-342e08ac6e78",
+    "variant": "alternate",
+    "riftboundId": "ogn-030a-298",
+    "name": "Jinx, Demolitionist (Alternate Art)",
+    "cleanName": "Jinx, Demolitionist",
+    "energy": 3,
+    "might": 4,
+    "power": 1,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Showcase",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Accelerate] (You may pay :rb_energy_1::rb_rune_fury: as an additional cost to have me enter ready.)\n[Assault 2] (+2 :rb_might: while I'm an attacker.)\nWhen you play me, discard 2.",
+    "flavour": "\"I really need a new gun. But don't tell my other guns.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx",
+     "Zaun"
+    ],
+    "artist": "League Splash Team",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "d36133f4-5668-4c39-a5b4-23afc9a131fc",
+    "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+    "variant": "base",
+    "riftboundId": "ogn-202-298",
+    "name": "Jinx, Rebel",
+    "cleanName": "Jinx, Rebel",
+    "energy": 5,
+    "might": 5,
+    "power": 1,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Epic",
+    "domains": [
+     "Chaos"
+    ],
+    "text": "When you discard one or more cards, ready me and give me +1 :rb_might: this turn.",
+    "flavour": "\"Rules are made to be broken. Like buildings! Or people!\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx",
+     "Zaun"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "ab96aa40-348c-40a3-8da3-370283c13c28",
+    "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+    "variant": "alternate",
+    "riftboundId": "ogn-202a-298",
+    "name": "Jinx, Rebel (Alternate Art)",
+    "cleanName": "Jinx, Rebel",
+    "energy": 5,
+    "might": 5,
+    "power": 1,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Showcase",
+    "domains": [
+     "Chaos"
+    ],
+    "text": "When you discard one or more cards, ready me and give me +1 :rb_might: this turn.",
+    "flavour": "\"Rules are made to be broken. Like buildings! Or people!\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx",
+     "Zaun"
+    ],
+    "artist": "League Splash Team",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "e317aa33-c9db-4741-8c8d-745e1d7a8591",
+    "oracle_id": "3c9f75ec-5bb4-4a1d-9280-342e08ac6e78",
+    "variant": "overnumbered",
+    "riftboundId": "ven-168-166",
+    "name": "Jinx, Demolitionist (Overnumbered)",
+    "cleanName": "Jinx, Demolitionist",
+    "energy": 3,
+    "might": 4,
+    "power": 1,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Showcase",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Accelerate]\n[Assault 2]\nWhen you play me, discard 2.",
+    "flavour": "\"You're my favorite waste of bullets.\"",
+    "set": "VEN",
+    "setName": "Vendetta",
+    "tags": [
+     "Jinx",
+     "Zaun"
+    ],
+    "artist": "Grafit Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "ef8d451c-ea53-40a9-a856-6659562e9427",
+    "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+    "variant": null,
+    "riftboundId": "opp-202-298",
+    "name": "Jinx, Rebel",
+    "cleanName": "Jinx, Rebel",
+    "energy": 5,
+    "might": 5,
+    "power": 1,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Promo",
+    "domains": [
+     "Chaos"
+    ],
+    "text": "When you discard one or more cards, ready me and give me +1 :rb_might: this turn.",
+    "flavour": "\"Rules are made to be broken. Like buildings! Or people!\"",
+    "set": "OPP",
+    "setName": "Riftbound Organized Play Promotional Cards",
+    "tags": [
+     "Jinx",
+     "Zaun"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "0201304f-2602-4f15-b411-974f93696fb6",
+    "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+    "variant": null,
+    "riftboundId": "pr-202b-298",
+    "name": "Jinx, Rebel",
+    "cleanName": "Jinx, Rebel",
+    "energy": 5,
+    "might": 5,
+    "power": 1,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Promo",
+    "domains": [
+     "Chaos"
+    ],
+    "text": "When you discard one or more cards, ready me and give me +1 :rb_might: this turn.",
+    "flavour": "\"Rules are made to be broken. Like buildings! Or people!\"",
+    "set": "PR",
+    "setName": "Riftbound Promotional Cards",
+    "tags": [
+     "Jinx",
+     "Zaun"
+    ],
+    "artist": "Fortiche Production",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "ff180c9d-e404-4ab1-b466-8a21ae5cd300",
+    "oracle_id": "2c9ea892-b3cd-4434-be4c-ec93d5de96d4",
+    "variant": "base",
+    "riftboundId": "ogn-252-298",
+    "name": "Super Mega Death Rocket!",
+    "cleanName": "Super Mega Death Rocket!",
+    "energy": 4,
+    "might": null,
+    "power": 1,
+    "type": "Spell",
+    "supertype": "Signature",
+    "rarity": "Epic",
+    "domains": [
+     "Fury",
+     "Chaos"
+    ],
+    "text": "Deal 5 to a unit.\nWhen you conquer, you may discard 1 to return this from your trash to your hand.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Jinx"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "ace50069-1314-4a45-9363-bcd5d23fcbbe",
+    "oracle_id": "6c57a1de-bdfc-46de-aaa0-0e7cc121537a",
+    "variant": "base",
+    "riftboundId": "ogn-007-298",
+    "name": "Fury Rune",
+    "cleanName": "Fury Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Greg Ghielmetti & Leah Chen",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "e49aa0ec-e81b-4037-91e1-923ae4c29ffa",
+    "oracle_id": "6c57a1de-bdfc-46de-aaa0-0e7cc121537a",
+    "variant": "alternate",
+    "riftboundId": "ogn-007a-298",
+    "name": "Fury Rune (Alternate Art)",
+    "cleanName": "Fury Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Showcase",
+    "domains": [
+     "Fury"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Fairfoul",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "b4d20a49-00f3-4314-9efb-c6c855115f58",
+    "oracle_id": "3f5f8d02-2df0-48a8-bbc9-dc1c21052d84",
+    "variant": "base",
+    "riftboundId": "ogn-042-298",
+    "name": "Calm Rune",
+    "cleanName": "Calm Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Common",
+    "domains": [
+     "Calm"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Greg Ghielmetti & Leah Chen",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "c9653c43-872e-400b-8437-aa3af16fd37c",
+    "oracle_id": "3f5f8d02-2df0-48a8-bbc9-dc1c21052d84",
+    "variant": "alternate",
+    "riftboundId": "ogn-042a-298",
+    "name": "Calm Rune (Alternate Art)",
+    "cleanName": "Calm Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Showcase",
+    "domains": [
+     "Calm"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Zhongqi Li",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "4ba9bb0a-f282-4bc9-b023-95886efc0c29",
+    "oracle_id": "ddea8cb8-9583-40b0-902d-8f9a44c72528",
+    "variant": "base",
+    "riftboundId": "ogn-166-298",
+    "name": "Chaos Rune",
+    "cleanName": "Chaos Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Common",
+    "domains": [
+     "Chaos"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Greg Ghielmetti & Leah Chen",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "0c12e067-f661-44d1-9852-85074a2f5616",
+    "oracle_id": "ddea8cb8-9583-40b0-902d-8f9a44c72528",
+    "variant": "alternate",
+    "riftboundId": "ogn-166a-298",
+    "name": "Chaos Rune (Alternate Art)",
+    "cleanName": "Chaos Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Showcase",
+    "domains": [
+     "Chaos"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Fairfoul",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "72364352-ac17-4e93-a3ae-cfb34e293646",
+    "oracle_id": "6c57a1de-bdfc-46de-aaa0-0e7cc121537a",
+    "variant": null,
+    "riftboundId": "ogn-007b-298",
+    "name": "Fury Rune",
+    "cleanName": "Fury Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Promo",
+    "domains": [
+     "Fury"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": null,
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "dff4a4e4-ef92-46ca-bbe8-170eb9ac3d3a",
+    "oracle_id": "3f5f8d02-2df0-48a8-bbc9-dc1c21052d84",
+    "variant": null,
+    "riftboundId": "ogn-042b-298",
+    "name": "Calm Rune",
+    "cleanName": "Calm Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Promo",
+    "domains": [
+     "Calm"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": null,
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "8008dbd6-a5f6-42be-9569-2295e5ccb616",
+    "oracle_id": "ddea8cb8-9583-40b0-902d-8f9a44c72528",
+    "variant": null,
+    "riftboundId": "ogn-166b-298",
+    "name": "Chaos Rune",
+    "cleanName": "Chaos Rune",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Promo",
+    "domains": [
+     "Chaos"
+    ],
+    "text": null,
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": null,
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "76b97782-f624-470b-887d-fc5998f591c7",
+    "oracle_id": "179f0528-849a-42fa-9911-06794ff85b86",
+    "variant": "base",
+    "riftboundId": "ogn-275-298",
+    "name": "Altar to Unity",
+    "cleanName": "Altar to Unity",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Battlefield",
+    "supertype": null,
+    "rarity": "Uncommon",
+    "domains": [
+     "Colorless"
+    ],
+    "text": "When you hold here, play a 1 :rb_might: Recruit unit token in your base.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Kudos Productions",
+    "orientation": "landscape",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "86203a4e-2b19-4dff-a8bb-6421c8c4aa4d",
+    "oracle_id": "e1a55d1c-611a-4d77-b313-77749ef70f65",
+    "variant": "base",
+    "riftboundId": "ogn-276-298",
+    "name": "Aspirant's Climb",
+    "cleanName": "Aspirant's Climb",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Battlefield",
+    "supertype": null,
+    "rarity": "Uncommon",
+    "domains": [
+     "Colorless"
+    ],
+    "text": "Increase the points needed to win the game by 1.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Polar Engine Studio",
+    "orientation": "landscape",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "32080c1f-d9a6-4abb-8d1c-46eea5d7035f",
+    "oracle_id": "8a27c026-a531-42f5-bc4d-8884442f963b",
+    "variant": "base",
+    "riftboundId": "ogn-277-298",
+    "name": "Back-Alley Bar",
+    "cleanName": "Back-Alley Bar",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Battlefield",
+    "supertype": null,
+    "rarity": "Uncommon",
+    "domains": [
+     "Colorless"
+    ],
+    "text": "When a unit moves from here, give it +1 :rb_might: this turn.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Kudos Productions",
+    "orientation": "landscape",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "366f2f7c-e7ff-4bdc-a812-6a7773142065",
+    "oracle_id": "96cbd5d9-6009-480b-8a1e-43ea4bdc1a21",
+    "variant": "base",
+    "riftboundId": "ogn-278-298",
+    "name": "Bandle Tree",
+    "cleanName": "Bandle Tree",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Battlefield",
+    "supertype": null,
+    "rarity": "Uncommon",
+    "domains": [
+     "Colorless"
+    ],
+    "text": "You may hide an additional card here.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Kudos Productions",
+    "orientation": "landscape",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "01afb7e3-0e97-42a2-9458-28a51a2626b4",
+    "oracle_id": "f2c16cd8-01a4-4357-b741-34db22446e15",
+    "variant": "base",
+    "riftboundId": "ogn-001-298",
+    "name": "Blazing Scorcher",
+    "cleanName": "Blazing Scorcher",
+    "energy": 5,
+    "might": 5,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Accelerate] (You may pay :rb_energy_1::rb_rune_fury: as an additional cost to have me enter ready.)",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Dragon",
+     "Noxus"
+    ],
+    "artist": "Envar Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "01eac680-1a6a-43bd-9dac-895fb2d506a7",
+    "oracle_id": "26d7a3c2-05a6-40da-8e40-a6ea1535914f",
+    "variant": "base",
+    "riftboundId": "ogn-002-298",
+    "name": "Brazen Buccaneer",
+    "cleanName": "Brazen Buccaneer",
+    "energy": 6,
+    "might": 5,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "As you play me, you may discard a card as an additional cost. If you do, reduce my cost by :rb_energy_2:.",
+    "flavour": "\"They called my crew 'scurvy dogs,' and I took that personally.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Pirate",
+     "Bilgewater"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "8a329e0b-1f64-4aa3-8c14-9882802b20ae",
+    "oracle_id": "3260bb91-1809-477c-afe7-9abedeb8ff95",
+    "variant": "base",
+    "riftboundId": "ogn-003-298",
+    "name": "Chemtech Enforcer",
+    "cleanName": "Chemtech Enforcer",
+    "energy": 2,
+    "might": 2,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Assault 2] (+2 :rb_might: while I'm an attacker.)\nWhen you play me, discard 1.",
+    "flavour": "\"Knock, knock.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Zaun"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "cb4ed507-dc08-40c3-8d40-70421fd15267",
+    "oracle_id": "1e8f8222-7d0a-4ef9-ac32-f0e3ff766ccd",
+    "variant": "base",
+    "riftboundId": "ogn-004-298",
+    "name": "Cleave",
+    "cleanName": "Cleave",
+    "energy": 1,
+    "might": null,
+    "power": null,
+    "type": "Spell",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Action] (Play on your turn or in showdowns.)\nGive a unit [Assault 3] this turn. (+3 :rb_might: while it's an attacker.)",
+    "flavour": "Nobody ever won a war without attacking.",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "706d91cf-77de-42b4-8ed2-1b316d78b125",
+    "oracle_id": "8a8c66a5-c5e5-47f9-a829-e6dfad47085d",
+    "variant": "base",
+    "riftboundId": "ogn-005-298",
+    "name": "Disintegrate",
+    "cleanName": "Disintegrate",
+    "energy": 4,
+    "might": null,
+    "power": null,
+    "type": "Spell",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Action] (Play on your turn or in showdowns.)\nDeal 3 to a unit at a battlefield. If this kills it, draw 1.",
+    "flavour": "\"Ashes, ashes, they all fall down.\" -Annie",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "7f4f030a-85da-49f2-b800-efd09809bc42",
+    "oracle_id": "eda23a48-a85d-4940-a503-e44eabcbbd1f",
+    "variant": "base",
+    "riftboundId": "ogn-006-298",
+    "name": "Flame Chompers",
+    "cleanName": "Flame Chompers",
+    "energy": 3,
+    "might": 3,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "When you discard me, you may pay :rb_rune_fury: to play me.",
+    "flavour": "\"GET 'EM, CHOMPIES!\" -Jinx",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Zaun"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "0282dd61-07ef-4a12-8aee-321df54470ce",
+    "oracle_id": "3a7710bc-9739-4e1c-b205-5542e5d52ba5",
+    "variant": "base",
+    "riftboundId": "ogn-008-298",
+    "name": "Get Excited!",
+    "cleanName": "Get Excited!",
+    "energy": 2,
+    "might": null,
+    "power": 1,
+    "type": "Spell",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Action] (Play on your turn or in showdowns.)\nDiscard 1. Deal its Energy cost as damage to a unit at a battlefield. (Ignore its Power cost.)",
+    "flavour": "\"Everybody, panic!\" -Jinx",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Original Force Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "2fcd3b0f-a6b0-4e27-bdff-c9721af5521e",
+    "oracle_id": "fd32c541-eda3-40ef-9475-fa78c44c4e22",
+    "variant": "base",
+    "riftboundId": "ogn-009-298",
+    "name": "Hextech Ray",
+    "cleanName": "Hextech Ray",
+    "energy": 1,
+    "might": null,
+    "power": 1,
+    "type": "Spell",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Action] (Play on your turn or in showdowns.)\nDeal 3 to a unit at a battlefield.",
+    "flavour": "Destroy. Then Improve. - Viktor",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "League of Legends",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "9f49b759-9e46-45cf-ac30-b7001e9300cf",
+    "oracle_id": "64bfd724-a95b-40c0-93a2-93ed53d7db90",
+    "variant": "base",
+    "riftboundId": "ogn-010-298",
+    "name": "Legion Rearguard",
+    "cleanName": "Legion Rearguard",
+    "energy": 2,
+    "might": 2,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Accelerate] (You may pay :rb_energy_1::rb_rune_fury: as an additional cost to have me enter ready.)",
+    "flavour": "The last line of offense.",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Trifarian",
+     "Noxus"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "9ae2262c-94fb-42a3-810c-d76d4e058abf",
+    "oracle_id": "7785d991-f089-4c29-95ad-ecb49effc1c8",
+    "variant": "base",
+    "riftboundId": "ogn-011-298",
+    "name": "Magma Wurm",
+    "cleanName": "Magma Wurm",
+    "energy": 8,
+    "might": 8,
+    "power": 1,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "Other friendly units enter ready.",
+    "flavour": "A river of flame in an ocean of ice.",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Freljord"
+    ],
+    "artist": "Envar Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "9d774980-5909-4823-8d59-2b0e09ecaf0a",
+    "oracle_id": "179fe57f-dd2c-483a-ac51-228621ba60b5",
+    "variant": "base",
+    "riftboundId": "ogn-012-298",
+    "name": "Noxus Hopeful",
+    "cleanName": "Noxus Hopeful",
+    "energy": 4,
+    "might": 4,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Legion] — I cost :rb_energy_2: less. (Get the effect if you've played another card this turn.)",
+    "flavour": "First to the front, first to glory.",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Trifarian",
+     "Noxus"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "51f6861a-7a75-4971-8d78-7a6781d7c0f5",
+    "oracle_id": "df4c1239-7d32-465d-8811-c95ed6827185",
+    "variant": "base",
+    "riftboundId": "ogn-013-298",
+    "name": "Pouty Poro",
+    "cleanName": "Pouty Poro",
+    "energy": 2,
+    "might": 2,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Deflect] (Opponents must pay :rb_rune_rainbow: to choose me with a spell or ability.)",
+    "flavour": "\"Braum takes medicine too, see?\" -Braum",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Poro"
+    ],
+    "artist": "Caravan Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "795f16d5-e079-4844-aec3-92dee228946f",
+    "oracle_id": "3fa48f32-6080-4d86-8411-e43f71bb3a12",
+    "variant": "base",
+    "riftboundId": "ogn-014-298",
+    "name": "Sky Splitter",
+    "cleanName": "Sky Splitter",
+    "energy": 8,
+    "might": null,
+    "power": 1,
+    "type": "Spell",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Action] (Play on your turn or in showdowns.)\nThis spell's Energy cost is reduced by the highest Might among units you control.\nDeal 5 to a unit at a battlefield.",
+    "flavour": "\"Puny mortals!\" -Volibear",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [],
+    "artist": "Polar Engine Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "a450db7f-d209-4da4-bf24-b7f27248e7d2",
+    "oracle_id": "e7f68d5f-a447-4e9c-88ec-6eb24f869bc6",
+    "variant": "base",
+    "riftboundId": "ogn-015-298",
+    "name": "Captain Farron",
+    "cleanName": "Captain Farron",
+    "energy": 4,
+    "might": 5,
+    "power": 1,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Uncommon",
+    "domains": [
+     "Fury"
+    ],
+    "text": "Other friendly units here have [Assault]. (+1 :rb_might: while they're attackers.)",
+    "flavour": "\"Forward! Always!\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Trifarian",
+     "Noxus"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "7391c867-db7d-4a1a-b083-e2ee9ddbcccc",
+    "oracle_id": "dfb92e83-14d5-4b0f-8f91-24b7d1f9a2e1",
+    "variant": "base",
+    "riftboundId": "ogn-044-298",
+    "name": "Clockwork Keeper",
+    "cleanName": "Clockwork Keeper",
+    "energy": 2,
+    "might": 2,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Calm"
+    ],
+    "text": "As you play me, you may pay :rb_rune_calm: as an additional cost. If you do, draw 1.",
+    "flavour": "It always goes back for seconds.",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Shurima"
+    ],
+    "artist": "Polar Engine Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "ceafaa92-d020-4e00-b17b-a3a2fb343d93",
+    "oracle_id": "94e2d6fd-7c5d-4a75-acaa-fa1cc3050fd8",
+    "variant": "base",
+    "riftboundId": "ogn-049-298",
+    "name": "Playful Phantom",
+    "cleanName": "Playful Phantom",
+    "energy": 5,
+    "might": 5,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domains": [
+     "Calm"
+    ],
+    "text": null,
+    "flavour": "\"My toys break so easily.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Spirit",
+     "Shadow Isles"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "normal",
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "3422dcca-2b44-454e-96c2-100deb0dbc7e",
+    "oracle_id": "aa32f88b-3577-4597-87a4-92a80c3bb374",
+    "variant": "base",
+    "riftboundId": "ogn-269-298",
+    "name": "Sett, The Boss",
+    "cleanName": "Sett, The Boss",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Rare",
+    "domains": [
+     "Body",
+     "Order"
+    ],
+    "text": "When a buffed unit you control would die, you may pay :rb_rune_rainbow: and exhaust me to spend its buff and recall it exhausted instead. (Send it to base. This isn't a move.)\nWhen you conquer, ready me.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Sett"
+    ],
+    "artist": "Envar Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "867031a7-2356-472c-9026-eb000846ba24",
+    "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+    "variant": "base",
+    "riftboundId": "ogn-247-298",
+    "name": "Kai'Sa, Daughter of the Void",
+    "cleanName": "Kai'Sa, Daughter of the Void",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Rare",
+    "domains": [
+     "Fury",
+     "Mind"
+    ],
+    "text": ":rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Kai'Sa"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "d444f421-c7b8-4929-bb5b-50c21982f0f5",
+    "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+    "variant": "overnumbered",
+    "riftboundId": "ogn-299-298",
+    "name": "Kai'Sa, Daughter of the Void (Overnumbered)",
+    "cleanName": "Kai'Sa, Daughter of the Void",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Showcase",
+    "domains": [
+     "Fury",
+     "Mind"
+    ],
+    "text": ":rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Kai'Sa"
+    ],
+    "artist": "Jason Chan",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "893bdc98-5f83-4977-97ba-97083ac4aeda",
+    "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+    "variant": "signature",
+    "riftboundId": "ogn-299*-298",
+    "name": "Kai'Sa, Daughter of the Void (Signature)",
+    "cleanName": "Kai'Sa, Daughter of the Void",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Showcase",
+    "domains": [
+     "Fury",
+     "Mind"
+    ],
+    "text": ":rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Kai'Sa"
+    ],
+    "artist": "Jason Chan",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "5292e55c-b0ab-42a4-bdee-c5e306ca8223",
+    "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+    "variant": null,
+    "riftboundId": "opp-247-298",
+    "name": "Kai'Sa, Daughter of the Void",
+    "cleanName": "Kai'Sa, Daughter of the Void",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Promo",
+    "domains": [
+     "Fury",
+     "Mind"
+    ],
+    "text": ":rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)",
+    "flavour": null,
+    "set": "OPP",
+    "setName": "Riftbound Organized Play Promotional Cards",
+    "tags": [
+     "Kai'Sa"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "ef972c2a-0c4d-4d0c-a35c-eae71a433b1c",
+    "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+    "variant": null,
+    "riftboundId": "opp-247-298",
+    "name": "Kai'Sa, Daughter of the Void (Metal)",
+    "cleanName": "Kai'Sa, Daughter of the Void",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Promo",
+    "domains": [
+     "Fury",
+     "Mind"
+    ],
+    "text": ":rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)",
+    "flavour": null,
+    "set": "OPP",
+    "setName": "Riftbound Organized Play Promotional Cards",
+    "tags": [
+     "Kai'Sa"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "6f4873a4-66b6-5252-abf8-5ba527bee39b",
+    "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+    "variant": "showcase",
+    "riftboundId": "kda-003*-005",
+    "name": "Kai'Sa, Daughter of the Void",
+    "cleanName": "Kai'Sa, Daughter of the Void",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Showcase",
+    "domains": [
+     "Fury",
+     "Mind"
+    ],
+    "text": ":rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)",
+    "flavour": null,
+    "set": "KDA",
+    "setName": "Riftbound x K/DA: Couture Collection",
+    "tags": [
+     "Kai'Sa"
+    ],
+    "artist": null,
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "f32c3f01-ffaf-45ac-a4aa-8002ca55ffca",
+    "oracle_id": "86b56235-5e9f-4199-a69b-32be2a5c8c3f",
+    "variant": null,
+    "riftboundId": "ogn-271-298",
+    "name": "Recruit (DE)",
+    "cleanName": "Recruit (DE)",
+    "energy": null,
+    "might": 1,
+    "power": null,
+    "type": "Unit",
+    "supertype": "Token",
+    "rarity": "Common",
+    "domains": [
+     "Colorless"
+    ],
+    "text": null,
+    "flavour": "\"To strike against any of us is to strike against all of us!\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Recruit"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": null
+   },
+   {
+    "printing_id": "7ab2151a-860b-4dec-a110-b6a83e91e4e9",
+    "oracle_id": "86b56235-5e9f-4199-a69b-32be2a5c8c3f",
+    "variant": null,
+    "riftboundId": "ogn-272-298",
+    "name": "Recruit (NX)",
+    "cleanName": "Recruit (NX)",
+    "energy": null,
+    "might": 1,
+    "power": null,
+    "type": "Unit",
+    "supertype": "Token",
+    "rarity": "Common",
+    "domains": [
+     "Colorless"
+    ],
+    "text": null,
+    "flavour": "\"Few earn the right to call themselves Trifarian.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Recruit"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": null
+   },
+   {
+    "printing_id": "8186e473-a64b-4d92-af8e-379bcd4eca9b",
+    "oracle_id": "84368bbf-b422-4cd0-81e5-020f53f96f30",
+    "variant": "base",
+    "riftboundId": "ogn-026-298",
+    "name": "Brynhir Thundersong",
+    "cleanName": "Brynhir Thundersong",
+    "energy": 6,
+    "might": 5,
+    "power": null,
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Rare",
+    "domains": [
+     "Fury"
+    ],
+    "text": "When you play me, opponents can't play cards this turn.",
+    "flavour": "\"Silence. The sky speaks.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Freljord"
+    ],
+    "artist": "Envar Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "a0ea4f35-bfea-488a-8c08-50c44711dc29",
+    "oracle_id": "abb59679-3a5e-4479-9561-ca5195eaa5e9",
+    "variant": "base",
+    "riftboundId": "sfd-020-221",
+    "name": "Draven, Vanquisher",
+    "cleanName": "Draven, Vanquisher",
+    "energy": 4,
+    "might": 4,
+    "power": null,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Rare",
+    "domains": [
+     "Fury"
+    ],
+    "text": "When I win a combat, play a Gold gear token exhausted.\nWhen I attack or defend, you may pay :rb_rune_fury:. If you do, give me +2 :rb_might: this turn.",
+    "flavour": "\"Man, I'm good.\"",
+    "set": "SFD",
+    "setName": "Spiritforged",
+    "tags": [
+     "Draven",
+     "Noxus"
+    ],
+    "artist": "Six More Vodka",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "c315b477-57d3-4fdc-aa29-1444219cd616",
+    "oracle_id": "abb59679-3a5e-4479-9561-ca5195eaa5e9",
+    "variant": "alternate",
+    "riftboundId": "sfd-020a-221",
+    "name": "Draven, Vanquisher (Alternate Art)",
+    "cleanName": "Draven, Vanquisher",
+    "energy": 4,
+    "might": 4,
+    "power": null,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Showcase",
+    "domains": [
+     "Fury"
+    ],
+    "text": "When I win a combat, play a Gold gear token exhausted.\nWhen I attack or defend, you may pay :rb_rune_fury:. If you do, give me +2 :rb_might: this turn.",
+    "flavour": "\"Man, I'm good.\"",
+    "set": "SFD",
+    "setName": "Spiritforged",
+    "tags": [
+     "Draven",
+     "Noxus"
+    ],
+    "artist": "League Splash Team",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "30aa0102-c5c9-4386-be69-9cacb66dcc8c",
+    "oracle_id": "aa32f88b-3577-4597-87a4-92a80c3bb374",
+    "variant": null,
+    "riftboundId": "opp-269-298",
+    "name": "Sett, The Boss",
+    "cleanName": "Sett, The Boss",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Promo",
+    "domains": [
+     "Body",
+     "Order"
+    ],
+    "text": "When a buffed unit you control would die, you may pay :rb_rune_rainbow: and exhaust me to spend its buff and recall it exhausted instead. (Send it to base. This isn't a move.)\nWhen you conquer, ready me.",
+    "flavour": null,
+    "set": "OPP",
+    "setName": "Riftbound Organized Play Promotional Cards",
+    "tags": [
+     "Sett"
+    ],
+    "artist": "Envar Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "e16ad4ad-577a-4727-81cc-3b0a33ed3122",
+    "oracle_id": "aa32f88b-3577-4597-87a4-92a80c3bb374",
+    "variant": null,
+    "riftboundId": "opp-269-298",
+    "name": "Sett, The Boss (Metal)",
+    "cleanName": "Sett, The Boss",
+    "energy": null,
+    "might": null,
+    "power": null,
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Promo",
+    "domains": [
+     "Body",
+     "Order"
+    ],
+    "text": "When a buffed unit you control would die, you may pay :rb_rune_rainbow: and exhaust me to spend its buff and recall it exhausted instead. (Send it to base. This isn't a move.)\nWhen you conquer, ready me.",
+    "flavour": null,
+    "set": "OPP",
+    "setName": "Riftbound Organized Play Promotional Cards",
+    "tags": [
+     "Sett"
+    ],
+    "artist": "Envar Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "fcd318eb-4757-44ee-8c1f-3beceeed29ef",
+    "oracle_id": "92fbc54f-1a9c-470b-b156-0552125fc10d",
+    "variant": "base",
+    "riftboundId": "ogn-248-298",
+    "name": "Icathian Rain",
+    "cleanName": "Icathian Rain",
+    "energy": 7,
+    "might": null,
+    "power": 3,
+    "type": "Spell",
+    "supertype": "Signature",
+    "rarity": "Epic",
+    "domains": [
+     "Fury",
+     "Mind"
+    ],
+    "text": "Deal 2 to a unit.\nDeal 2 to a unit.\nDeal 2 to a unit.\nDeal 2 to a unit.\nDeal 2 to a unit.\nDeal 2 to a unit.",
+    "flavour": null,
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Kai'Sa"
+    ],
+    "artist": "Kudos Productions",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "b7866da8-0d23-4c62-8e4f-147cf97b8440",
+    "oracle_id": "04437891-042d-4628-a7d0-85817e050cf2",
+    "variant": "base",
+    "riftboundId": "ogn-039-298",
+    "name": "Kai'Sa, Survivor",
+    "cleanName": "Kai'Sa, Survivor",
+    "energy": 4,
+    "might": 4,
+    "power": null,
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Epic",
+    "domains": [
+     "Fury"
+    ],
+    "text": "[Accelerate] (You may pay :rb_energy_1::rb_rune_fury: as an additional cost to have me enter ready.)\nWhen I conquer, draw 1.",
+    "flavour": "\"I like it here. I just Might stay.\"",
+    "set": "OGN",
+    "setName": "Origins",
+    "tags": [
+     "Kai'Sa",
+     "The Void"
+    ],
+    "artist": "League Splash Team",
+    "orientation": "portrait",
+    "finishes": [
+     "foil"
+    ]
+   },
+   {
+    "printing_id": "5954c02f-40d5-425d-a5bb-9f8000df4275",
+    "oracle_id": "6452644f-27ec-4d17-a972-2205881f0c44",
+    "variant": "base",
+    "riftboundId": "ogs-018-024",
+    "name": "Tibbers",
+    "cleanName": "Tibbers",
+    "energy": 8,
+    "might": 7,
+    "power": 2,
+    "type": "Unit",
+    "supertype": "Signature",
+    "rarity": "Epic",
+    "domains": [
+     "Fury",
+     "Chaos"
+    ],
+    "text": "When you play me, deal 3 to all units at battlefields.",
+    "flavour": "\"Bear hug!\" -Annie",
+    "set": "OGS",
+    "setName": "Proving Grounds",
+    "tags": [
+     "Annie"
+    ],
+    "artist": "Polar Engine Studio",
+    "orientation": "portrait",
+    "finishes": [
+     "normal"
+    ]
+   }
+  ]
+ },
+ "prints": [
+  {
+   "id": "124c76db-dd01-42ad-8cf8-1d69ffdb32c9",
+   "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+   "collector_number": "251",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/251/jinx-loose-cannon.webp?v=be962632335f",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/251/jinx-loose-cannon.webp?v=be962632335f"
+   },
+   "name": "Jinx, Loose Cannon",
+   "type": "Legend"
+  },
+  {
+   "id": "19accf75-a000-408a-8a36-94a7130c6760",
+   "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+   "collector_number": "301",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/301/jinx-loose-cannon-overnumbered.webp?v=4e7590bee551",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/301/jinx-loose-cannon-overnumbered.webp?v=4e7590bee551"
+   },
+   "name": "Jinx, Loose Cannon (Overnumbered)",
+   "type": "Legend"
+  },
+  {
+   "id": "3f8a7c17-eaad-4b60-8f1e-083360887b85",
+   "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+   "collector_number": "301s",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/301s/jinx-loose-cannon-signature.webp?v=f65e2817e8ed",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/301s/jinx-loose-cannon-signature.webp?v=f65e2817e8ed"
+   },
+   "name": "Jinx, Loose Cannon (Signature)",
+   "type": "Legend"
+  },
+  {
+   "id": "3e2b0002-45cf-4b9d-a29f-90870c41f188",
+   "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+   "collector_number": "251",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/opp/251/jinx-loose-cannon.webp?v=6950dced8d82",
+    "normal": "https://images.rifthunt.com/cards/normal/front/opp/251/jinx-loose-cannon.webp?v=6950dced8d82"
+   },
+   "name": "Jinx, Loose Cannon",
+   "type": "Legend"
+  },
+  {
+   "id": "c46a2a18-9f99-4c95-a849-01431a4d5302",
+   "oracle_id": "a12fad97-5bad-485a-a82d-1de0ac3c67d7",
+   "collector_number": "251",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/opp/251/jinx-loose-cannon-metal.webp?v=06acea7c842e",
+    "normal": "https://images.rifthunt.com/cards/normal/front/opp/251/jinx-loose-cannon-metal.webp?v=06acea7c842e"
+   },
+   "name": "Jinx, Loose Cannon (Metal)",
+   "type": "Legend"
+  },
+  {
+   "id": "fc2d658d-c429-4da0-8037-e3e9b8421ce4",
+   "oracle_id": "3c9f75ec-5bb4-4a1d-9280-342e08ac6e78",
+   "collector_number": "030",
+   "keywords": [
+    "accelerate"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/030/jinx-demolitionist.webp?v=a950851d3071",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/030/jinx-demolitionist.webp?v=a950851d3071"
+   },
+   "name": "Jinx, Demolitionist",
+   "type": "Unit"
+  },
+  {
+   "id": "7bbd2e93-3b09-4ceb-880f-755964372781",
+   "oracle_id": "3c9f75ec-5bb4-4a1d-9280-342e08ac6e78",
+   "collector_number": "030a",
+   "keywords": [
+    "accelerate"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/030a/jinx-demolitionist-alternate-art.webp?v=9fb0ff787e8f",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/030a/jinx-demolitionist-alternate-art.webp?v=9fb0ff787e8f"
+   },
+   "name": "Jinx, Demolitionist (Alternate Art)",
+   "type": "Unit"
+  },
+  {
+   "id": "d36133f4-5668-4c39-a5b4-23afc9a131fc",
+   "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+   "collector_number": "202",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/202/jinx-rebel.webp?v=7f9fd43e9273",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/202/jinx-rebel.webp?v=7f9fd43e9273"
+   },
+   "name": "Jinx, Rebel",
+   "type": "Unit"
+  },
+  {
+   "id": "ab96aa40-348c-40a3-8da3-370283c13c28",
+   "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+   "collector_number": "202a",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/202a/jinx-rebel-alternate-art.webp?v=78782afb791a",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/202a/jinx-rebel-alternate-art.webp?v=78782afb791a"
+   },
+   "name": "Jinx, Rebel (Alternate Art)",
+   "type": "Unit"
+  },
+  {
+   "id": "e317aa33-c9db-4741-8c8d-745e1d7a8591",
+   "oracle_id": "3c9f75ec-5bb4-4a1d-9280-342e08ac6e78",
+   "collector_number": "168",
+   "keywords": [
+    "accelerate"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ven/168/jinx-demolitionist-overnumbered.webp?v=1613f29cb598",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ven/168/jinx-demolitionist-overnumbered.webp?v=1613f29cb598"
+   },
+   "name": "Jinx, Demolitionist (Overnumbered)",
+   "type": "Unit"
+  },
+  {
+   "id": "ef8d451c-ea53-40a9-a856-6659562e9427",
+   "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+   "collector_number": "202",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/opp/202/jinx-rebel.webp?v=b9509474e02f",
+    "normal": "https://images.rifthunt.com/cards/normal/front/opp/202/jinx-rebel.webp?v=b9509474e02f"
+   },
+   "name": "Jinx, Rebel",
+   "type": "Unit"
+  },
+  {
+   "id": "0201304f-2602-4f15-b411-974f93696fb6",
+   "oracle_id": "c1a0f4cf-2cb4-4a54-97f6-d3613378b796",
+   "collector_number": "202b",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/pr/202b/jinx-rebel.webp?v=5e82a2987a36",
+    "normal": "https://images.rifthunt.com/cards/normal/front/pr/202b/jinx-rebel.webp?v=5e82a2987a36"
+   },
+   "name": "Jinx, Rebel",
+   "type": "Unit"
+  },
+  {
+   "id": "ff180c9d-e404-4ab1-b466-8a21ae5cd300",
+   "oracle_id": "2c9ea892-b3cd-4434-be4c-ec93d5de96d4",
+   "collector_number": "252",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/252/super-mega-death-rocket.webp?v=b18224340106",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/252/super-mega-death-rocket.webp?v=b18224340106"
+   },
+   "name": "Super Mega Death Rocket!",
+   "type": "Spell"
+  },
+  {
+   "id": "ace50069-1314-4a45-9363-bcd5d23fcbbe",
+   "oracle_id": "6c57a1de-bdfc-46de-aaa0-0e7cc121537a",
+   "collector_number": "007",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/007/fury-rune.webp?v=828656af6965",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/007/fury-rune.webp?v=828656af6965"
+   },
+   "name": "Fury Rune",
+   "type": "Rune"
+  },
+  {
+   "id": "e49aa0ec-e81b-4037-91e1-923ae4c29ffa",
+   "oracle_id": "6c57a1de-bdfc-46de-aaa0-0e7cc121537a",
+   "collector_number": "007a",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/007a/fury-rune-alternate-art.webp?v=ce839d2cd850",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/007a/fury-rune-alternate-art.webp?v=ce839d2cd850"
+   },
+   "name": "Fury Rune (Alternate Art)",
+   "type": "Rune"
+  },
+  {
+   "id": "b4d20a49-00f3-4314-9efb-c6c855115f58",
+   "oracle_id": "3f5f8d02-2df0-48a8-bbc9-dc1c21052d84",
+   "collector_number": "042",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/042/calm-rune.webp?v=00508f69fa10",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/042/calm-rune.webp?v=00508f69fa10"
+   },
+   "name": "Calm Rune",
+   "type": "Rune"
+  },
+  {
+   "id": "c9653c43-872e-400b-8437-aa3af16fd37c",
+   "oracle_id": "3f5f8d02-2df0-48a8-bbc9-dc1c21052d84",
+   "collector_number": "042a",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/042a/calm-rune-alternate-art.webp?v=a9a3143070ea",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/042a/calm-rune-alternate-art.webp?v=a9a3143070ea"
+   },
+   "name": "Calm Rune (Alternate Art)",
+   "type": "Rune"
+  },
+  {
+   "id": "4ba9bb0a-f282-4bc9-b023-95886efc0c29",
+   "oracle_id": "ddea8cb8-9583-40b0-902d-8f9a44c72528",
+   "collector_number": "166",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/166/chaos-rune.webp?v=0a982989200f",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/166/chaos-rune.webp?v=0a982989200f"
+   },
+   "name": "Chaos Rune",
+   "type": "Rune"
+  },
+  {
+   "id": "0c12e067-f661-44d1-9852-85074a2f5616",
+   "oracle_id": "ddea8cb8-9583-40b0-902d-8f9a44c72528",
+   "collector_number": "166a",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/166a/chaos-rune-alternate-art.webp?v=c7b5edcf8cfe",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/166a/chaos-rune-alternate-art.webp?v=c7b5edcf8cfe"
+   },
+   "name": "Chaos Rune (Alternate Art)",
+   "type": "Rune"
+  },
+  {
+   "id": "72364352-ac17-4e93-a3ae-cfb34e293646",
+   "oracle_id": "6c57a1de-bdfc-46de-aaa0-0e7cc121537a",
+   "collector_number": "007b",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/007b/fury-rune.webp?v=0fbcf16b55ef",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/007b/fury-rune.webp?v=0fbcf16b55ef"
+   },
+   "name": "Fury Rune",
+   "type": "Rune"
+  },
+  {
+   "id": "dff4a4e4-ef92-46ca-bbe8-170eb9ac3d3a",
+   "oracle_id": "3f5f8d02-2df0-48a8-bbc9-dc1c21052d84",
+   "collector_number": "042b",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/042b/calm-rune.webp?v=3a3e9bec1ce0",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/042b/calm-rune.webp?v=3a3e9bec1ce0"
+   },
+   "name": "Calm Rune",
+   "type": "Rune"
+  },
+  {
+   "id": "8008dbd6-a5f6-42be-9569-2295e5ccb616",
+   "oracle_id": "ddea8cb8-9583-40b0-902d-8f9a44c72528",
+   "collector_number": "166b",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/166b/chaos-rune.webp?v=2ded4d1652ce",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/166b/chaos-rune.webp?v=2ded4d1652ce"
+   },
+   "name": "Chaos Rune",
+   "type": "Rune"
+  },
+  {
+   "id": "76b97782-f624-470b-887d-fc5998f591c7",
+   "oracle_id": "179f0528-849a-42fa-9911-06794ff85b86",
+   "collector_number": "275",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/275/altar-to-unity.webp?v=bc7c1540f493",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/275/altar-to-unity.webp?v=bc7c1540f493"
+   },
+   "name": "Altar to Unity",
+   "type": "Battlefield"
+  },
+  {
+   "id": "86203a4e-2b19-4dff-a8bb-6421c8c4aa4d",
+   "oracle_id": "e1a55d1c-611a-4d77-b313-77749ef70f65",
+   "collector_number": "276",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "banned",
+     "banned_from": "2026-07-24"
+    },
+    "2v2": {
+     "status": "banned",
+     "banned_from": "2026-07-24"
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/276/aspirants-climb.webp?v=1f5e64f08e76",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/276/aspirants-climb.webp?v=1f5e64f08e76"
+   },
+   "name": "Aspirant's Climb",
+   "type": "Battlefield"
+  },
+  {
+   "id": "32080c1f-d9a6-4abb-8d1c-46eea5d7035f",
+   "oracle_id": "8a27c026-a531-42f5-bc4d-8884442f963b",
+   "collector_number": "277",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/277/back-alley-bar.webp?v=8a43cf63e3cb",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/277/back-alley-bar.webp?v=8a43cf63e3cb"
+   },
+   "name": "Back-Alley Bar",
+   "type": "Battlefield"
+  },
+  {
+   "id": "366f2f7c-e7ff-4bdc-a812-6a7773142065",
+   "oracle_id": "96cbd5d9-6009-480b-8a1e-43ea4bdc1a21",
+   "collector_number": "278",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/278/bandle-tree.webp?v=3d8f4d788c21",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/278/bandle-tree.webp?v=3d8f4d788c21"
+   },
+   "name": "Bandle Tree",
+   "type": "Battlefield"
+  },
+  {
+   "id": "01afb7e3-0e97-42a2-9458-28a51a2626b4",
+   "oracle_id": "f2c16cd8-01a4-4357-b741-34db22446e15",
+   "collector_number": "001",
+   "keywords": [
+    "accelerate"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/001/blazing-scorcher.webp?v=8de89b4b8fb3",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/001/blazing-scorcher.webp?v=8de89b4b8fb3"
+   },
+   "name": "Blazing Scorcher",
+   "type": "Unit"
+  },
+  {
+   "id": "01eac680-1a6a-43bd-9dac-895fb2d506a7",
+   "oracle_id": "26d7a3c2-05a6-40da-8e40-a6ea1535914f",
+   "collector_number": "002",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/002/brazen-buccaneer.webp?v=d05bc20f4ee5",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/002/brazen-buccaneer.webp?v=d05bc20f4ee5"
+   },
+   "name": "Brazen Buccaneer",
+   "type": "Unit"
+  },
+  {
+   "id": "8a329e0b-1f64-4aa3-8c14-9882802b20ae",
+   "oracle_id": "3260bb91-1809-477c-afe7-9abedeb8ff95",
+   "collector_number": "003",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/003/chemtech-enforcer.webp?v=96054d06a9d5",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/003/chemtech-enforcer.webp?v=96054d06a9d5"
+   },
+   "name": "Chemtech Enforcer",
+   "type": "Unit"
+  },
+  {
+   "id": "cb4ed507-dc08-40c3-8d40-70421fd15267",
+   "oracle_id": "1e8f8222-7d0a-4ef9-ac32-f0e3ff766ccd",
+   "collector_number": "004",
+   "keywords": [
+    "action"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/004/cleave.webp?v=4894a5ade902",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/004/cleave.webp?v=4894a5ade902"
+   },
+   "name": "Cleave",
+   "type": "Spell"
+  },
+  {
+   "id": "706d91cf-77de-42b4-8ed2-1b316d78b125",
+   "oracle_id": "8a8c66a5-c5e5-47f9-a829-e6dfad47085d",
+   "collector_number": "005",
+   "keywords": [
+    "action"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/005/disintegrate.webp?v=cc2658448003",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/005/disintegrate.webp?v=cc2658448003"
+   },
+   "name": "Disintegrate",
+   "type": "Spell"
+  },
+  {
+   "id": "7f4f030a-85da-49f2-b800-efd09809bc42",
+   "oracle_id": "eda23a48-a85d-4940-a503-e44eabcbbd1f",
+   "collector_number": "006",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/006/flame-chompers.webp?v=2fe32a6a4ab8",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/006/flame-chompers.webp?v=2fe32a6a4ab8"
+   },
+   "name": "Flame Chompers",
+   "type": "Unit"
+  },
+  {
+   "id": "0282dd61-07ef-4a12-8aee-321df54470ce",
+   "oracle_id": "3a7710bc-9739-4e1c-b205-5542e5d52ba5",
+   "collector_number": "008",
+   "keywords": [
+    "action"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/008/get-excited.webp?v=a6c6b46ceb20",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/008/get-excited.webp?v=a6c6b46ceb20"
+   },
+   "name": "Get Excited!",
+   "type": "Spell"
+  },
+  {
+   "id": "2fcd3b0f-a6b0-4e27-bdff-c9721af5521e",
+   "oracle_id": "fd32c541-eda3-40ef-9475-fa78c44c4e22",
+   "collector_number": "009",
+   "keywords": [
+    "action"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/009/hextech-ray.webp?v=fbd874e68305",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/009/hextech-ray.webp?v=fbd874e68305"
+   },
+   "name": "Hextech Ray",
+   "type": "Spell"
+  },
+  {
+   "id": "9f49b759-9e46-45cf-ac30-b7001e9300cf",
+   "oracle_id": "64bfd724-a95b-40c0-93a2-93ed53d7db90",
+   "collector_number": "010",
+   "keywords": [
+    "accelerate"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/010/legion-rearguard.webp?v=173ae20034a2",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/010/legion-rearguard.webp?v=173ae20034a2"
+   },
+   "name": "Legion Rearguard",
+   "type": "Unit"
+  },
+  {
+   "id": "9ae2262c-94fb-42a3-810c-d76d4e058abf",
+   "oracle_id": "7785d991-f089-4c29-95ad-ecb49effc1c8",
+   "collector_number": "011",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/011/magma-wurm.webp?v=e3815b588eab",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/011/magma-wurm.webp?v=e3815b588eab"
+   },
+   "name": "Magma Wurm",
+   "type": "Unit"
+  },
+  {
+   "id": "9d774980-5909-4823-8d59-2b0e09ecaf0a",
+   "oracle_id": "179fe57f-dd2c-483a-ac51-228621ba60b5",
+   "collector_number": "012",
+   "keywords": [
+    "legion"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/012/noxus-hopeful.webp?v=edcf84a35a03",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/012/noxus-hopeful.webp?v=edcf84a35a03"
+   },
+   "name": "Noxus Hopeful",
+   "type": "Unit"
+  },
+  {
+   "id": "51f6861a-7a75-4971-8d78-7a6781d7c0f5",
+   "oracle_id": "df4c1239-7d32-465d-8811-c95ed6827185",
+   "collector_number": "013",
+   "keywords": [
+    "deflect"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/013/pouty-poro.webp?v=6276ed9bfd02",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/013/pouty-poro.webp?v=6276ed9bfd02"
+   },
+   "name": "Pouty Poro",
+   "type": "Unit"
+  },
+  {
+   "id": "795f16d5-e079-4844-aec3-92dee228946f",
+   "oracle_id": "3fa48f32-6080-4d86-8411-e43f71bb3a12",
+   "collector_number": "014",
+   "keywords": [
+    "action"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/014/sky-splitter.webp?v=a839b4f194c1",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/014/sky-splitter.webp?v=a839b4f194c1"
+   },
+   "name": "Sky Splitter",
+   "type": "Spell"
+  },
+  {
+   "id": "a450db7f-d209-4da4-bf24-b7f27248e7d2",
+   "oracle_id": "e7f68d5f-a447-4e9c-88ec-6eb24f869bc6",
+   "collector_number": "015",
+   "keywords": [
+    "assault"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/015/captain-farron.webp?v=1ab4bca70248",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/015/captain-farron.webp?v=1ab4bca70248"
+   },
+   "name": "Captain Farron",
+   "type": "Unit"
+  },
+  {
+   "id": "7391c867-db7d-4a1a-b083-e2ee9ddbcccc",
+   "oracle_id": "dfb92e83-14d5-4b0f-8f91-24b7d1f9a2e1",
+   "collector_number": "044",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/044/clockwork-keeper.webp?v=678251bb4b13",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/044/clockwork-keeper.webp?v=678251bb4b13"
+   },
+   "name": "Clockwork Keeper",
+   "type": "Unit"
+  },
+  {
+   "id": "ceafaa92-d020-4e00-b17b-a3a2fb343d93",
+   "oracle_id": "94e2d6fd-7c5d-4a75-acaa-fa1cc3050fd8",
+   "collector_number": "049",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/049/playful-phantom.webp?v=e03cd4220bae",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/049/playful-phantom.webp?v=e03cd4220bae"
+   },
+   "name": "Playful Phantom",
+   "type": "Unit"
+  },
+  {
+   "id": "3422dcca-2b44-454e-96c2-100deb0dbc7e",
+   "oracle_id": "aa32f88b-3577-4597-87a4-92a80c3bb374",
+   "collector_number": "269",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/269/sett-the-boss.webp?v=4aacad11d34c",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/269/sett-the-boss.webp?v=4aacad11d34c"
+   },
+   "name": "Sett, The Boss",
+   "type": "Legend"
+  },
+  {
+   "id": "867031a7-2356-472c-9026-eb000846ba24",
+   "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+   "collector_number": "247",
+   "keywords": [
+    "reaction",
+    "add"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/247/kaisa-daughter-of-the-void.webp?v=279a651d17fa",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/247/kaisa-daughter-of-the-void.webp?v=279a651d17fa"
+   },
+   "name": "Kai'Sa, Daughter of the Void",
+   "type": "Legend"
+  },
+  {
+   "id": "d444f421-c7b8-4929-bb5b-50c21982f0f5",
+   "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+   "collector_number": "299",
+   "keywords": [
+    "reaction",
+    "add"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/299/kaisa-daughter-of-the-void-overnumbered.webp?v=1b44dc756633",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/299/kaisa-daughter-of-the-void-overnumbered.webp?v=1b44dc756633"
+   },
+   "name": "Kai'Sa, Daughter of the Void (Overnumbered)",
+   "type": "Legend"
+  },
+  {
+   "id": "893bdc98-5f83-4977-97ba-97083ac4aeda",
+   "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+   "collector_number": "299s",
+   "keywords": [
+    "reaction",
+    "add"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/299s/kaisa-daughter-of-the-void-signature.webp?v=78fc1b00afae",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/299s/kaisa-daughter-of-the-void-signature.webp?v=78fc1b00afae"
+   },
+   "name": "Kai'Sa, Daughter of the Void (Signature)",
+   "type": "Legend"
+  },
+  {
+   "id": "5292e55c-b0ab-42a4-bdee-c5e306ca8223",
+   "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+   "collector_number": "247",
+   "keywords": [
+    "reaction",
+    "add"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/opp/247/kaisa-daughter-of-the-void.webp?v=84a16f4b5f66",
+    "normal": "https://images.rifthunt.com/cards/normal/front/opp/247/kaisa-daughter-of-the-void.webp?v=84a16f4b5f66"
+   },
+   "name": "Kai'Sa, Daughter of the Void",
+   "type": "Legend"
+  },
+  {
+   "id": "ef972c2a-0c4d-4d0c-a35c-eae71a433b1c",
+   "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+   "collector_number": "247",
+   "keywords": [
+    "reaction",
+    "add"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/opp/247/kaisa-daughter-of-the-void-metal.webp?v=0404c48d4973",
+    "normal": "https://images.rifthunt.com/cards/normal/front/opp/247/kaisa-daughter-of-the-void-metal.webp?v=0404c48d4973"
+   },
+   "name": "Kai'Sa, Daughter of the Void (Metal)",
+   "type": "Legend"
+  },
+  {
+   "id": "6f4873a4-66b6-5252-abf8-5ba527bee39b",
+   "oracle_id": "39726c96-e558-4966-8b15-db2c03cc833b",
+   "collector_number": "003s",
+   "keywords": [
+    "reaction",
+    "add"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/kda/003s/kaisa-daughter-of-the-void.webp?v=ea8509077e93",
+    "normal": "https://images.rifthunt.com/cards/normal/front/kda/003s/kaisa-daughter-of-the-void.webp?v=ea8509077e93"
+   },
+   "name": "Kai'Sa, Daughter of the Void",
+   "type": "Legend"
+  },
+  {
+   "id": "f32c3f01-ffaf-45ac-a4aa-8002ca55ffca",
+   "oracle_id": "86b56235-5e9f-4199-a69b-32be2a5c8c3f",
+   "collector_number": "271",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "not_legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "not_legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/271/recruit-de.webp?v=547e7cba2458",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/271/recruit-de.webp?v=547e7cba2458"
+   },
+   "name": "Recruit (DE)",
+   "type": "Unit"
+  },
+  {
+   "id": "7ab2151a-860b-4dec-a110-b6a83e91e4e9",
+   "oracle_id": "86b56235-5e9f-4199-a69b-32be2a5c8c3f",
+   "collector_number": "272",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "not_legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "not_legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/272/recruit-nx.webp?v=6a54a5072c9f",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/272/recruit-nx.webp?v=6a54a5072c9f"
+   },
+   "name": "Recruit (NX)",
+   "type": "Unit"
+  },
+  {
+   "id": "8186e473-a64b-4d92-af8e-379bcd4eca9b",
+   "oracle_id": "84368bbf-b422-4cd0-81e5-020f53f96f30",
+   "collector_number": "026",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "banned",
+     "banned_from": "2026-11-23"
+    },
+    "2v2": {
+     "status": "banned",
+     "banned_from": "2026-11-23"
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/026/brynhir-thundersong.webp?v=50179725b64c",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/026/brynhir-thundersong.webp?v=50179725b64c"
+   },
+   "name": "Brynhir Thundersong",
+   "type": "Unit"
+  },
+  {
+   "id": "a0ea4f35-bfea-488a-8c08-50c44711dc29",
+   "oracle_id": "abb59679-3a5e-4479-9561-ca5195eaa5e9",
+   "collector_number": "020",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "banned",
+     "banned_from": "2026-03-31"
+    },
+    "2v2": {
+     "status": "banned",
+     "banned_from": "2026-03-31"
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/sfd/020/draven-vanquisher.webp?v=01000d1e7dc2",
+    "normal": "https://images.rifthunt.com/cards/normal/front/sfd/020/draven-vanquisher.webp?v=01000d1e7dc2"
+   },
+   "name": "Draven, Vanquisher",
+   "type": "Unit"
+  },
+  {
+   "id": "c315b477-57d3-4fdc-aa29-1444219cd616",
+   "oracle_id": "abb59679-3a5e-4479-9561-ca5195eaa5e9",
+   "collector_number": "020a",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "banned",
+     "banned_from": "2026-03-31"
+    },
+    "2v2": {
+     "status": "banned",
+     "banned_from": "2026-03-31"
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/sfd/020a/draven-vanquisher-alternate-art.webp?v=2a910433e665",
+    "normal": "https://images.rifthunt.com/cards/normal/front/sfd/020a/draven-vanquisher-alternate-art.webp?v=2a910433e665"
+   },
+   "name": "Draven, Vanquisher (Alternate Art)",
+   "type": "Unit"
+  },
+  {
+   "id": "30aa0102-c5c9-4386-be69-9cacb66dcc8c",
+   "oracle_id": "aa32f88b-3577-4597-87a4-92a80c3bb374",
+   "collector_number": "269",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/opp/269/sett-the-boss.webp?v=a54c983a9685",
+    "normal": "https://images.rifthunt.com/cards/normal/front/opp/269/sett-the-boss.webp?v=a54c983a9685"
+   },
+   "name": "Sett, The Boss",
+   "type": "Legend"
+  },
+  {
+   "id": "e16ad4ad-577a-4727-81cc-3b0a33ed3122",
+   "oracle_id": "aa32f88b-3577-4597-87a4-92a80c3bb374",
+   "collector_number": "269",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/opp/269/sett-the-boss-metal.webp?v=86bad64042b3",
+    "normal": "https://images.rifthunt.com/cards/normal/front/opp/269/sett-the-boss-metal.webp?v=86bad64042b3"
+   },
+   "name": "Sett, The Boss (Metal)",
+   "type": "Legend"
+  },
+  {
+   "id": "fcd318eb-4757-44ee-8c1f-3beceeed29ef",
+   "oracle_id": "92fbc54f-1a9c-470b-b156-0552125fc10d",
+   "collector_number": "248",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/248/icathian-rain.webp?v=246686e95ac5",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/248/icathian-rain.webp?v=246686e95ac5"
+   },
+   "name": "Icathian Rain",
+   "type": "Spell"
+  },
+  {
+   "id": "b7866da8-0d23-4c62-8e4f-147cf97b8440",
+   "oracle_id": "04437891-042d-4628-a7d0-85817e050cf2",
+   "collector_number": "039",
+   "keywords": [
+    "accelerate"
+   ],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogn/039/kaisa-survivor.webp?v=848e1020bc1f",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogn/039/kaisa-survivor.webp?v=848e1020bc1f"
+   },
+   "name": "Kai'Sa, Survivor",
+   "type": "Unit"
+  },
+  {
+   "id": "5954c02f-40d5-425d-a5bb-9f8000df4275",
+   "oracle_id": "6452644f-27ec-4d17-a972-2205881f0c44",
+   "collector_number": "018",
+   "keywords": [],
+   "legalities": {
+    "standard": {
+     "status": "legal",
+     "banned_from": null
+    },
+    "2v2": {
+     "status": "legal",
+     "banned_from": null
+    }
+   },
+   "images": {
+    "small": "https://images.rifthunt.com/cards/small/front/ogs/018/tibbers.webp?v=80fa09df3a0a",
+    "normal": "https://images.rifthunt.com/cards/normal/front/ogs/018/tibbers.webp?v=80fa09df3a0a"
+   },
+   "name": "Tibbers",
+   "type": "Unit"
+  }
+ ]
+}

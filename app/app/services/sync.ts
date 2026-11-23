@@ -1,4 +1,5 @@
 import { useDatabase } from '~/composables/useDatabase'
+import { hashString } from '~/utils/hash'
 type CardDb = import('@tauri-apps/plugin-sql').default
 import {
   syncProgress,
@@ -203,19 +204,7 @@ async function batchInsert(
 // chaque mise à jour de la source).
 // ============================================================
 
-// empreinte 53 bits (cyrb53) d'une chaîne, en base 36
-export function hashString(str: string): string {
-  let h1 = 0xdeadbeef
-  let h2 = 0x41c6ce57
-  for (let i = 0; i < str.length; i++) {
-    const ch = str.charCodeAt(i)
-    h1 = Math.imul(h1 ^ ch, 2654435761)
-    h2 = Math.imul(h2 ^ ch, 1597334677)
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
-}
+export { hashString } from '~/utils/hash'
 
 // tout ce qui est écrit pour une carte, sauf les prix
 export function cardHash(c: YgoApiCard, alias: string | null): string {

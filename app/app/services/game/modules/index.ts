@@ -6,6 +6,7 @@ import type { OcrLine } from '~/services/scan/text'
 import { registerGame, unregisterGame, type GameDefinition } from '~/services/game'
 import { ygoModule } from './ygo'
 import { mtgModule } from './mtg'
+import { riftboundModule } from './riftbound'
 
 // ============================================================
 // MODULES DE JEU — point d'entrée unique de chaque jeu.
@@ -17,12 +18,15 @@ import { mtgModule } from './mtg'
 // Ajouter un jeu :
 //   1. sa définition (services/game/<jeu>.ts : vocabulaire, base de cartes ;
 //      états = sous-ensemble de NM/LP/MP/HP/DMG, zones de deck parmi
-//      main/side/extra/commander/maybe : contraintes de user.db)
+//      main/side/extra/commander/maybe/legend/champion/runes/battlefields,
+//      cf. Board ; user.db accepte tout nom court depuis la migration 011)
 //   2. sa base de cartes : migrations src-tauri/migrations/<jeu>/ qui
 //      fournissent le contrat commun (cf. migrations/ygo/003), enregistrées
 //      dans src-tauri/src/lib.rs
 //   3. son module (services/game/modules/<jeu>.ts) + une ligne ci-dessous
-//   4. ses images : une ligne dans src-tauri/src/image_cache.rs
+//   4. ses images : une branche dans src-tauri/src/card_sources.rs
+//      (image_source ; adresse non déductible de l'id : needs_hint + indices
+//      envoyés par image_sources_set, cf. riftboundData/sync.ts)
 //   5. facultatif : son panneau de filtres de recherche (utils/gameUi.ts)
 // ============================================================
 
@@ -82,3 +86,4 @@ export function gameModuleOrNull(game: string): GameModule | null {
 
 registerGameModule(ygoModule)
 registerGameModule(mtgModule)
+registerGameModule(riftboundModule)

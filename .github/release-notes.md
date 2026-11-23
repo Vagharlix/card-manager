@@ -1,13 +1,13 @@
-# Card Manager v0.2.0
-
-Première version numérotée (les builds de test « dev-latest » s'arrêtent là).
+# Card Manager v0.3.0
 
 ## Nouveautés
-- **Rangements par jeu** : un rangement peut être associé à un ou plusieurs jeux (ou à aucun). Dans la liste, « This game » ou « All games ».
-- **Recherche** : sélection de plusieurs cartes (« Select »), ajout en une fois, avec une quantité et un rangement au choix.
-- **Fluidité** : collection, fiche carte, decks et défilement bien plus rapides (images servies directement, grilles qui ne dessinent que ce qui est visible, decks mis à jour instantanément).
-- **Mobile** : volet des cartes qui se ferme sans « glitch », caméra incrustée, paysage, écrans pliables et doubles écrans ; pagination centrée.
-- **Mises à jour des cartes incrémentales et en arrière-plan** : seules les cartes nouvelles ou modifiées sont écrites (Yu-Gi-Oh!), Magic ne retélécharge plus ses 80 Mo à chaque fois (nouveautés + règles et légalités séparément). L'appli reste utilisable pendant la mise à jour. Note : la première mise à jour après installation réécrit encore tout, une fois.
-- **Icônes** intégrées à l'appli (marchent hors ligne).
-- **Linux** : affichage plus fluide (moteur de rendu DMABUF gardé hors AppImage).
-- **Versions Windows et macOS** (non testées sur appareil : retours bienvenus).
+- **Riftbound** (Riot Games), 3e jeu : choisissez-le dans le sélecteur de jeu en haut. La base de cartes (≈ 1 700 impressions, toutes les extensions et promos) se télécharge au premier passage, puis se met à jour toute seule (au plus une vérification par jour ; seules les cartes nouvelles ou modifiées sont écrites).
+  - **Recherche** : une ligne par carte, filtres par domaine (Fury, Calm, Mind, Body, Chaos, Order, incolore), type, champion / signature / jeton, énergie, puissance, extension, légalité.
+  - **Fiche** : toutes les impressions de la carte (art alternatif, overnumbered, signée, Metal, promos…), chacune ajoutable à la collection ; bannissements en Standard / 2v2, y compris ceux annoncés.
+  - **Decks** : zones Légende, Champion choisi, Deck principal, Runes, Champs de bataille, Sideboard. Les règles officielles sont vérifiées : 40 cartes avec le champion, 3 copies au plus, 3 signatures de la légende, 12 runes, 3 champs de bataille différents, identité de domaines de la légende.
+  - **Collection, rangements, partage, sauvegarde, synchro** : comme pour les autres jeux.
+  - **Scan** (Android) : lecture du numéro en bas de carte (« OGN • 030/298 ») ou du nom.
+- **Decks** : les règles qui portent sur le deck entier sont listées au-dessus des zones, et les cartes en cause encadrées.
+
+## Important
+- Mettez à jour **tous vos appareils** : la synchronisation entre appareils refuse les données d'une version plus récente (nouvelle migration de la base).

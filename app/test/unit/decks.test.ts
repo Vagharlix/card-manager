@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTestDatabases, type TestDatabases } from './helpers/testDb'
+import { createTestDatabases, TestDatabase, type TestDatabases } from './helpers/testDb'
 import { createSeeder } from './helpers/seed'
 
 // ============================================================
@@ -263,5 +263,32 @@ describe('filtres de recherche', () => {
   it('proposent « Xyz » quand la donnée écrit « XYZ Monster »', async () => {
     const { monsterTypes } = await getYgoFilterOptions()
     expect(monsterTypes).toContain('Xyz')
+  })
+})
+
+describe('migration 011 — zones de deck de tous les jeux', () => {
+  it('les decks existants sont gardés, les nouvelles zones acceptées, la vue recréée', () => {
+    const legacy = createTestDatabases({ user: new TestDatabase('user', { upTo: 10 }) })
+    try {
+      const old = createSeeder(legacy)
+      const deckId = old.deck('Old deck')
+      old.deckCard(deckId, DM, 3, 'extra')
+      // avant : une zone inconnue est refusée
+      expect(() => old.deckCard(deckId, SANGAN, 1, 'runes')).toThrow(/CHECK/)
+      legacy.user.applyMigration(11)
+      expect(
+        legacy.user.raw.prepare(`SELECT card_id, quantity, board FROM deck_cards`).all()
+      ).toEqual([{ card_id: DM, quantity: 3, board: 'extra' }])
+      old.deckCard(deckId, SANGAN, 12, 'runes', 'riftbound')
+      expect(
+        legacy.user.raw
+          .prepare(`SELECT extra_info FROM card_locations WHERE location_type = 'deck' ORDER BY extra_info`)
+          .all()
+      ).toEqual([{ extra_info: 'extra' }, { extra_info: 'runes' }])
+      expect(() => old.deckCard(deckId, POT, 1, '')).toThrow(/CHECK/)
+    } finally {
+      legacy.user.close()
+      legacy.ygo.close()
+    }
   })
 })
