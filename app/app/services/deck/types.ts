@@ -5,7 +5,19 @@
 // engine — it never hardcodes YGO rules. Mirrors search engine.
 // ============================================================
 
-export type Board = 'main' | 'side' | 'extra' | 'commander' | 'maybe'
+// zones de deck de tous les jeux (user.db accepte tout nom court depuis la
+// migration user 011) ; chaque jeu n'utilise que les siennes (rules.boards)
+export type Board =
+  | 'main'
+  | 'side'
+  | 'extra'
+  | 'commander'
+  | 'maybe'
+  // Riftbound
+  | 'legend'
+  | 'champion'
+  | 'runes'
+  | 'battlefields'
 
 export interface BoardDef {
   id: Board
@@ -50,4 +62,20 @@ export interface DeckEngine {
   // et message quand un ajout est refusé ; status = statut brut du format
   limitLabel(limit: number, status: string | null): string
   limitMessage(limit: number, status: string | null): string
+  // règles qui portent sur le deck entier, au-delà des limites de copies
+  // (Riftbound : identité de domaines, champion choisi, signatures, runes) ;
+  // lues dans la base de cartes du jeu. Absent = aucune.
+  deckIssues?(deck: DeckForIssues, format: string): Promise<DeckIssue[]>
+}
+
+// contenu d'un deck tel que le voit deckIssues (zones → cartes)
+export type DeckForIssues = Partial<
+  Record<Board, { cardId: string; root: string; name: string; quantity: number }[]>
+>
+
+// problème d'un deck entier (affiché sous les infractions de copies)
+export interface DeckIssue {
+  code: string // stable (tests, data-deck-issue) : 'legend', 'identity'…
+  message: string // en anglais, montré tel quel
+  cardIds?: string[] // cartes en cause (signalées dans les zones)
 }

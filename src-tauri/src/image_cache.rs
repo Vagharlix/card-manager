@@ -1,5 +1,6 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use tauri::Manager;
 use tokio::sync::Semaphore;
 
@@ -25,6 +26,81 @@ fn downloads() -> &'static Semaphore {
     SEM.get_or_init(|| Semaphore::new(MAX_DOWNLOADS))
 }
 
+// ── indices d'images (jeux dont l'URL ne se déduit pas de l'id) ──────────
+// <app_data_dir>/image-sources/<jeu>.json = { "<id>": "<chemin relatif>" },
+// écrit par le front après chaque mise à jour de la base de cartes (hors du
+// cache d'images : vider le cache ne les perd pas), gardé en mémoire.
+
+type Hints = HashMap<String, String>;
+
+fn hints_store() -> &'static Mutex<HashMap<String, Hints>> {
+    static STORE: OnceLock<Mutex<HashMap<String, Hints>>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn hints_file(app: &tauri::AppHandle, game: &str) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("image-sources")
+        .join(format!("{}.json", game)))
+}
+
+// indices d'un jeu, lus sur le disque la première fois
+fn with_hints<T>(app: &tauri::AppHandle, game: &str, f: impl FnOnce(&Hints) -> T) -> T {
+    let mut store = hints_store().lock().unwrap_or_else(|e| e.into_inner());
+    if !store.contains_key(game) {
+        let loaded = hints_file(app, game)
+            .ok()
+            .and_then(|p| std::fs::read(p).ok())
+            .and_then(|b| serde_json::from_slice::<Hints>(&b).ok())
+            .unwrap_or_default();
+        store.insert(game.to_string(), loaded);
+    }
+    f(store.get(game).expect("inserted above"))
+}
+
+/// Remplace les indices d'images d'un jeu (id → chemin relatif). Les indices
+/// refusés (cf. card_sources::is_safe_hint) sont ignorés. Retourne le nombre
+/// d'indices gardés.
+#[tauri::command]
+pub async fn image_sources_set(
+    app: tauri::AppHandle,
+    game: String,
+    sources: HashMap<String, String>,
+) -> Result<usize, String> {
+    if !cache_store::is_safe_name(&game) || !card_sources::needs_hint(&game) {
+        return Err("no image sources for this game".into());
+    }
+    let kept: Hints = sources
+        .into_iter()
+        .filter(|(id, hint)| cache_store::is_safe_name(id) && card_sources::is_safe_hint(hint))
+        .collect();
+    let path = hints_file(&app, &game)?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let bytes = serde_json::to_vec(&kept).map_err(|e| e.to_string())?;
+    cache_store::write_atomic(&path, &bytes).map_err(|e| e.to_string())?;
+    let n = kept.len();
+    hints_store()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(game, kept);
+    Ok(n)
+}
+
+/// Nombre d'indices d'images connus pour un jeu (le front les renvoie s'ils
+/// ne correspondent plus à sa base de cartes).
+#[tauri::command]
+pub async fn image_sources_count(app: tauri::AppHandle, game: String) -> Result<usize, String> {
+    if !cache_store::is_safe_name(&game) {
+        return Err("invalid game".into());
+    }
+    Ok(with_hints(&app, &game, |h| h.len()))
+}
+
 /// Chemin de l'image d'une carte dans le cache disque ; téléchargée d'abord
 /// si absente (Rust n'est pas soumis au CORS).
 async fn cached_image(
@@ -40,7 +116,15 @@ async fn cached_image(
         "full" | "cropped" => size,
         _ => "small",
     };
-    let (dir, url) = card_sources::image_source(game, id, size)
+    let hint = if card_sources::needs_hint(game) {
+        Some(
+            with_hints(app, game, |h| h.get(id).cloned())
+                .ok_or_else(|| (404, "unknown card image".to_string()))?,
+        )
+    } else {
+        None
+    };
+    let (dir, url) = card_sources::image_source(game, id, size, hint.as_deref())
         .ok_or_else(|| (404, format!("no images for game {}", game)))?;
 
     let cache_dir = cache_root(app).map_err(|e| (500, e))?.join(dir);
@@ -92,7 +176,7 @@ pub fn serve(
         let response = match result {
             Ok(bytes) => tauri::http::Response::builder()
                 .status(200)
-                .header("Content-Type", "image/jpeg")
+                .header("Content-Type", card_sources::image_mime(&bytes))
                 // une image de carte ne change jamais pour un même id
                 .header("Cache-Control", "public, max-age=31536000, immutable")
                 .header("Access-Control-Allow-Origin", "*")

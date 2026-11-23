@@ -129,8 +129,7 @@
         <div
           v-if="isMobile"
           role="tablist"
-          class="grid mb-3 border-b border-default shrink-0"
-          :style="{ gridTemplateColumns: `repeat(${boardTabs.length}, minmax(0, 1fr))` }"
+          class="flex mb-3 border-b border-default shrink-0 overflow-x-auto"
         >
           <button
             v-for="b in boardTabs"
@@ -139,7 +138,7 @@
             :aria-selected="mobileBoard === b.id"
             :data-mobile-board="b.id"
             :data-board-count="boardCount(b.id)"
-            class="h-11 text-sm border-b-2 -mb-px transition"
+            class="flex-1 shrink-0 h-11 px-3 text-sm whitespace-nowrap border-b-2 -mb-px transition"
             :class="
               mobileBoard === b.id
                 ? 'border-primary font-semibold'
@@ -170,6 +169,25 @@
             </template>
           </UAlert>
 
+          <!-- règles du deck entier (moteur du jeu : identité, zones…) -->
+          <UAlert
+            v-if="issues.length"
+            color="warning"
+            variant="soft"
+            icon="i-lucide-triangle-alert"
+            data-deck-issues
+            :data-issue-count="issues.length"
+            :title="issues.length === 1 ? 'This deck is not legal yet' : `${issues.length} deck rules not met`"
+          >
+            <template #description>
+              <ul class="text-xs mt-1 space-y-0.5">
+                <li v-for="i in issues" :key="i.code + i.message" :data-deck-issue="i.code">
+                  {{ i.message }}
+                </li>
+              </ul>
+            </template>
+          </UAlert>
+
           <!-- une zone par board du moteur de deck du jeu -->
           <template v-for="b in engine.rules.boards" :key="b.id">
             <DeckBoard
@@ -178,6 +196,7 @@
               :board="b.id"
               :cards="contents[b.id] ?? []"
               :flagged="validation.flagged"
+              :warned="issueCards"
               :min="b.min"
               :max="b.max"
               show-max
@@ -261,7 +280,7 @@ import {
   type CurrentDeckbox,
   type DeckLinkPlan,
 } from '~/services/deckLink'
-import type { Board } from '~/services/deck/types'
+import type { Board, DeckIssue } from '~/services/deck/types'
 
 // jeu affiché (la page est remontée quand il change, cf. app.vue)
 const GAME = useCurrentGame().game.value
@@ -291,6 +310,9 @@ const deck = ref<Deck | null>(null)
 const contents = ref<DeckContents>({ main: [], extra: [], side: [] })
 const ownedIds = ref<Set<string>>(new Set())
 const validation = ref<DeckValidation>({ valid: true, violations: [], flagged: new Set() })
+const issues = ref<DeckIssue[]>([])
+// cartes en cause dans une règle du deck entier (bordure d'avertissement)
+const issueCards = computed(() => new Set(issues.value.flatMap((i) => i.cardIds ?? [])))
 // limite de chaque carte logique du deck dans le format (validation locale)
 let limits = new Map<string, RootLimit>()
 
@@ -370,6 +392,7 @@ async function refreshContents(): Promise<void> {
   contents.value = state.contents
   limits = state.limits
   validation.value = state.validation
+  issues.value = state.issues
 }
 const scheduleRefresh = useDebounceFn((): Promise<void> => refreshContents(), 250)
 

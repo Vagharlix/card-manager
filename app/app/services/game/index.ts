@@ -8,11 +8,13 @@
 import type { GameDefinition } from './types'
 import { ygoGame } from './ygo'
 import { mtgGame } from './mtg'
+import { riftboundGame } from './riftbound'
 import { DEFAULT_CONDITION, DEFAULT_LANGUAGE } from './common'
 
 const GAMES: Record<string, GameDefinition> = {
   ygo: ygoGame,
   mtg: mtgGame,
+  riftbound: riftboundGame,
 }
 
 // ajoute un jeu (appelé par registerGameModule ; tests : faux jeu)

@@ -87,8 +87,9 @@ export const config: WebdriverIO.Config = {
       )
     }
 
-    // 2. fresh user DB + Magic card DB (le spec mtg y importe un échantillon)
-    for (const base of ['user.test.db', 'cards-mtg.test.db'])
+    // 2. fresh user DB + Magic / Riftbound card DBs (les specs mtg et
+    //    riftbound y importent un échantillon)
+    for (const base of ['user.test.db', 'cards-mtg.test.db', 'cards-riftbound.test.db'])
       for (const suffix of ['', '-shm', '-wal']) {
         const f = join(DATA_DIR, `${base}${suffix}`)
         if (existsSync(f)) rmSync(f)

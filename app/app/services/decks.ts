@@ -1,6 +1,6 @@
 import { useDatabase } from '~/composables/useDatabase'
 import { cardMetaOf, legalityOf, variantsOfRoots } from '~/services/card/meta'
-import type { DeckEngine, Board } from './deck/types'
+import type { DeckEngine, Board, DeckIssue } from './deck/types'
 import { gameModule } from '~/services/game/modules'
 
 // ============================================================
@@ -238,6 +238,8 @@ export interface DeckState {
   contents: DeckContents
   limits: Map<string, RootLimit>
   validation: DeckValidation
+  // règles du deck entier (moteur du jeu : DeckEngine.deckIssues)
+  issues: DeckIssue[]
 }
 
 function emptyContents(): DeckContents {
@@ -297,7 +299,13 @@ export async function getDeckState(
   const limits = new Map<string, RootLimit>()
   if (!rows.length) {
     const contents = emptyContents()
-    return { format, contents, limits, validation: validateContents(contents, limits) }
+    return {
+      format,
+      contents,
+      limits,
+      validation: validateContents(contents, limits),
+      issues: await deckIssues(engine, contents, format),
+    }
   }
 
   // names + types + logical card
@@ -335,7 +343,28 @@ export async function getDeckState(
   // stable display order: by name
   for (const list of Object.values(contents)) list?.sort(byName)
 
-  return { format, contents, limits, validation: validateContents(contents, limits) }
+  return {
+    format,
+    contents,
+    limits,
+    validation: validateContents(contents, limits),
+    issues: await deckIssues(engine, contents, format),
+  }
+}
+
+// règles du deck entier ; une erreur du moteur n'empêche pas d'afficher le deck
+async function deckIssues(
+  engine: DeckEngine,
+  contents: DeckContents,
+  format: string
+): Promise<DeckIssue[]> {
+  if (!engine.deckIssues) return []
+  try {
+    return await engine.deckIssues(contents, format)
+  } catch (e) {
+    console.error('deckIssues', e)
+    return []
+  }
 }
 
 export function byName(a: DeckCard, b: DeckCard): number {

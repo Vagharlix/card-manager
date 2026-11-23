@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import SearchFilters from '~/components/searchFilters.vue'
 import MtgSearchFilters from '~/components/MtgSearchFilters.vue'
+import RiftboundSearchFilters from '~/components/RiftboundSearchFilters.vue'
 
 // ============================================================
 // Morceaux d'interface propres à un jeu (le reste de l'interface est
@@ -12,6 +13,7 @@ import MtgSearchFilters from '~/components/MtgSearchFilters.vue'
 const SEARCH_FILTERS: Record<string, Component> = {
   ygo: SearchFilters,
   mtg: MtgSearchFilters,
+  riftbound: RiftboundSearchFilters,
 }
 
 export function searchFilterPanel(game: string): Component | null {
