@@ -26,6 +26,8 @@ export interface BoardDef {
   // zone où l'on place une carte à la main (Magic : commandant) : proposée
   // dans le menu des autres zones, et « retour au deck » depuis elle
   pickable?: boolean
+  // cartes imprimées en paysage (champs de bataille Riftbound) : cases paysage
+  landscape?: boolean
   min: number
   max: number
 }

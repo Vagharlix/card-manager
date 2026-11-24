@@ -9,7 +9,7 @@
       @click="onClick"
     >
       <div
-        class="aspect-[0.686] rounded-lg bg-elevated relative border-2 transition-colors"
+        class="aspect-card rounded-lg bg-elevated relative overflow-hidden border-2 transition-colors"
         :class="
           selectable && selected
             ? 'border-primary'
@@ -27,9 +27,10 @@
           :src="src"
           :alt="card.name"
           class="relative w-full h-full object-cover rounded-md"
+          :style="fit.style.value"
           loading="lazy"
           decoding="async"
-          @load="loaded = true"
+          @load="onLoad"
           @error="error = true"
         />
         <!-- voile + coche en mode sélection -->
@@ -102,6 +103,12 @@ const { src } = useCardImage(
 )
 const loaded = ref(false)
 const error = ref(false)
+// carte paysage (champ de bataille) tournée pour remplir la case portrait
+const fit = useCardFit(src)
+function onLoad(e: Event) {
+  loaded.value = true
+  fit.onLoad(e)
+}
 watch(src, () => {
   loaded.value = false
   error.value = false

@@ -45,7 +45,7 @@ const props = withDefaults(
     columns?: Columns
     gap?: number // px, entre colonnes et entre lignes
     // hauteur estimée d'une ligne pour une largeur de colonne donnée
-    // (corrigée par la mesure réelle) : par défaut une carte (0.686) + le gap
+    // (corrigée par la mesure réelle) : par défaut une carte du jeu affiché + le gap
     estimate?: (colWidth: number) => number
     overscan?: number // lignes dessinées en plus au-dessus et au-dessous
   }>(),
@@ -58,6 +58,7 @@ const props = withDefaults(
 )
 
 const bp = useBreakpoints(breakpointsTailwind)
+const { cardAspect } = useCurrentGame()
 const cols = computed(() => {
   const c = props.columns
   const order = ['2xl', 'xl', 'lg', 'md', 'sm'] as const
@@ -79,7 +80,7 @@ function rowItems(row: number): T[] {
 function estimateRow(): number {
   const w = width.value || 600
   const colWidth = (w - (cols.value - 1) * props.gap) / cols.value
-  return props.estimate ? props.estimate(colWidth) : colWidth / 0.686 + props.gap
+  return props.estimate ? props.estimate(colWidth) : colWidth / cardAspect.value + props.gap
 }
 
 const virtualizer = useVirtualizer(

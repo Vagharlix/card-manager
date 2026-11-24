@@ -41,6 +41,7 @@
           />
         </div>
         <div class="flex-1 min-h-0 overflow-y-auto">
+          <CardDataPending v-if="!results.length" :game="GAME" />
           <div v-if="searching" class="text-center text-xs text-muted py-4">Searching…</div>
           <div v-else-if="!results.length && query" class="text-center text-xs text-dimmed py-4">
             No results
@@ -54,7 +55,7 @@
                 @contextmenu.prevent="showInfo(r.id)"
               >
                 <div
-                  class="aspect-[0.686] rounded overflow-hidden border border-transparent group-hover:border-primary transition-colors"
+                  class="aspect-card rounded overflow-hidden border border-transparent group-hover:border-primary transition-colors"
                 >
                   <ArtThumb :passcode="r.id" class="w-full h-full object-cover" />
                 </div>
@@ -197,6 +198,7 @@
               :cards="contents[b.id] ?? []"
               :flagged="validation.flagged"
               :warned="issueCards"
+              :landscape="!!b.landscape"
               :min="b.min"
               :max="b.max"
               show-max

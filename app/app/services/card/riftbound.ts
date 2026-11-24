@@ -23,6 +23,7 @@ interface Row {
   artist: string | null
   flavour: string | null
   type: string
+  orientation: string | null
   supertype: string | null
   domains: string
   energy: number | null
@@ -74,7 +75,7 @@ export async function getRiftboundDetail(id: string): Promise<CardDetail | null>
   const db = (await useDatabase()).cards('riftbound')
   const rows = await db.select<Row[]>(
     `SELECT p.card_id, p.oracle_id, o.name, p.printed_name, p.set_code, p.set_name,
-            p.collector_number, p.rarity, p.variant, p.released_at, p.artist, p.flavour,
+            p.collector_number, p.rarity, p.variant, p.released_at, p.artist, p.flavour, p.orientation,
             o.type, o.supertype, o.domains, o.energy, o.power, o.might, o.tags, o.keywords, o.text
      FROM rb_prints p JOIN rb_cards o ON o.oracle_id = p.oracle_id
      WHERE p.card_id = ?`,
@@ -127,6 +128,7 @@ export async function getRiftboundDetail(id: string): Promise<CardDetail | null>
     badges: riftboundBadges(restrictions, upcoming),
     printings,
     artworks: [],
+    landscape: r.orientation === 'landscape' || r.type === 'Battlefield',
   }
 }
 

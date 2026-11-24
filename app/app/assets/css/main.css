@@ -16,6 +16,17 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+  /* proportions (largeur / hauteur) des cartes du jeu affiché, posées par
+     app.vue d'après GameDefinition.cardAspect (63 × 88 mm par défaut) */
+  --card-aspect: 0.716;
+}
+
+/* case au format d'une carte du jeu affiché, portrait ou paysage */
+@utility aspect-card {
+  aspect-ratio: var(--card-aspect);
+}
+@utility aspect-card-landscape {
+  aspect-ratio: calc(1 / var(--card-aspect));
 }
 
 /* écrans tactiles sans survol (téléphone, tablette, pliable) : ce qui

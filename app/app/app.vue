@@ -6,37 +6,14 @@
       <NuxtPage :page-key="pageKey" />
     </NuxtLayout>
     <GameLaunchModal />
-    <!-- 1re installation d'une base de cartes : rien à afficher sans elle -->
+    <!-- mise à jour d'une base de cartes, même la 1re installation : en
+         arrière-plan, l'appli reste utilisable (même chose pour tous les jeux) -->
     <Transition name="fade">
       <div
-        v-if="syncBlocking && (isSyncing || syncError)"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-      >
-        <UCard class="w-80 flex flex-col items-center gap-4 p-8">
-          <template v-if="syncError">
-            <UAlert
-              color="error"
-              variant="soft"
-              icon="i-lucide-circle-x"
-              title="Sync failed"
-              :description="syncError"
-            />
-            <UButton color="primary" label="Retry" icon="i-lucide-refresh-cw" @click="retry" />
-          </template>
-          <template v-else>
-            <p class="text-sm text-muted text-center">{{ syncStatus }}</p>
-            <UProgress :value="syncProgress" color="primary" size="sm" class="w-full" />
-            <p class="text-xs text-muted">{{ syncProgress }}%</p>
-          </template>
-        </UCard>
-      </div>
-    </Transition>
-    <!-- mise à jour d'une base existante : en arrière-plan, cartes consultables -->
-    <Transition name="fade">
-      <div
-        v-if="isSyncing && !syncBlocking"
+        v-if="isSyncing"
         data-card-update
         :data-progress="syncProgress"
+        :data-first-install="syncFirstInstall || undefined"
         class="fixed z-40 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-elevated border border-default shadow text-xs text-muted pointer-events-none"
         :style="{
           bottom: isMobile
@@ -45,6 +22,7 @@
         }"
       >
         <UIcon name="i-lucide-loader-circle" class="animate-spin shrink-0" />
+        <span v-if="syncingLabel" class="font-medium text-default shrink-0">{{ syncingLabel }}</span>
         <span class="truncate max-w-64">{{ syncStatus }}</span>
         <span class="tabular-nums">{{ syncProgress }}%</span>
       </div>
@@ -57,10 +35,12 @@ import {
   syncCardData,
   syncProgress,
   syncStatus,
-  syncError,
   isSyncing,
-  syncBlocking,
+  syncingGame,
+  syncFirstInstall,
+  cardDataInstalled,
 } from '~/services/cardData'
+import { gameDefOrNull } from '~/services/game'
 import { getGlobalSettings } from '~/services/settings'
 import { pruneImageCache } from '~/services/imageCache'
 import { FOREGROUND_DELAY_MS } from '~/composables/useDeviceSync'
@@ -68,9 +48,19 @@ import { FOREGROUND_DELAY_MS } from '~/composables/useDeviceSync'
 const { isMobile } = useResponsive()
 const toast = useToast()
 const deviceSync = useDeviceSync()
-const { game } = useCurrentGame()
-// remontée de la page : après une synchro qui a changé la base, ou au changement de jeu
-const pageKey = (r: { fullPath: string }) => `${r.fullPath}#${game.value}#${deviceSync.epoch.value}`
+const { game, cardAspect } = useCurrentGame()
+// format des cartes du jeu affiché : cases des vignettes, fiche, classeurs
+watchEffect(() =>
+  document.documentElement.style.setProperty('--card-aspect', String(cardAspect.value))
+)
+// remontée de la page : après une synchro qui a changé la base, au changement
+// de jeu, ou à la fin de la 1re installation d'une base de cartes
+const pageKey = (r: { fullPath: string }) =>
+  `${r.fullPath}#${game.value}#${deviceSync.epoch.value}#${cardDataInstalled.value}`
+// jeu en cours de mise à jour (pastille) : utile quand ce n'est pas celui affiché
+const syncingLabel = computed(() =>
+  syncingGame.value ? (gameDefOrNull(syncingGame.value)?.label ?? null) : null
+)
 // mobile : notifications en haut et brèves (elles passent sur le titre de la page)
 const toaster = computed(() =>
   isMobile.value
@@ -78,26 +68,22 @@ const toaster = computed(() =>
     : { position: 'bottom-right' as const }
 )
 
-async function retry() {
-  syncError.value = null
-  syncBlocking.value = false
-  await runSync()
-}
-
 async function runSync() {
   // In E2E test mode the reference database is provided (copied from dev),
   // so we never sync — tests must not depend on the network.
   if (import.meta.env.VITE_TEST_MODE === 'true') return
+  const current = game.value
   try {
-    await syncCardData(game.value, { auto: true })
+    await syncCardData(current, { auto: true })
   } catch (e) {
-    // en arrière-plan (base déjà là) : on le signale, on réessaiera
-    if (!syncBlocking.value)
-      toast.add({
-        title: 'Card update failed',
-        description: `${e instanceof Error ? e.message : String(e)} — it will be retried later.`,
-        color: 'warning',
-      })
+    // en arrière-plan : on le signale ; « Retry » tout de suite, sinon au
+    // prochain lancement (ou Réglages → Check for updates)
+    toast.add({
+      title: `${gameDefOrNull(current)?.label ?? 'Card'} update failed`,
+      description: e instanceof Error ? e.message : String(e),
+      color: 'warning',
+      actions: [{ label: 'Retry', onClick: () => void runSync() }],
+    })
   }
 }
 

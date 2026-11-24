@@ -34,7 +34,7 @@
         <div
           v-for="cell in pageSlots"
           :key="`${cell.row}-${cell.col}`"
-          class="binder-slot group relative aspect-[0.686] rounded-lg border-2 flex items-center justify-center transition"
+          class="binder-slot group relative aspect-card rounded-lg border-2 flex items-center justify-center transition"
           :data-slot-page="page"
           :data-slot-row="cell.row"
           :data-slot-col="cell.col"
