@@ -5,7 +5,17 @@ import { gameModuleOrNull, type CardDataReport } from '~/services/game/modules'
 // module). La progression est commune : services/cardDataProgress.
 // ============================================================
 
-export { syncProgress, syncStatus, syncError, isSyncing, syncBlocking } from './cardDataProgress'
+import { cardDataInstalled, syncFirstInstall, syncingGame } from './cardDataProgress'
+
+export {
+  syncProgress,
+  syncStatus,
+  syncError,
+  isSyncing,
+  syncingGame,
+  syncFirstInstall,
+  cardDataInstalled,
+} from './cardDataProgress'
 
 export function hasCardData(game: string): boolean {
   return !!gameModuleOrNull(game)?.cardData
@@ -20,7 +30,21 @@ export function syncCardData(
   game: string,
   options: { force?: boolean; auto?: boolean } = {}
 ): Promise<CardDataReport | null> {
-  const run = async () => (await gameModuleOrNull(game)?.cardData?.sync(options)) ?? null
+  const run = async () => {
+    const source = gameModuleOrNull(game)?.cardData
+    if (!source) return null
+    const first = (await source.localVersion()) === null
+    syncingGame.value = game
+    syncFirstInstall.value = first
+    try {
+      const report = await source.sync(options)
+      if (first && (await source.localVersion()) !== null) cardDataInstalled.value++
+      return report
+    } finally {
+      syncingGame.value = null
+      syncFirstInstall.value = false
+    }
+  }
   const next = queue.then(run, run)
   queue = next.catch(() => {})
   return next

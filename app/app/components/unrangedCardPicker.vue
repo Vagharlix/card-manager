@@ -31,7 +31,7 @@
               @click="$emit('pick', c)"
             >
               <div
-                class="aspect-[0.686] rounded-md overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors"
+                class="aspect-card rounded-md overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors"
               >
                 <ArtThumb :passcode="c.displayId" :game="c.game" class="w-full h-full object-cover" />
               </div>

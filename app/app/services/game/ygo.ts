@@ -11,6 +11,8 @@ import { TCG_CONDITIONS, DEFAULT_CONDITION, TCG_LANGUAGES, DEFAULT_LANGUAGE } fr
 export const ygoGame: GameDefinition = {
   id: 'ygo',
   label: 'Yu-Gi-Oh!',
+  // 59 × 86 mm (plus étroites que le format 63 × 88 de Magic)
+  cardAspect: 59 / 86,
   shortLabel: 'YGO',
   cardDb: 'cards-ygo',
   conditions: TCG_CONDITIONS,

@@ -1,4 +1,4 @@
-import { allGames, gameDef, gameDefOrNull } from '~/services/game'
+import { allGames, cardAspectOf, gameDef, gameDefOrNull } from '~/services/game'
 import '~/services/game/modules' // enregistre les modules de jeu
 
 // ============================================================
@@ -18,6 +18,9 @@ export const useCurrentGame = createGlobalState(() => {
     return id && gameDefOrNull(id) ? id : allGames()[0]!.id
   })
   const def = computed(() => gameDef(game.value))
+  // proportions des cartes du jeu (largeur / hauteur) ; aussi posées en CSS
+  // (--card-aspect, par app.vue) pour les cases au format carte
+  const cardAspect = computed(() => cardAspectOf(game.value))
   const games = computed(() => allGames())
   const multiGame = computed(() => games.value.length > 1)
 
@@ -37,5 +40,5 @@ export const useCurrentGame = createGlobalState(() => {
     if (gameDefOrNull(id)) chosen.value = id
   }
 
-  return { game, def, games, multiGame, askAtLaunch, setGame }
+  return { game, def, cardAspect, games, multiGame, askAtLaunch, setGame }
 })

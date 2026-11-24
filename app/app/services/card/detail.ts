@@ -47,6 +47,9 @@ export interface CardDetail {
   badges: CardBadge[]
   printings: CardPrinting[]
   artworks: CardArtwork[] // all arts of this card (incl. itself)
+  // carte imprimée en paysage (champ de bataille Riftbound) : la fiche
+  // l'affiche dans un cadre paysage
+  landscape?: boolean
 }
 
 // fiche YGO : la fiche commune + les champs bruts (tests, usages YGO)

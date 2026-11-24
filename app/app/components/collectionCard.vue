@@ -43,7 +43,7 @@
     class="container-card group w-full flex items-center gap-3 p-2 rounded-lg hover:bg-elevated"
   >
     <button class="flex items-center gap-3 flex-1 text-left min-w-0" @click="$emit('open')">
-      <div class="w-10 shrink-0 rounded overflow-hidden aspect-[0.686]">
+      <div class="w-10 shrink-0 rounded overflow-hidden aspect-card">
         <ArtThumb :passcode="displayId" :game="game" />
       </div>
       <span class="flex-1 truncate">{{ name }}</span>

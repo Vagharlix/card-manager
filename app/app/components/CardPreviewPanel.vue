@@ -19,14 +19,14 @@
       </div>
 
       <div v-else-if="loading" class="space-y-3">
-        <USkeleton class="w-full aspect-[0.686] rounded-lg" />
+        <USkeleton class="w-full aspect-card rounded-lg" />
         <USkeleton class="h-4 w-3/4" />
       </div>
 
       <div v-else-if="detail" class="space-y-3">
         <div class="rounded-lg overflow-hidden ring-1 ring-default">
           <img v-if="img.src.value" :src="img.src.value" :alt="detail.name" class="w-full" />
-          <USkeleton v-else class="w-full aspect-[0.686]" />
+          <USkeleton v-else class="w-full aspect-card" />
         </div>
 
         <p class="font-medium text-sm">{{ detail.name }}</p>

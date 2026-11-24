@@ -5,7 +5,6 @@ import {
   syncStatus,
   syncError,
   isSyncing,
-  syncBlocking,
 } from '~/services/cardDataProgress'
 import type { CardDataReport } from '~/services/game/modules'
 import {
@@ -423,7 +422,6 @@ export async function syncRiftbound(
   }
 
   isSyncing.value = true
-  syncBlocking.value = !local // 1re installation : rien à afficher sans elle
   syncError.value = null
   try {
     const stats = await updateRiftbound(db, source, { force: options.force })
@@ -441,7 +439,6 @@ export async function syncRiftbound(
     throw err
   } finally {
     isSyncing.value = false
-    if (!syncError.value) syncBlocking.value = false
   }
 }
 

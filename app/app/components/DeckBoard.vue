@@ -9,7 +9,12 @@
 
     <div
       v-if="cards.length"
-      class="grid gap-2 grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10"
+      class="grid gap-2"
+      :class="
+        landscape
+          ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
+          : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10'
+      "
     >
       <div
         v-for="c in cards"
@@ -24,14 +29,16 @@
         <UDropdownMenu v-if="isMobile" :items="menuItems(c)" :content="{ align: 'center' }">
           <button class="block w-full">
             <div
-              class="aspect-[0.686] rounded overflow-hidden border-2 transition-colors"
-              :class="
+              class="rounded overflow-hidden border-2 transition-colors"
+              :data-landscape="landscape || undefined"
+              :class="[
+                landscape ? 'aspect-card-landscape' : 'aspect-card',
                 flagged?.has(c.cardId)
                   ? 'border-error'
                   : warned?.has(c.cardId)
                     ? 'border-warning'
-                    : 'border-transparent'
-              "
+                    : 'border-transparent',
+              ]"
             >
               <ArtThumb :passcode="c.cardId" class="w-full h-full object-cover" />
             </div>
@@ -52,14 +59,16 @@
           @contextmenu.prevent="$emit('remove', c)"
         >
           <div
-            class="aspect-[0.686] rounded overflow-hidden border-2 transition-colors"
-            :class="
+            class="rounded overflow-hidden border-2 transition-colors"
+              :data-landscape="landscape || undefined"
+            :class="[
+              landscape ? 'aspect-card-landscape' : 'aspect-card',
               flagged?.has(c.cardId)
                 ? 'border-error'
                 : warned?.has(c.cardId)
                   ? 'border-warning'
-                  : 'border-transparent group-hover:border-primary'
-            "
+                  : 'border-transparent group-hover:border-primary',
+            ]"
           >
             <ArtThumb :passcode="c.cardId" class="w-full h-full object-cover" />
           </div>
@@ -136,6 +145,8 @@ const props = defineProps<{
   flagged?: Set<string>
   // cartes en cause dans une règle du deck entier (DeckEngine.deckIssues)
   warned?: Set<string>
+  // cartes imprimées en paysage (BoardDef.landscape) : cases paysage
+  landscape?: boolean
   isSide?: boolean
   // autres zones où placer la carte à la main (Magic : commandant)
   moveTargets?: { id: string; label: string }[]

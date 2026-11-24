@@ -35,3 +35,6 @@ export const TCG_LANGUAGES: readonly LanguageDef[] = [
 ]
 
 export const DEFAULT_LANGUAGE = 'en'
+
+// format « poker » des cartes à collectionner : 63 × 88 mm
+export const CARD_ASPECT_STANDARD = 63 / 88

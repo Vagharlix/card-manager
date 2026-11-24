@@ -10,7 +10,8 @@
       <ArtThumb
         v-if="deck.coverCardId"
         :passcode="deck.coverCardId"
-        class="w-full h-full object-cover object-top"
+        :rotate="false"
+        img-class="object-top"
       />
       <div v-else class="w-full h-full flex items-center justify-center text-dimmed">
         <UIcon name="i-lucide-layers" class="text-3xl" />

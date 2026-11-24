@@ -6,7 +6,6 @@ import {
   syncStatus,
   syncError,
   isSyncing,
-  syncBlocking,
 } from '~/services/cardDataProgress'
 
 // ============================================================
@@ -440,14 +439,13 @@ export async function localSyncVersion(): Promise<string | null> {
 // Vérifie la version distante (une petite requête) ; si elle a changé,
 // télécharge le fichier complet et n'écrit que les différences.
 // force : tout réécrire, même si la version distante est identique.
-// En arrière-plan dès que la base existe (cf. cardDataProgress.syncBlocking).
+// En arrière-plan, même la 1re installation (cf. services/cardData.ts).
 export async function syncYgo(options: { force?: boolean } = {}): Promise<YgoUpdateStats | null> {
   if (isSyncing.value) return null
 
   const ygo = (await useDatabase()).cards('ygo')
   const localVersion = await getLocalVersion(ygo)
   isSyncing.value = true
-  syncBlocking.value = localVersion === null // 1re installation : rien à afficher sans elle
   syncError.value = null
   setProgress(0, 'Checking for updates...')
 
@@ -476,7 +474,5 @@ export async function syncYgo(options: { force?: boolean } = {}): Promise<YgoUpd
     throw err
   } finally {
     isSyncing.value = false
-    // 1re installation ratée : l'overlay reste, avec « Retry »
-    if (!syncError.value) syncBlocking.value = false
   }
 }

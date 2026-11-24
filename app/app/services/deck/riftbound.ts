@@ -32,7 +32,14 @@ const RULES: DeckRules = {
     },
     { id: 'main', label: 'Main Deck', shortLabel: 'Main', min: 39, max: 999 },
     { id: 'runes', label: 'Rune Deck', shortLabel: 'Runes', min: 12, max: 12 },
-    { id: 'battlefields', label: 'Battlefields', shortLabel: 'Fields', min: 3, max: 3 },
+    {
+      id: 'battlefields',
+      label: 'Battlefields',
+      shortLabel: 'Fields',
+      min: 3,
+      max: 3,
+      landscape: true,
+    },
     { id: 'side', label: 'Sideboard', shortLabel: 'Side', min: 0, max: 8 },
   ],
   formats: [

@@ -28,7 +28,7 @@
     </template>
     <template #body>
       <div v-if="loading" class="space-y-4">
-        <USkeleton class="w-full aspect-[0.686] rounded-lg" />
+        <USkeleton class="w-full aspect-card rounded-lg" />
         <USkeleton class="h-4 w-3/4" />
         <USkeleton class="h-4 w-1/2" />
       </div>
@@ -39,8 +39,13 @@
         <!-- la vignette (déjà en cache) s'affiche tout de suite, la grande
              image la recouvre dès qu'elle est chargée -->
         <div
-          class="relative rounded-lg overflow-hidden ring-1 ring-default mx-auto aspect-[0.686]"
-          :class="isMobile ? 'w-[60%] max-w-64' : 'w-full max-w-xs'"
+          class="relative rounded-lg overflow-hidden ring-1 ring-default mx-auto"
+          :class="
+            detail.landscape
+              ? ['aspect-card-landscape', isMobile ? 'w-full max-w-sm' : 'w-full max-w-md']
+              : ['aspect-card', isMobile ? 'w-[60%] max-w-64' : 'w-full max-w-xs']
+          "
+          :data-landscape="detail.landscape || undefined"
         >
           <img
             v-if="smallImage.src.value && !bigLoaded"

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div v-if="loading" class="grid gap-3" :class="gridCols">
-      <USkeleton v-for="i in skeletonCount" :key="i" class="aspect-[0.686] rounded-lg" />
+      <USkeleton v-for="i in skeletonCount" :key="i" class="aspect-card rounded-lg" />
     </div>
 
     <div

@@ -37,7 +37,9 @@
       </div>
       <!-- grille : prend l'espace restant et scrolle dedans -->
       <div id="search-results" class="flex-1 min-h-0 overflow-y-auto">
+        <CardDataPending v-if="!results.length" :game="GAME" />
         <CardGrid
+          v-if="results.length || !installing"
           :cards="results"
           :loading="loading"
           :owned-ids="ownedIds"
@@ -148,6 +150,7 @@
 <script setup lang="ts">
 import { searchCards, countCards, type CardSearchResult } from '~/services/search'
 import { searchFilterPanel } from '~/utils/gameUi'
+import { syncFirstInstall, syncingGame } from '~/services/cardData'
 import { ownedCardIds, addCard } from '~/services/collection'
 import {
   listContainersWithCapacity,
@@ -157,6 +160,8 @@ import {
 
 // jeu affiché (la page est remontée quand il change, cf. app.vue)
 const GAME = useCurrentGame().game.value
+// base du jeu en cours de 1re installation (message à la place de « rien trouvé »)
+const installing = computed(() => syncFirstInstall.value && syncingGame.value === GAME)
 
 const { isMobile } = useResponsive()
 const query = ref('')

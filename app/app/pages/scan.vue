@@ -6,7 +6,7 @@
     <!-- cadre de visée (l'OCR ne lit que cette zone, avec une marge) -->
     <div
       ref="frameEl"
-      class="absolute left-1/2 -translate-x-1/2 w-[64%] aspect-[0.686] rounded-2xl border-[3px] pointer-events-none transition-colors shadow-[0_0_0_200vmax_rgba(0,0,0,0.35)]"
+      class="absolute left-1/2 -translate-x-1/2 w-[64%] aspect-card rounded-2xl border-[3px] pointer-events-none transition-colors shadow-[0_0_0_200vmax_rgba(0,0,0,0.35)]"
       :class="current ? 'border-success' : 'border-white/70'"
       :style="{ top: 'calc(var(--safe-top) + 5rem)' }"
     />
@@ -47,7 +47,7 @@
     <!-- carte lue -->
     <div
       class="absolute inset-x-4 flex justify-center pointer-events-none"
-      :style="{ top: 'calc(var(--safe-top) + 5rem + 64vw / 0.686 + 1rem)' }"
+      :style="{ top: 'calc(var(--safe-top) + 5rem + 64vw / var(--card-aspect) + 1rem)' }"
     >
       <div
         class="px-4 py-2 rounded-full text-sm font-semibold max-w-full truncate"

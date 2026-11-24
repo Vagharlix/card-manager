@@ -38,7 +38,9 @@ const decks = await import('~/services/decks')
 const collection = await import('~/services/collection')
 const share = await import('~/services/share')
 const { identifyCard, canScan } = await import('~/services/scan')
-const { rbCollectorNumbers } = await import('~/services/scan/riftbound')
+const { rbCollectorNumbers, resetRiftboundScanCache, nameGuesses } = await import(
+  '~/services/scan/riftbound'
+)
 const { riftboundDeckEngine } = await import('~/services/deck/riftbound')
 
 type Bulk = import('~/services/riftboundData/import').RiftHuntBulk
@@ -60,6 +62,7 @@ beforeEach(async () => {
   dbs = createTestDatabases()
   h.dbs = dbs
   h.invoked = []
+  resetRiftboundScanCache()
   await rbSync.writeRiftbound(dbs.riftbound as never, mapRiftbound(SAMPLE.bulk, SAMPLE.prints))
 })
 afterEach(() => {
@@ -434,14 +437,38 @@ describe('collection, partage', () => {
 })
 
 describe('scan', () => {
-  it('numéros de collection lus en bas de carte', () => {
-    expect(rbCollectorNumbers([{ text: 'OGN • 030/298' }, { text: '007a / 298  R' }, { text: '301★/298' }])).toEqual([
-      { number: '030', total: '298' },
-      { number: '007a', total: '298' },
-      { number: '301*', total: '298' },
+  it('numéros de collection lus en bas de carte (lecture OCR imparfaite comprise)', () => {
+    // sans connaissance de la base : seul « / » sépare numéro et taille
+    expect(
+      rbCollectorNumbers([{ text: 'OGN • 030/298' }, { text: '007a / 298  R' }, { text: '301★/298' }])
+    ).toEqual([
+      { number: '030', total: '298', set: null },
+      { number: '007a', total: '298', set: null },
+      { number: '301*', total: '298', set: null },
     ])
-    expect(rbCollectorNumbers([{ text: 'O3O/298' }])).toEqual([{ number: '030', total: '298' }])
+    expect(rbCollectorNumbers([{ text: 'O3O/298' }])).toEqual([{ number: '030', total: '298', set: null }])
     expect(rbCollectorNumbers([{ text: '2025 Riot Games' }])).toEqual([])
+
+    // avec les extensions et tailles connues : « / » lu 1, l, I ou |, « • » sauté
+    const known = { sets: new Set(['ogn', 'unl', 'ogs']), totals: new Set(['298', '219', '024']) }
+    expect(rbCollectorNumbers([{ text: 'UNL • 131/219' }], known)).toEqual([
+      { number: '131', total: '219', set: 'unl' },
+    ])
+    for (const t of ['UNL 1311219', 'UNL.131l219', 'UNL • 131I219', 'UNL 131 | 219'])
+      expect(rbCollectorNumbers([{ text: t }], known)[0], t).toEqual({ number: '131', total: '219', set: 'unl' })
+    // taille à zéro initial (Proving Grounds « 001/024 »)
+    expect(rbCollectorNumbers([{ text: 'OGS • 001/024' }], known)[0]).toEqual({ number: '001', total: '024', set: 'ogs' })
+    // taille inconnue : pas un numéro de collection (sauf avec « / »… inconnu aussi : refusé)
+    expect(rbCollectorNumbers([{ text: '1311555' }], known)).toEqual([])
+    // taille illisible : code d'extension + numéro
+    expect(rbCollectorNumbers([{ text: 'UNL • 131 Kudos Productions' }], known)).toEqual([
+      { number: '131', total: null, set: 'unl' },
+    ])
+    expect(rbCollectorNumbers([{ text: 'Deal 3 to a unit at a battlefield.' }], known)).toEqual([])
+  })
+
+  it('nom imprimé sur deux lignes (champions) : lignes voisines recollées', () => {
+    expect(nameGuesses([{ text: 'Jinx', y: 10 }, { text: 'REBEL', y: 20 }])).toContain('Jinx, REBEL')
   })
 
   it('identifie l’impression exacte (même la promo Metal), sinon la carte par son nom', async () => {
@@ -471,6 +498,29 @@ describe('scan', () => {
         { text: '251/298', y: 900 },
       ])
     ).toMatchObject({ cardId: byRiotId('ogn-251-298') })
+    // séparateur mal lu, code d'extension absent : la taille de l'extension suffit
+    expect(
+      await identifyCard('riftbound', [
+        { text: 'Jinx', y: 5 },
+        { text: 'DEMOLITIONIST', y: 12 },
+        { text: '030I298 Envar Studio', y: 900 },
+      ])
+    ).toMatchObject({ cardId: byRiotId('ogn-030-298'), via: 'setcode' })
+    // taille illisible : extension + numéro, confirmés par le nom lu
+    expect(
+      await identifyCard('riftbound', [
+        { text: 'Jinx', y: 5 },
+        { text: 'REBEL', y: 12 },
+        { text: 'OGN • 202 ✍ Kudos', y: 900 },
+      ])
+    ).toMatchObject({ cardId: byRiotId('ogn-202-298'), printingLabel: 'OGN #202' })
+    // nom seul sur deux lignes : la bonne Jinx
+    expect(
+      await identifyCard('riftbound', [
+        { text: 'Jinx', y: 5 },
+        { text: 'REBEL', y: 12 },
+      ])
+    ).toMatchObject({ cardId: base('Jinx, Rebel'), via: 'name' })
     // nom seul, légèrement mal lu
     expect(await identifyCard('riftbound', [{ text: 'Blazing Scorchcr', y: 5 }])).toMatchObject({
       cardId: base('Blazing Scorcher'),

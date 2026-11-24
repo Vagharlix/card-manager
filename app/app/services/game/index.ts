@@ -9,7 +9,7 @@ import type { GameDefinition } from './types'
 import { ygoGame } from './ygo'
 import { mtgGame } from './mtg'
 import { riftboundGame } from './riftbound'
-import { DEFAULT_CONDITION, DEFAULT_LANGUAGE } from './common'
+import { CARD_ASPECT_STANDARD, DEFAULT_CONDITION, DEFAULT_LANGUAGE } from './common'
 
 const GAMES: Record<string, GameDefinition> = {
   ygo: ygoGame,
@@ -54,5 +54,16 @@ export function fallbackLanguage(game: string): string {
   return gameDefOrNull(game)?.defaultLanguage ?? DEFAULT_LANGUAGE
 }
 
+// proportions d'une carte du jeu (largeur / hauteur, portrait)
+export function cardAspectOf(game: string): number {
+  return gameDefOrNull(game)?.cardAspect ?? CARD_ASPECT_STANDARD
+}
+
 export type { GameDefinition, ConditionDef, LanguageDef } from './types'
-export { TCG_CONDITIONS, TCG_LANGUAGES, DEFAULT_CONDITION, DEFAULT_LANGUAGE } from './common'
+export {
+  TCG_CONDITIONS,
+  TCG_LANGUAGES,
+  DEFAULT_CONDITION,
+  DEFAULT_LANGUAGE,
+  CARD_ASPECT_STANDARD,
+} from './common'

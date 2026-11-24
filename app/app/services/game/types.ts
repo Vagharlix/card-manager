@@ -33,4 +33,8 @@ export interface GameDefinition {
   defaultLanguage: string // must be one of languages[].id
   // mention « 1re édition » proposée à l'ajout / au scan (YGO oui, Magic non)
   firstEdition?: boolean
+  // proportions d'une carte, largeur / hauteur (portrait). Défaut :
+  // CARD_ASPECT_STANDARD (63 × 88 mm : Magic, Riftbound, Pokémon, Lorcana…) ;
+  // YGO : 59 × 86 mm. Vignettes, fiche, classeurs, cadre de scan.
+  cardAspect?: number
 }

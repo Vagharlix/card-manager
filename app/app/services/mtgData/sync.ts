@@ -5,7 +5,6 @@ import {
   syncStatus,
   syncError,
   isSyncing,
-  syncBlocking,
 } from '~/services/cardDataProgress'
 import type { CardDataReport } from '~/services/game/modules'
 import {
@@ -570,7 +569,6 @@ export async function syncMtg(
   if (options.auto && !needsFull && recentEnough(await meta(db, 'synced_at'))) return null
 
   isSyncing.value = true
-  syncBlocking.value = !local // 1re installation : rien à afficher sans elle
   syncError.value = null
   setProgress(0, 'Checking for updates…')
   let stream: { close: () => Promise<void> } | null = null
@@ -613,7 +611,5 @@ export async function syncMtg(
   } finally {
     if (stream) await stream.close()
     isSyncing.value = false
-    // 1re installation ratée : l'overlay reste, avec « Retry »
-    if (!syncError.value) syncBlocking.value = false
   }
 }
