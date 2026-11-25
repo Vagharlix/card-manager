@@ -106,6 +106,17 @@ describe('Riftbound', () => {
     await waitForAttr('#card-detail-owned', 'data-owned-count', (v) => v === '0')
     await click('#btn-quick-add')
     await waitForAttr('#card-detail-owned', 'data-owned-count', (v) => v === '1')
+
+    // une 2e impression de la même carte : les deux comptent dans la fiche
+    // (bug d'avant : seule l'impression affichée était comptée)
+    await openSelect('card-printing-select')
+    await clickSelectOption(base('Jinx, Loose Cannon'))
+    await waitForAttr('#card-detail-owned', 'data-owned-here', (v) => v === '0')
+    expect(await attrOf('#card-detail-owned', 'data-owned-count')).toBe('1')
+    await waitFor(`[data-entry-variant="${other}"]`)
+    await click('#btn-quick-add')
+    await waitForAttr('#card-detail-owned', 'data-owned-count', (v) => v === '2')
+    expect(await attrOf('#card-detail-owned', 'data-owned-here')).toBe('1')
     await click('#card-detail-close')
   })
 
