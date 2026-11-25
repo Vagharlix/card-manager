@@ -19,6 +19,7 @@ const {
   removeCard,
   ownedQuantity,
   entriesForCard,
+  entriesForCards,
   listCollectionCards,
   collectionTotal,
 } = await import('~/services/collection')
@@ -307,5 +308,21 @@ describe('migration 008 — rareté et 1re édition', () => {
       .get(id)
     expect(r).toEqual({ quantity: 2, rarity: null, first_edition: 0 })
     legacy.user.close()
+  })
+})
+
+describe('exemplaires de toute la carte logique (fiche)', () => {
+  it('toutes les impressions / tous les artworks comptent, les plus récents d’abord', async () => {
+    const a = await addCard({ game: 'ygo', cardId: DM, quantity: 1 })
+    const b = await addCard({ game: 'ygo', cardId: DM_ALT, quantity: 2 })
+    await addCard({ game: 'ygo', cardId: POT, quantity: 3 })
+    const both = await entriesForCards('ygo', [DM, DM_ALT, DM])
+    expect(both.map((e) => e.id).sort()).toEqual([a, b].sort())
+    expect(both.reduce((n, e) => n + e.quantity, 0)).toBe(3)
+    // l'ancienne lecture ne voyait que l'artwork affiché
+    expect((await entriesForCard('ygo', DM)).map((e) => e.id)).toEqual([a])
+    expect(await entriesForCards('ygo', [])).toEqual([])
+    await removeCard(a)
+    expect((await entriesForCards('ygo', [DM, DM_ALT])).map((e) => e.id)).toEqual([b])
   })
 })

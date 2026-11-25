@@ -103,12 +103,18 @@
         <!-- statut possédée -->
         <div class="flex items-center gap-2 text-sm">
           <UIcon name="i-lucide-layers" class="text-muted" />
+          <!-- toutes les impressions / tous les artworks de la carte comptent ;
+               le détail de celle affichée quand elle n'est pas la seule -->
           <span
             id="card-detail-owned"
             :data-owned-count="owned"
+            :data-owned-here="ownedHere"
             :class="owned > 0 ? 'text-success font-medium' : 'text-muted'"
           >
             {{ owned }} in your collection
+          </span>
+          <span v-if="owned > 0 && ownedHere !== owned" class="text-muted">
+            · {{ ownedHere }} of this {{ printingIsCard ? 'printing' : 'artwork' }}
           </span>
         </div>
 
@@ -275,6 +281,16 @@
                   class="text-xs text-muted truncate"
                   >{{ entry.printingId }}</span
                 >
+                <!-- exemplaire d'une autre impression / d'un autre artwork : la montrer -->
+                <button
+                  v-if="entry.cardId !== activeArtId"
+                  type="button"
+                  :data-entry-variant="entry.cardId"
+                  class="text-xs text-primary truncate hover:underline"
+                  @click="activeArtId = entry.cardId"
+                >
+                  {{ variantLabel(entry.cardId) }}
+                </button>
                 <div class="flex-1" />
                 <UButton
                   :data-entry-edit="entry.id"
@@ -454,7 +470,7 @@ import {
   addCard,
   updateCard,
   removeCard,
-  entriesForCard,
+  entriesForCards,
   type CardCondition,
   type CollectionEntry,
 } from '~/services/collection'
@@ -501,7 +517,10 @@ const toast = useToast()
 const detail = ref<CardDetail | null>(null)
 const loading = ref(false)
 const activeArtId = ref<string>('')
+// exemplaires de la carte, toutes impressions / tous artworks confondus,
+// et de l'impression affichée
 const owned = ref(0)
+const ownedHere = ref(0)
 const entries = ref<CollectionEntry[]>([])
 
 const adding = ref(false)
@@ -646,13 +665,33 @@ async function refreshLocations() {
   locations.value = await cardLocations(props.game, activeArtId.value)
 }
 
-// exemplaires de l'artwork actif : la quantité possédée est la somme des
-// exemplaires (une requête de moins), lectures lancées ensemble
+// toutes les cartes de la même carte logique : impressions (Magic,
+// Riftbound : une impression est une carte) ou artworks (YGO)
+const variantIds = computed(() => {
+  const d = detail.value
+  const ids = printingIsCard.value
+    ? (d?.printings.map((p) => p.cardId!).filter(Boolean) ?? [])
+    : (d?.artworks.map((a) => a.id) ?? [])
+  return [...new Set([activeArtId.value, ...ids].filter(Boolean))]
+})
+
+// libellé d'une autre impression / d'un autre artwork (liste des exemplaires)
+function variantLabel(cardId: string): string {
+  const p = detail.value?.printings.find((x) => x.cardId === cardId)
+  if (p) return `${p.setCode} · ${p.setName}`
+  return 'Other artwork'
+}
+
+// exemplaires de toute la carte logique (une impression ajoutée après une
+// autre compte aussi), lectures lancées ensemble
 async function refreshOwned() {
   // compteur à jour dès la 1re lecture, sans attendre les deux autres
-  const ownedNow = entriesForCard(props.game, activeArtId.value).then((list) => {
+  const ownedNow = entriesForCards(props.game, variantIds.value).then((list) => {
     entries.value = list
     owned.value = list.reduce((sum, e) => sum + e.quantity, 0)
+    ownedHere.value = list
+      .filter((e) => e.cardId === activeArtId.value)
+      .reduce((sum, e) => sum + e.quantity, 0)
   })
   await Promise.all([ownedNow, refreshUnrangedForCard(), refreshLocations()])
 }

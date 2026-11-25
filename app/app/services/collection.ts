@@ -185,6 +185,23 @@ export async function ownedQuantity(game: string, cardId: string): Promise<numbe
   return rows[0]?.total ?? 0
 }
 
+// ── all entries of several cards (every printing / artwork of a logical
+// card, for the detail panel), most recent first ──
+export async function entriesForCards(game: string, cardIds: string[]): Promise<CollectionEntry[]> {
+  const ids = [...new Set(cardIds)]
+  if (!ids.length) return []
+  const { user } = await useDatabase()
+  const rows = await user.select<any[]>(
+    `SELECT id, game, card_id, printing_id, quantity, condition, language,
+            foil, altered, signed, notes, trade_qty, rarity, first_edition
+     FROM collection
+     WHERE deleted_at IS NULL AND game = ? AND card_id IN (${ids.map(() => '?').join(', ')})
+     ORDER BY created_at DESC`,
+    [game, ...ids]
+  )
+  return rows.map(rowToEntry)
+}
+
 // ── all entries for a given card (for the detail panel) ───
 export async function entriesForCard(game: string, cardId: string): Promise<CollectionEntry[]> {
   const { user } = await useDatabase()
