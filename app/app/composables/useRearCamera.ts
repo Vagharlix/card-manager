@@ -29,7 +29,13 @@ export function useRearCamera(video: Ref<HTMLVideoElement | null>) {
     }
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } },
+        // définition la plus haute possible (4K si le téléphone la donne) : le
+        // numéro de collection en bas de carte ne fait que quelques pixels en 1080p
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 3840 },
+          height: { ideal: 2160 },
+        },
         audio: false,
       })
     } catch {
@@ -60,11 +66,13 @@ export function useRearCamera(video: Ref<HTMLVideoElement | null>) {
     stream = null
   }
 
-  // image courante, recadrée (fractions de l'image) et réduite à maxSide px
+  // image courante, recadrée (fractions de l'image) et réduite à maxSide px ;
+  // upscale : agrandie jusqu'à maxSide (petite zone relue de près)
   function grab(
     canvas: HTMLCanvasElement,
     maxSide: number,
-    crop = { x: 0, y: 0, w: 1, h: 1 }
+    crop = { x: 0, y: 0, w: 1, h: 1 },
+    upscale = false
   ): CanvasRenderingContext2D | null {
     const el = video.value
     if (!el || !el.videoWidth) return null
@@ -72,10 +80,12 @@ export function useRearCamera(video: Ref<HTMLVideoElement | null>) {
     const sy = el.videoHeight * crop.y
     const sw = el.videoWidth * crop.w
     const sh = el.videoHeight * crop.h
-    const scale = Math.min(1, maxSide / Math.max(sw, sh))
+    const fit = maxSide / Math.max(sw, sh)
+    const scale = upscale ? Math.min(fit, 4) : Math.min(1, fit)
     canvas.width = Math.round(sw * scale)
     canvas.height = Math.round(sh * scale)
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (ctx) ctx.imageSmoothingQuality = 'high'
     ctx?.drawImage(el, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
     return ctx
   }

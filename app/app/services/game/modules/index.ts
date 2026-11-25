@@ -1,7 +1,7 @@
 import type { DeckEngine } from '~/services/deck/types'
 import type { CardSearchEngine } from '~/services/search/types'
 import type { CardDetail } from '~/services/card/detail'
-import type { Identified } from '~/services/scan/types'
+import type { Identified, ScanZone } from '~/services/scan/types'
 import type { OcrLine } from '~/services/scan/text'
 import { registerGame, unregisterGame, type GameDefinition } from '~/services/game'
 import { ygoModule } from './ygo'
@@ -55,6 +55,8 @@ export interface GameModule {
   detail(cardId: string): Promise<CardDetail | null>
   // identification OCR (absent = pas de scan pour ce jeu)
   scan?: (lines: OcrLine[]) => Promise<Identified | null>
+  // zones relues de près (agrandies) quand le scan n'a pas trouvé l'impression
+  scanZones?: ScanZone[]
   // absent = base de cartes fournie autrement (tests)
   cardData?: CardDataSource
 }

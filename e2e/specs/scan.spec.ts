@@ -37,13 +37,22 @@ const DM_FR_FRAME = [
 ]
 const EMPTY: { text: string }[] = []
 
-async function feed(lines: { text: string; y?: number }[]): Promise<void> {
-  const res = await browser.execute(async (l: unknown) => {
-    const w = window as any
-    if (!w.__scanFeed) return 'absent'
-    await w.__scanFeed(l)
-    return 'ok'
-  }, lines)
+// zoneLines : ce que lirait la relecture de près des zones du jeu (numéro /
+// code d'impression), faite quand la carte entière ne donne pas l'impression
+async function feed(
+  lines: { text: string; y?: number }[],
+  zoneLines?: { text: string; y?: number }[]
+): Promise<void> {
+  const res = await browser.execute(
+    async (l: unknown, z: unknown) => {
+      const w = window as any
+      if (!w.__scanFeed) return 'absent'
+      await w.__scanFeed(l, z ?? undefined)
+      return 'ok'
+    },
+    lines,
+    zoneLines ?? null
+  )
   if (res !== 'ok') throw new Error('__scanFeed absent')
 }
 
@@ -141,6 +150,22 @@ describe('Scan de cartes', () => {
       `[data-scan-entry="${POT}"]:first-of-type`,
       'data-scan-rarity',
       (v) => v === 'Ultra Rare'
+    )
+  })
+
+  it('code d’impression illisible sur la carte entière : relu de près dans sa zone', async () => {
+    for (let i = 0; i < 3; i++) await feed(EMPTY)
+    // la carte entière ne donne que le nom ; la zone agrandie lit le code
+    const nameOnly = [{ text: 'Dark Magician', y: 10 }]
+    const zone = [{ text: 'LOB-FR005', y: 4 }]
+    await feed(nameOnly, zone)
+    await feed(nameOnly, zone)
+    await waitForAttr('[data-scan-count]', 'data-scan-count', (v) => v === '6')
+    // impression trouvée par la zone : carte LOB, langue lue dans son code
+    await waitForAttr(
+      `[data-scan-entry="${DM_LOB}"]:first-of-type`,
+      'data-scan-language',
+      (v) => v === 'fr'
     )
   })
 })

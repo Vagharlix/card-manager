@@ -37,7 +37,7 @@ const { readableText } = await import('~/services/card/riftbound')
 const decks = await import('~/services/decks')
 const collection = await import('~/services/collection')
 const share = await import('~/services/share')
-const { identifyCard, canScan } = await import('~/services/scan')
+const { identifyCard, canScan, scanZones, withZoneLines } = await import('~/services/scan')
 const { rbCollectorNumbers, resetRiftboundScanCache, nameGuesses } = await import(
   '~/services/scan/riftbound'
 )
@@ -521,6 +521,24 @@ describe('scan', () => {
         { text: 'REBEL', y: 12 },
       ])
     ).toMatchObject({ cardId: base('Jinx, Rebel'), via: 'name' })
+    // relecture de près du bas de carte (zone du jeu) : la ligne que l'OCR de
+    // la carte entière n'avait pas lue (capture de Félix : 8 lignes, pas de numéro)
+    expect(scanZones('riftbound')).toEqual([{ x: 0, y: 0.88, w: 0.6, h: 0.12 }])
+    const whole = [
+      { text: '3', y: 10, h: 20 },
+      { text: 'CHAMPION UNIT • JINX • ZAUN', y: 40, h: 12 },
+      { text: 'Jinx', y: 60, h: 20 },
+      { text: 'DEMOLITIONIST', y: 82, h: 12 },
+      { text: 'When I attack or defend, deal 2 to an enemy unit.', y: 500, h: 12 },
+    ]
+    expect(await identifyCard('riftbound', whole)).toMatchObject({ via: 'name', printingId: null })
+    const merged = withZoneLines(whole, [{ text: 'OGN • 030/298', y: 5, h: 30 }])
+    expect(merged.at(-1)).toMatchObject({ text: 'OGN • 030/298', y: 518 })
+    expect(await identifyCard('riftbound', merged)).toMatchObject({
+      cardId: byRiotId('ogn-030-298'),
+      printingId: byRiotId('ogn-030-298'),
+      via: 'setcode',
+    })
     // nom seul, légèrement mal lu
     expect(await identifyCard('riftbound', [{ text: 'Blazing Scorchcr', y: 5 }])).toMatchObject({
       cardId: base('Blazing Scorcher'),
