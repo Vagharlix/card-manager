@@ -18,5 +18,7 @@ export const ygoModule: GameModule = {
   search: ygoSearchEngine,
   detail: getYgoDetail,
   scan: identifyYgo,
+  // sous l'illustration, à droite : « LOB-EN005 »
+  scanZones: [{ x: 0.45, y: 0.66, w: 0.55, h: 0.12 }],
   cardData: { localVersion: localSyncVersion, sync: syncYgo },
 }

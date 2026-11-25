@@ -16,3 +16,13 @@ export interface Identified {
 }
 
 export const NAME_THRESHOLD = 0.8
+
+// zone d'une carte relue de près quand l'impression n'a pas été trouvée
+// (numéro de collection, code d'impression : petit texte que l'OCR rate
+// sur la carte entière). Fractions de la carte (0..1, portrait).
+export interface ScanZone {
+  x: number
+  y: number
+  w: number
+  h: number
+}

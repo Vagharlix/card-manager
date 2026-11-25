@@ -77,6 +77,10 @@
       <p>result: {{ debug.result || '—' }}</p>
       <p v-if="debug.error" class="text-error">error: {{ debug.error }}</p>
       <p v-for="(l, i) in debug.lines" :key="i" class="truncate">“{{ l }}”</p>
+      <template v-if="debug.zoneSize">
+        <p class="pt-1">zoom {{ debug.zoneSize }} :</p>
+        <p v-for="(l, i) in debug.zoneLines" :key="'z' + i" class="truncate">“{{ l }}”</p>
+      </template>
     </div>
 
     <!-- panneau du bas : erreurs, ajout manuel, cartes ajoutées -->
@@ -179,12 +183,21 @@
 </template>
 
 <script setup lang="ts">
+import { enhanceForOcr } from '~/utils/imageEnhance'
 import { invoke } from '@tauri-apps/api/core'
 import { addCard, removeCard, updateCard } from '~/services/collection'
 import { printingRarities } from '~/services/card/detail'
 import type { ScanSessionEntry } from '~/components/ScanSessionItem.vue'
 import { gameDef } from '~/services/game'
-import { identifyCard, ScanStabilizer, type Identified, type OcrLine } from '~/services/scan'
+import {
+  identifyCard,
+  scanZones,
+  withZoneLines,
+  ScanStabilizer,
+  type Identified,
+  type OcrLine,
+  type ScanZone,
+} from '~/services/scan'
 
 // ============================================================
 // Scan de cartes (Android) : caméra → ML Kit (plugin card-scanner)
@@ -286,9 +299,18 @@ async function undo(entryId: string) {
   session.value = session.value.filter((i) => i.entryId !== entryId)
 }
 
-// pipeline commun aux images réelles et au hook de test
-async function processLines(lines: OcrLine[]) {
-  const found = await identifyCard(GAME, lines)
+// pipeline commun aux images réelles et au hook de test ; readZones : relit de
+// près les zones du jeu (numéro de collection) si l'impression n'est pas trouvée
+async function processLines(lines: OcrLine[], readZones?: () => Promise<OcrLine[]>) {
+  let found = await identifyCard(GAME, lines)
+  if (readZones && !found?.printingId && zones.length) {
+    const zoneLines = await readZones()
+    debug.zoneLines = zoneLines.slice(0, 4).map((l) => l.text)
+    if (zoneLines.length) {
+      const again = await identifyCard(GAME, withZoneLines(lines, zoneLines))
+      if (again && (again.printingId || !found)) found = again
+    }
+  }
   current.value = found
   rememberFirstEdition(found)
   debug.lines = lines.slice(0, 12).map((l) => l.text)
@@ -311,7 +333,9 @@ async function vibrate() {
 // Zone du cadre de visée dans l'image de la caméra, en fractions. La vidéo
 // est affichée en object-cover (agrandie puis rognée) : on refait le calcul
 // inverse. Marge de 15 % : la carte n'est jamais parfaitement dans le cadre.
-function frameCrop() {
+// zone (fractions de la carte) : une partie de la carte seulement, avec la
+// même marge rapportée à la carte (numéro de collection relu de près)
+function frameCrop(zone?: ScanZone) {
   const v = videoEl.value
   const f = frameEl.value
   if (!v || !f || !v.videoWidth || !v.videoHeight) return undefined
@@ -320,14 +344,19 @@ function frameCrop() {
   const scale = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight)
   const offX = (vr.width - v.videoWidth * scale) / 2
   const offY = (vr.height - v.videoHeight * scale) / 2
-  const m = 0.15
+  const m = zone ? 0.06 : 0.15
   const toX = (px: number) => (px - vr.left - offX) / scale / v.videoWidth
   const toY = (py: number) => (py - vr.top - offY) / scale / v.videoHeight
-  const x0 = Math.max(0, toX(fr.left - fr.width * m))
-  const y0 = Math.max(0, toY(fr.top - fr.height * m))
-  const x1 = Math.min(1, toX(fr.right + fr.width * m))
-  const y1 = Math.min(1, toY(fr.bottom + fr.height * m))
-  if (x1 - x0 < 0.1 || y1 - y0 < 0.1) return undefined
+  const z = zone ?? { x: 0, y: 0, w: 1, h: 1 }
+  const left = fr.left + fr.width * (z.x - m)
+  const right = fr.left + fr.width * (z.x + z.w + m)
+  const top = fr.top + fr.height * (z.y - m)
+  const bottom = fr.top + fr.height * (z.y + z.h + m)
+  const x0 = Math.max(0, toX(left))
+  const y0 = Math.max(0, toY(top))
+  const x1 = Math.min(1, toX(right))
+  const y1 = Math.min(1, toY(bottom))
+  if (x1 - x0 < (zone ? 0.02 : 0.1) || y1 - y0 < (zone ? 0.02 : 0.1)) return undefined
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }
 
@@ -342,6 +371,8 @@ const debug = reactive({
   lastMs: 0,
   size: '',
   lines: [] as string[],
+  zoneLines: [] as string[],
+  zoneSize: '',
   result: '',
   error: '',
 })
@@ -368,6 +399,28 @@ function jpegBase64(source: HTMLCanvasElement, quality: number): Promise<string>
   })
 }
 
+// zones du jeu relues de près, l'une après l'autre (une par image)
+const zones = scanZones(GAME)
+let zoneIndex = 0
+const zoneCanvas = document.createElement('canvas')
+async function readZones(): Promise<OcrLine[]> {
+  const zone = zones[zoneIndex++ % zones.length]
+  const ctx = zone && camera.grab(zoneCanvas, 1600, frameCrop(zone), true)
+  if (!ctx) return []
+  debug.zoneSize = `${zoneCanvas.width}×${zoneCanvas.height}`
+  // gris + contraste étiré : petit texte plus net pour l'OCR (photo d'écran…)
+  try {
+    const img = ctx.getImageData(0, 0, zoneCanvas.width, zoneCanvas.height)
+    enhanceForOcr(img.data)
+    ctx.putImageData(img, 0, 0)
+  } catch {
+    // image illisible (ne devrait pas arriver) : relue telle quelle
+  }
+  const image = await jpegBase64(zoneCanvas, 0.92)
+  const res = await invoke<{ lines: OcrLine[] }>('plugin:card-scanner|recognize', { image })
+  return res.lines
+}
+
 async function tick() {
   if (!running) return
   try {
@@ -383,7 +436,7 @@ async function tick() {
       debug.size = `${canvas.width}×${canvas.height}`
       debug.error = ''
       ocrError.value = ''
-      await processLines(res.lines)
+      await processLines(res.lines, readZones)
     }
   } catch (e) {
     debug.error = e instanceof Error ? e.message : String(e)
@@ -394,8 +447,14 @@ async function tick() {
 
 onMounted(async () => {
   if (import.meta.env.VITE_TEST_MODE === 'true') {
-    ;(window as unknown as { __scanFeed?: (l: OcrLine[]) => Promise<void> }).__scanFeed =
-      processLines
+    // lignes OCR simulées ; zoneLines : ce que la relecture de près des zones
+    // du jeu lirait (numéro de collection)
+    ;(
+      window as unknown as {
+        __scanFeed?: (l: OcrLine[], zoneLines?: OcrLine[]) => Promise<void>
+      }
+    ).__scanFeed = (l, zoneLines) =>
+      processLines(l, zoneLines ? async () => zoneLines : undefined)
   }
   if (!android) return
   if (await camera.start()) {

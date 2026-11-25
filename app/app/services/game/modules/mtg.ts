@@ -19,5 +19,7 @@ export const mtgModule: GameModule = {
   search: mtgSearchEngine,
   detail: getMtgDetail,
   scan: identifyMtg,
+  // bas gauche : « 0280 U » / « BLB • EN »
+  scanZones: [{ x: 0, y: 0.88, w: 0.6, h: 0.12 }],
   cardData: { localVersion: localMtgVersion, sync: syncMtg },
 }

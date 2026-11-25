@@ -20,5 +20,7 @@ export const riftboundModule: GameModule = {
   search: riftboundSearchEngine,
   detail: getRiftboundDetail,
   scan: identifyRiftbound,
+  // bas gauche : « SFD • 227/221 »
+  scanZones: [{ x: 0, y: 0.88, w: 0.6, h: 0.12 }],
   cardData: { localVersion: localRiftboundVersion, sync: (o) => syncRiftbound(o) },
 }
